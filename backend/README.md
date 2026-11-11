@@ -251,10 +251,27 @@ La aplicacion adopta una arquitectura multicapa desacoplada y sin estado (Statel
 
 ## Configuracion y Variables de Entorno
 
-El archivo base de desarrollo se encuentra en `src/main/resources/application-dev.properties`. Puedes parametrizar la conexion mediante las siguientes variables de entorno:
+La configuracion comun esta en `src/main/resources/application.properties` y **no contiene secretos**: si falta una variable obligatoria la aplicacion no arranca. Para desarrollo local copia `.env.example` como `.env` (excluido de Git) y activa el perfil `dev`:
 
-| Variable | Descripcion | Valor Predeterminado en Dev |
+```bash
+cp .env.example .env        # editar valores
+SPRING_PROFILES_ACTIVE=dev ./gradlew bootRun
+```
+
+| Variable | Descripcion | Obligatoria / valor por defecto |
 |---|---|---|
+| `DB_URL` | URL JDBC de PostgreSQL | Obligatoria |
+| `DB_USERNAME` | Usuario de base de datos | Obligatoria |
+| `DB_PASSWORD` | Contraseña de base de datos | Obligatoria |
+| `JWT_SECRET` | Clave HMAC256, minimo 32 caracteres (`openssl rand -hex 32`) | Obligatoria |
+| `JWT_ISSUER` | Emisor del token JWT | `campusdesk-api` |
+| `JWT_EXPIRATION` | Vida del token (`30m`, `8h`, `15d`) | `15d` |
+| `BOOTSTRAP_ADMIN_ENABLED` | Crear administrador inicial | `false` (`true` en perfil `dev`) |
+| `ADMIN_USERNAME` | Usuario del administrador inicial | `superadmin` |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Correo y clave del administrador inicial | Obligatorias si el bootstrap esta activo |
+| `SERVER_PORT` | Puerto HTTP | `8051` |
+
+---|---|---|
 | `DB_URL` | URL JDBC de conexion a PostgreSQL | `jdbc:postgresql://localhost:5432/sistema_gestion_usuarios` |
 | `DB_USERNAME` | Usuario de base de datos | `admin` |
 | `DB_PASSWORD` | Contraseña de base de datos | `admin123` |
@@ -315,9 +332,9 @@ export DB_PASSWORD="tu_password_de_postgres"
 ./gradlew bootRun
 ```
 
-La aplicacion quedara disponible en el puerto **8050**:
+La aplicacion quedara disponible en el puerto **8051**:
 ```text
-http://localhost:8050
+http://localhost:8051
 ```
 
 ### Generacion del Archivo JAR Ejecutable
@@ -372,14 +389,14 @@ backend/
 Una vez iniciado el servidor, puedes probar visualmente todas las rutas y metodos en:
 
 - **Swagger UI:**  
-  `http://localhost:8050/swagger-ui.html`
+  `http://localhost:8051/swagger-ui.html`
 
 - **Especificacion OpenAPI (JSON):**  
-  `http://localhost:8050/v3/api-docs`
+  `http://localhost:8051/v3/api-docs`
 
 ### Procedimiento para Autenticarse en Swagger UI
 
-1. Ingresa a `http://localhost:8050/swagger-ui.html`.
+1. Ingresa a `http://localhost:8051/swagger-ui.html`.
 2. Ejecuta `POST /api/auth/login` con:
    ```json
    {
