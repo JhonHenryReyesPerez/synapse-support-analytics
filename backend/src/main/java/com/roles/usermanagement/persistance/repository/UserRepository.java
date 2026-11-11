@@ -7,7 +7,7 @@ import com.roles.usermanagement.persistance.entity.*;
 import com.roles.usermanagement.persistance.mapper.UserMapper;
 import jakarta.persistence.EntityManager;
 import java.util.*;
-import java.util.regex.Pattern;
+import com.roles.usermanagement.domain.service.PasswordPolicy;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Repository;
@@ -16,7 +16,6 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Repository
 public class UserRepository implements IUserRepository {
-  private static final Pattern PASSWORD_PATTERN = Pattern.compile("^(?=.*[A-Z])(?=.*[^a-zA-Z0-9\\s]).{6,}$");
   private final UserCrudRepository users;
   private final UserRoleCrudRepository userRoles;
   private final RoleCrudRepository roles;
@@ -33,6 +32,9 @@ public class UserRepository implements IUserRepository {
   }
   private ResponseStatusException invalid(String message) {
     return new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
+  }
+  private void requireValidPassword(String password) {
+    PasswordPolicy.violation(password).ifPresent(message -> { throw invalid(message); });
   }
   private UserEntity account(String username) {
     if(username == null || username.isBlank()) throw invalid("El usuario es obligatorio");
@@ -91,8 +93,7 @@ public class UserRepository implements IUserRepository {
     if(dto.getEmail()==null || dto.getEmail().isBlank()) throw invalid("El correo es obligatorio");
     String cleanEmail = dto.getEmail().trim().toLowerCase();
     if(users.existsByEmail(cleanEmail)) throw new ResponseStatusException(HttpStatus.CONFLICT,"El correo electrónico ya se encuentra registrado");
-    if(dto.getPassword()==null || !PASSWORD_PATTERN.matcher(dto.getPassword()).matches())
-      throw invalid("La contraseña es obligatoria, debe tener al menos 6 caracteres, al menos una letra mayúscula y al menos un carácter especial");
+    requireValidPassword(dto.getPassword());
     String role=requestedRole(dto,true);
     UserEntity user=new UserEntity(); user.setUsername(cleanUsername); user.setEmail(cleanEmail);
     user.setPassword(encoder.encode(dto.getPassword())); user.setLocked(Boolean.TRUE.equals(dto.getLocked()));
@@ -116,7 +117,7 @@ public class UserRepository implements IUserRepository {
     if(dto.getLocked()!=null) user.setLocked(dto.getLocked());
     if(dto.getDisabled()!=null) user.setDisabled(dto.getDisabled());
     if(dto.getPassword()!=null) {
-      if(dto.getPassword().isBlank()) throw invalid("La contraseña no puede estar vacía");
+      requireValidPassword(dto.getPassword());
       user.setPassword(encoder.encode(dto.getPassword()));
     }
     setRole(user,role); setPermissions(user,dto.getAdditionalPermissions());
@@ -176,9 +177,7 @@ public class UserRepository implements IUserRepository {
     if (dto.getEmail() == null || dto.getEmail().isBlank()) {
       throw invalid("El correo electrónico es obligatorio");
     }
-    if (dto.getPassword() == null || !PASSWORD_PATTERN.matcher(dto.getPassword()).matches()) {
-      throw invalid("La contraseña es obligatoria, debe tener al menos 6 caracteres, al menos una letra mayúscula y al menos un carácter especial");
-    }
+    requireValidPassword(dto.getPassword());
     String cleanUsername = dto.getUsername().trim();
     String cleanEmail = dto.getEmail().trim().toLowerCase();
 
@@ -206,9 +205,7 @@ public class UserRepository implements IUserRepository {
 
   @Transactional // newly added method. verifies password characteristics
   public void changeUserPassword(String username, String currentPassword, String newPassword) {
-    if (newPassword == null || newPassword.isBlank() || newPassword.length() < 6) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La nueva contraseña debe tener al menos 6 caracteres");
-    }
+    requireValidPassword(newPassword);
     UserEntity user = account(username);
 
     if (!encoder.matches(currentPassword, user.getPassword())) {
@@ -225,9 +222,7 @@ public class UserRepository implements IUserRepository {
 
   @Transactional// newly added method, verifies that the supplied temporary password is not null, not empty, and has at least 6 characters.
   public void adminResetPassword(String username, String newTemporaryPassword) {
-    if (newTemporaryPassword == null || newTemporaryPassword.isBlank() || newTemporaryPassword.length() < 6) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La contraseña temporal debe tener al menos 6 caracteres");
-    }
+    requireValidPassword(newTemporaryPassword);
     UserEntity user = account(username);
     user.setPassword(encoder.encode(newTemporaryPassword));
     user.setMustChangePassword(true);

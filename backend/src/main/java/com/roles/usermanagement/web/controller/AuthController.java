@@ -5,6 +5,7 @@ import com.roles.usermanagement.domain.dto.LoginDto;
 import com.roles.usermanagement.domain.dto.LoginResponseDto;
 import com.roles.usermanagement.domain.dto.RegisterDto;
 import com.roles.usermanagement.domain.dto.UserPermissionsDto;
+import com.roles.usermanagement.domain.service.PasswordPolicy;
 import com.roles.usermanagement.domain.service.UserService;
 import com.roles.usermanagement.persistance.crud.UserCrudRepository;
 import com.roles.usermanagement.persistance.entity.UserEntity;
@@ -36,7 +37,6 @@ public class AuthController {
     private final UserCrudRepository userCrudRepository;
     private final UserService userService;
 
-    private static final Pattern PASSWORD_PATTERN = Pattern.compile("^(?=.*[A-Z])(?=.*[^a-zA-Z0-9\\s]).{6,}$");
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
 
     public AuthController(AuthenticationManager authenticationManager, 
@@ -65,10 +65,9 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("error", "El correo electrónico debe tener un formato válido"));
         }
 
-        if (!PASSWORD_PATTERN.matcher(registerDto.getPassword()).matches()) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "error", "La contraseña debe tener al menos 6 caracteres, al menos una letra mayúscula y al menos un carácter especial"
-            ));
+        var passwordViolation = PasswordPolicy.violation(registerDto.getPassword());
+        if (passwordViolation.isPresent()) {
+            return ResponseEntity.badRequest().body(Map.of("error", passwordViolation.get()));
         }
 
         var created = userService.register(registerDto);
@@ -87,12 +86,7 @@ public class AuthController {
         if (identifier == null || loginDto.getPassword() == null || loginDto.getPassword().isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "Usuario/correo y contraseña son obligatorios"));
         }
-
-        if (!PASSWORD_PATTERN.matcher(loginDto.getPassword()).matches()) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "error", "La contraseña debe tener al menos 6 caracteres, al menos una letra mayúscula y al menos un carácter especial"
-            ));
-        }
+        // B02: el login solo autentica; la política se aplica al ESTABLECER contraseñas.
         try {
             var authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(identifier, loginDto.getPassword()));

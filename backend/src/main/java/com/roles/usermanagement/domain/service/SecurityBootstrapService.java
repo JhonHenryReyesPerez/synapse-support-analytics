@@ -105,6 +105,9 @@ public class SecurityBootstrapService {
         if (password.isBlank()) {
             throw new IllegalStateException("Configura ADMIN_PASSWORD para crear el administrador inicial.");
         }
+        PasswordPolicy.violation(password).ifPresent(message -> {
+            throw new IllegalStateException("ADMIN_PASSWORD no cumple la política: " + message);
+        });
         UserEntity admin = new UserEntity();
         admin.setUsername(username);
         admin.setEmail(email.trim().toLowerCase());
