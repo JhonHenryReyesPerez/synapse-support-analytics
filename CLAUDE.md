@@ -530,3 +530,66 @@ Esta guía ofrece valores por defecto para trabajar sin ambigüedad, pero estos 
 10. Introducción de migraciones y eventual ID técnico del usuario con preservación de contratos.
 
 Antes de cambiar cualquiera, explicar impacto en entidades, endpoints, pruebas y consumidores. No presentar supuestos como decisiones confirmadas por el equipo.
+
+## 21. Estado de implementación (actualizado el 12 de noviembre de 2026)
+
+Registro de lo realizado en la rama `dev/JhonReyes`. Las secciones anteriores siguen siendo la especificación; esta sección indica qué parte ya existe en el código. Actualizarla al cerrar cada incremento. La revisión humana de todo lo listado está pendiente (ver `AI_USAGE.md`).
+
+### 21.1 Listo y verificado
+
+Verificado con `./gradlew test` en H2 y con `backend/scripts/test-postgres.sh` en PostgreSQL 17 (migraciones reales de Flyway y Hibernate en modo `validate`), salvo donde se indica.
+
+| ID / etapa | Qué quedó implementado | Prueba principal |
+|---|---|---|
+| B01 | Secretos obligatorios por entorno, perfiles separados, `.env.example` | `JwtPropertiesBindingTests` |
+| B02 | `PasswordPolicy` única al establecer claves; el login solo autentica | `PasswordPolicyTests`, `PasswordChangeFlowTests` |
+| B03 | Cuenta con cambio de clave pendiente: solo `login`, `change-password` y `me`; el resto responde 403 `PASSWORD_CHANGE_REQUIRED` | `PasswordChangeRequiredTests` |
+| B04 | Token de 30 min; claim `cv` comparado con `credential_version`; el cambio o restablecimiento invalida tokens previos; `change-password` devuelve token nuevo; clave temporal aleatoria | `TokenInvalidationTests` |
+| B05 | `TicketAssignmentService` es el único caso de uso de asignación; `/transitions` y `/status` delegan en él; listado de técnicos derivado del rol con carga calculada desde tickets | `TicketAssignmentTests` (incluye concurrencia) |
+| Migraciones | Flyway: `V1` línea base … `V6`; `ddl-auto=validate`; `baseline-on-migrate` para bases ya existentes | Suite completa en PostgreSQL |
+| B06 | `modules/category` (entidad, CRUD de ADMIN, activar/desactivar); `Ticket.category` ManyToOne; prioridad canónica BAJA/MEDIA/ALTA/CRITICA; alias anteriores solo como entrada | `CategoryTests` |
+| B07 | `fullName` y `area` opcionales en el usuario; `username` sigue siendo la clave primaria (sin ID técnico) | `UserAccountPolicyTests` |
+| B08 | `resolvedAt`, `closedAt`, `resolutionNote`; RESOLVE exige nota; fechas previas derivadas del historial; límites de título (150) y descripción (10.000) tras trim | `TicketResolutionTests` |
+| B09 | `GET /api/analytics/summary`: los siete indicadores, filtros de fecha/categoría/prioridad, alcance por rol, serie con ceros, exclusiones reportadas | `AnalyticsTests`; SQL en `docs/backend/ANALITICA_SQL.md` |
+| B10 | Reglas de cuentas trasladadas a `UserService` y `UserAccountPolicy`; `UserRepository` conserva validación de datos y persistencia (traslado parcial) | `UserAccountPolicyTests` |
+| B11 | `GET /api/tickets` paginado (20 por defecto, máximo 100, orden `createdAt, id`) | `TicketPaginationTests` |
+| B12 y §5 | Política efectiva: el rol delimita y el permiso individual solo habilita dentro de ese límite; último administrador activo protegido; técnico con tickets activos no cambia de rol; baja lógica de usuarios; catálogo de roles/permisos solo ADMIN | `UserAccountPolicyTests` |
+| Errores | 401 sin autenticación válida, 403 sin permiso, 400 para parámetros inválidos, 500 controlado; respuestas JSON uniformes | Suite completa |
+| Etapa 3 (RF02) | `modules/knowledge`: borrador → verificado → activo; solo `active AND verified` es elegible; un cambio de contenido incrementa versión, revoca verificación y desactiva; sin borrado | `KnowledgeArticleTests` |
+
+### 21.2 En curso, sin terminar
+
+**Etapa 4 (RF03, indexación).** Código presente pero no cerrado:
+
+- `integration/n8n`: `N8nClient`, `HttpN8nClient` (URL fija, secreto en cabecera, tiempos límite, tope de respuesta), DTO de contrato v1 de indexación y de asistencia, `IntegrationTokenFilter`.
+- `KnowledgeIndexService`: sincronización fuera de transacción, estados `NOT_INDEXED`/`PENDING`/`INDEXED`/`ERROR`, reindexar y reconciliar.
+- `KnowledgeIntegrationController`: `/api/integration/knowledge/eligibility` y `/eligible` para n8n, con `X-Integration-Token`.
+- Pruebas con `FakeN8nClient`: última ejecución en H2 con 77 pruebas y **1 fallo**, `KnowledgeIndexTests.articleChangedDuringIndexingIsNotMarkedAsIndexed` (artículo desactivado mientras n8n indexa). Causa sin diagnosticar. Esta etapa no se ha ejecutado contra PostgreSQL ni contra un n8n real.
+
+### 21.3 Pendiente
+
+- Etapa 5 (RF04, RF05): `modules/assistance` — ConsultaIA, RespuestaIA, FuenteRespuesta, validación de la respuesta de n8n, reintento único por fuentes obsoletas, recuperación de PENDING abandonadas. Solo existen los DTO del contrato.
+- Etapa 6 (RF08): historial de asistencias y calificaciones.
+- Etapa 8: datos iniciales (150 incidentes, 25 artículos, 10 usuarios), README actualizado, documento de pruebas, informe de análisis, diagramas, evidencias de Swagger.
+- Las diez pruebas obligatorias del §17.1: cubiertas la 4 y la 5 (analítica); la 7 solo en la parte de validación de creación de tickets; el resto depende de las etapas 5 y 6.
+- No verificado: migraciones sobre una copia de la base de desarrollo existente (solo sobre base vacía); control de intentos de login (endurecimiento propuesto, no implementado).
+
+### 21.4 Decisiones tomadas durante la implementación
+
+Añadidas a las del §20; requieren ratificación del equipo.
+
+1. **Fechas:** se conservan como hora local sin zona en `America/Bogota` (`APP_TIME_ZONE`, fijada al arrancar) en lugar de migrar a UTC, porque los registros existentes ya están en esa hora. Difiere de la propuesta del §13.1.
+2. **Categorías:** nombres de catálogo en español (REDES/NETWORK → Conectividad); el valor original queda en `tickets.category_legacy` como respaldo.
+3. **Usuarios:** nombre y área opcionales para no inventar datos de cuentas previas; `DELETE /api/user/delete/{name}` deshabilita la cuenta en todos los casos.
+4. **Asignación:** conflicto de estado responde 409 y técnico inválido 400; el rol, no el perfil técnico, decide quién es asignable; `active_tickets_count` deja de usarse.
+5. **Índice vectorial:** cuatro estados de sincronización en lugar de los tres propuestos; indexación por envío desde Spring Boot a n8n con un intento automático y reintentos explícitos.
+6. **Secretos de integración separados:** `N8N_SERVICE_TOKEN` (Spring Boot → n8n) e `INTEGRATION_API_TOKEN` (n8n → Spring Boot).
+
+### 21.5 Cambios de contrato para el frontend y n8n
+
+- `GET /api/tickets` devuelve `{content, page, size, totalElements, totalPages}`.
+- En tickets, `category` es el nombre y `categoryId` el identificador; la creación acepta `categoryId` o `category`.
+- Resolver exige `resolutionNote`; reasignar por `/transitions` exige `justification`.
+- Sin token: 401. Cambio de clave pendiente: 403 con `code=PASSWORD_CHANGE_REQUIRED`.
+- `POST /api/auth/change-password` devuelve un `token` nuevo; el anterior deja de servir.
+- Compose, Qdrant y workflows de n8n pertenecen a otro integrante (rama `dev/Json`); el backend solo define el contrato.
