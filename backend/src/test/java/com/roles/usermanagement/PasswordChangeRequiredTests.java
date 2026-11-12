@@ -57,11 +57,13 @@ class PasswordChangeRequiredTests {
         String token = tokenOfUserWithPendingChange();
         assertThat(request("GET", "/api/tickets", null, token).statusCode()).isEqualTo(403);
 
-        assertThat(request("POST", "/api/auth/change-password",
-                String.format("{\"currentPassword\":\"%s\",\"newPassword\":\"Definitiva#1\"}", TEMPORARY), token)
-                .statusCode()).isEqualTo(200);
+        HttpResponse<String> change = request("POST", "/api/auth/change-password",
+                String.format("{\"currentPassword\":\"%s\",\"newPassword\":\"Definitiva#1\"}", TEMPORARY), token);
+        assertThat(change.statusCode()).isEqualTo(200);
 
-        assertThat(request("GET", "/api/tickets", null, token).statusCode()).isEqualTo(200);
+        // B04: el cambio invalida el token anterior y devuelve uno nuevo.
+        String renewed = mapper.readTree(change.body()).get("token").asText();
+        assertThat(request("GET", "/api/tickets", null, renewed).statusCode()).isEqualTo(200);
     }
 
     @Test

@@ -93,11 +93,10 @@ public class AuthController {
             var authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(identifier, loginDto.getPassword()));
 
-            String token = jwtUtil.create(authentication.getName());
-
-            // Check if user must change password
-            UserEntity user = userCrudRepository.findById(authentication.getName()).orElse(null);
-            boolean mustChange = user != null && Boolean.TRUE.equals(user.getMustChangePassword());
+            UserEntity user = userCrudRepository.findById(authentication.getName())
+                    .orElseThrow(() -> new org.springframework.security.authentication.BadCredentialsException("Cuenta no disponible"));
+            String token = jwtUtil.create(user.getUsername(), credentialVersion(user));
+            boolean mustChange = Boolean.TRUE.equals(user.getMustChangePassword());
 
             return ResponseEntity.ok(new LoginResponseDto(token, authentication.getName(), mustChange));
         } catch (AuthenticationException exception) {
@@ -109,14 +108,23 @@ public class AuthController {
     @PostMapping("/change-password")
     @PreAuthorize("isAuthenticated()")
     @SecurityRequirement(name = "bearerAuth")
-    @Operation(summary = "Cambiar contraseña (primer ingreso o voluntario)")
+    @Operation(summary = "Cambiar contraseña (primer ingreso o voluntario)",
+            description = "Invalida todos los tokens emitidos antes del cambio y devuelve un token nuevo en el campo token")
     public ResponseEntity<?> changePassword(@RequestBody ChangePasswordDto dto, Principal principal) {
         if (dto.getCurrentPassword() == null || dto.getCurrentPassword().isBlank()
                 || dto.getNewPassword() == null || dto.getNewPassword().isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "Contraseña actual y nueva son obligatorias"));
         }
         userService.changePassword(principal.getName(), dto.getCurrentPassword(), dto.getNewPassword());
-        return ResponseEntity.ok(Map.of("message", "Contraseña actualizada exitosamente. Ya puedes utilizar la aplicación."));
+        // B04: el cambio invalida todos los tokens anteriores; se entrega uno nuevo para continuar la sesión.
+        UserEntity user = userCrudRepository.findById(principal.getName()).orElseThrow();
+        return ResponseEntity.ok(Map.of(
+                "message", "Contraseña actualizada exitosamente. Ya puedes utilizar la aplicación.",
+                "token", jwtUtil.create(user.getUsername(), credentialVersion(user))));
+    }
+
+    private static int credentialVersion(UserEntity user) {
+        return user.getCredentialVersion() == null ? 0 : user.getCredentialVersion();
     }
 
     @GetMapping("/me")

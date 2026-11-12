@@ -36,6 +36,10 @@ public class UserRepository implements IUserRepository {
   private void requireValidPassword(String password) {
     PasswordPolicy.violation(password).ifPresent(message -> { throw invalid(message); });
   }
+  /** B04: la cuenta llega bloqueada para escritura (account), así el incremento es atómico. */
+  private void invalidateTokens(UserEntity user) {
+    user.setCredentialVersion((user.getCredentialVersion() == null ? 0 : user.getCredentialVersion()) + 1);
+  }
   private UserEntity account(String username) {
     if(username == null || username.isBlank()) throw invalid("El usuario es obligatorio");
     return users.findForUpdate(username).orElseThrow(() ->
@@ -119,6 +123,7 @@ public class UserRepository implements IUserRepository {
     if(dto.getPassword()!=null) {
       requireValidPassword(dto.getPassword());
       user.setPassword(encoder.encode(dto.getPassword()));
+      invalidateTokens(user);
     }
     setRole(user,role); setPermissions(user,dto.getAdditionalPermissions());
     em.flush(); return mapper.toUserDto(user);
@@ -217,6 +222,7 @@ public class UserRepository implements IUserRepository {
 
     user.setPassword(encoder.encode(newPassword));
     user.setMustChangePassword(false);
+    invalidateTokens(user);
     users.save(user);
   }
 
@@ -227,6 +233,7 @@ public class UserRepository implements IUserRepository {
     user.setPassword(encoder.encode(newTemporaryPassword));
     user.setMustChangePassword(true);
     user.setLocked(false);
+    invalidateTokens(user);
     users.save(user);
   }
 }

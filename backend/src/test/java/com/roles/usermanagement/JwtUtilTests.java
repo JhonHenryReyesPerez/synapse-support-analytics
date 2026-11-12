@@ -14,10 +14,11 @@ class JwtUtilTests {
     private final JwtUtil jwt=new JwtUtil(settings);
 
     @Test void usesConfiguredIssuerSecretAndExpiration() {
-        String token=jwt.create("ana");
+        String token=jwt.create("ana", 3);
         var decoded=JWT.require(Algorithm.HMAC256(settings.secret())).withIssuer(settings.issuer()).build().verify(token);
         assertThat(decoded.getExpiresAtAsInstant().getEpochSecond()-decoded.getIssuedAtAsInstant().getEpochSecond()).isEqualTo(420);
         assertThat(jwt.getUsername(token)).isEqualTo("ana");
+        assertThat(jwt.getCredentialVersion(token)).isEqualTo(3);
         assertThat(jwt.isValid(token)).isTrue();
         assertThat(new JwtUtil(new JwtProperties("different-key","configured-issuer",Duration.ofMinutes(7))).isValid(token)).isFalse();
     }

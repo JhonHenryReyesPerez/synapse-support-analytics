@@ -56,6 +56,7 @@ public class JwtFilter extends OncePerRequestFilter {
      UserDetails user = users.loadUserByUsername(jwt.getUsername(token));
 
      if (user.isEnabled()
+             && hasCurrentCredentials(user, jwt.getCredentialVersion(token))
              && user.isAccountNonLocked()
              && user.isAccountNonExpired()
              && user.isCredentialsNonExpired()) {
@@ -80,6 +81,13 @@ public class JwtFilter extends OncePerRequestFilter {
   }
 
   chain.doFilter(request, response);
+ }
+
+ /** B04: el token solo sirve si se emitió con la versión de credenciales vigente de la cuenta. */
+ private static boolean hasCurrentCredentials(UserDetails user, Integer tokenVersion) {
+  return user instanceof AccountUserDetails account
+          && tokenVersion != null
+          && tokenVersion == account.getCredentialVersion();
  }
 
  private static String pathOf(HttpServletRequest request) {

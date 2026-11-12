@@ -72,14 +72,15 @@ public class UserController {
     @PostMapping("/{username}/reset-password")
     @PreAuthorize("hasAuthority('USER_UPDATE') or hasRole('ADMIN')")
     @Operation(summary = "Super Admin restablece la contraseña de un usuario", 
-               description = "Asigna una nueva clave temporal y obliga al usuario a cambiarla en su siguiente login")
+               description = "Asigna la clave temporal indicada o, si se omite, una aleatoria. Obliga a cambiarla en el siguiente login e invalida los tokens anteriores del usuario")
     public ResponseEntity<?> resetUserPassword(
             @PathVariable String username,
             @RequestBody(required = false) Map<String, String> body) {
         
         String tempPass = (body != null) ? body.get("temporaryPassword") : null;
         if (tempPass == null || tempPass.isBlank()) {
-            tempPass = "Temporal123!"; // Default value if admin does not specify one
+            // Sin clave indicada se genera una aleatoria; no existe contraseña temporal fija.
+            tempPass = com.roles.usermanagement.domain.service.TemporaryPasswordGenerator.generate();
         }
 
         users.adminResetPassword(username, tempPass);

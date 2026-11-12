@@ -265,7 +265,7 @@ SPRING_PROFILES_ACTIVE=dev ./gradlew bootRun
 | `DB_PASSWORD` | Contraseña de base de datos | Obligatoria |
 | `JWT_SECRET` | Clave HMAC256, minimo 32 caracteres (`openssl rand -hex 32`) | Obligatoria |
 | `JWT_ISSUER` | Emisor del token JWT | `campusdesk-api` |
-| `JWT_EXPIRATION` | Vida del token (`30m`, `8h`, `15d`) | `15d` |
+| `JWT_EXPIRATION` | Vida del token (`30m`, `8h`) | `30m` |
 | `BOOTSTRAP_ADMIN_ENABLED` | Crear administrador inicial | `false` (`true` en perfil `dev`) |
 | `ADMIN_USERNAME` | Usuario del administrador inicial | `superadmin` |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Correo y clave del administrador inicial | Obligatorias si el bootstrap esta activo |
@@ -277,7 +277,7 @@ SPRING_PROFILES_ACTIVE=dev ./gradlew bootRun
 | `DB_PASSWORD` | Contraseña de base de datos | `admin123` |
 | `JWT_SECRET` | Clave secreta para firma HMAC256 | `User_M4n4gement` |
 | `JWT_ISSUER` | Emisor registrado del token JWT | `User_R0les_M4n4gement` |
-| `JWT_EXPIRATION` | Tiempo de vida del token (`30m`, `8h`, `15d`) | `15d` |
+| `JWT_EXPIRATION` | Tiempo de vida del token (`30m`, `8h`) | `30m` |
 | `ADMIN_USERNAME` | Usuario administrador del bootstrap | `superadmin` |
 | `ADMIN_EMAIL` | Correo del administrador del bootstrap | `superadmin@localhost` |
 | `ADMIN_PASSWORD` | Contraseña inicial del administrador | `SuperAdmin123!` |

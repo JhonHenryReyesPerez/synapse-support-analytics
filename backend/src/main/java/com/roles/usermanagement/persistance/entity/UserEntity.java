@@ -33,6 +33,11 @@ public class UserEntity {
   @Column(name = "must_change_password", nullable = false)
   private Boolean mustChangePassword = true; // attribute added to class to enable password
                                              // change.
+  /** B04: se incrementa al cambiar o restablecer la contraseña; invalida los tokens anteriores. */
+  @Column(name = "credential_version", nullable = false)
+  @org.hibernate.annotations.ColumnDefault("0")
+  private Integer credentialVersion = 0;
+
   @Column(nullable = false, length = 200, unique = true)
   private String email;
 

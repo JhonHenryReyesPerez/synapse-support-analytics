@@ -42,6 +42,7 @@ public class UserSecurityService implements UserDetailsService {
         }
         return new AccountUserDetails(user.getUsername(), user.getPassword(),
                 !Boolean.TRUE.equals(user.getDisabled()), !Boolean.TRUE.equals(user.getLocked()),
-                authorities, Boolean.TRUE.equals(user.getMustChangePassword()));
+                authorities, Boolean.TRUE.equals(user.getMustChangePassword()),
+                user.getCredentialVersion() == null ? 0 : user.getCredentialVersion());
     }
 }

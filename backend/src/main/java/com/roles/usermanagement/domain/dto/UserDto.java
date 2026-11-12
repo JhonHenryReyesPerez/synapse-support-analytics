@@ -15,6 +15,9 @@ public class UserDto {
   private Boolean mustChangePassword; // transports data between client and backend
   @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
   private String password;
+  /** Uso interno (emisión/validación de tokens); no forma parte del contrato público. */
+  @com.fasterxml.jackson.annotation.JsonIgnore
+  private Integer credentialVersion;
   @Schema(description = "Rol único del usuario. CUSTOMER por defecto al crear.", example = "CUSTOMER")
   private String role;
   @Schema(description = "Formato anterior compatible: como máximo un rol.", deprecated = true)
