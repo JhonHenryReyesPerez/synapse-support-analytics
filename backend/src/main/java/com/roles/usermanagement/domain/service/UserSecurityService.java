@@ -7,7 +7,6 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -41,8 +40,8 @@ public class UserSecurityService implements UserDetailsService {
         if (user.getAdditionalPermissions() != null) {
             user.getAdditionalPermissions().forEach(permission -> authorities.add(new SimpleGrantedAuthority(permission)));
         }
-        return User.builder().username(user.getUsername()).password(user.getPassword())
-                .authorities(authorities).accountLocked(Boolean.TRUE.equals(user.getLocked()))
-                .disabled(Boolean.TRUE.equals(user.getDisabled())).build();
+        return new AccountUserDetails(user.getUsername(), user.getPassword(),
+                !Boolean.TRUE.equals(user.getDisabled()), !Boolean.TRUE.equals(user.getLocked()),
+                authorities, Boolean.TRUE.equals(user.getMustChangePassword()));
     }
 }

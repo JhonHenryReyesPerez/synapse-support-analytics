@@ -4,7 +4,11 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import com.roles.usermanagement.domain.service.AccountUserDetails;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Set;
+import org.springframework.http.MediaType;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -17,6 +21,16 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 @Component
 public class JwtFilter extends OncePerRequestFilter {
+
+ /** Código estable para que el cliente reconozca el bloqueo por cambio de contraseña pendiente. */
+ public static final String PASSWORD_CHANGE_REQUIRED = "PASSWORD_CHANGE_REQUIRED";
+
+ /** B03: únicas rutas disponibles para una cuenta con cambio de contraseña pendiente. */
+ private static final Set<String> ALLOWED_WHILE_PASSWORD_CHANGE_PENDING = Set.of(
+         "/api/auth/login",
+         "/api/auth/change-password",
+         "/api/auth/me"
+ );
 
  private final JwtUtil jwt;
  private final UserDetailsService users;
@@ -45,6 +59,12 @@ public class JwtFilter extends OncePerRequestFilter {
              && user.isAccountNonLocked()
              && user.isAccountNonExpired()
              && user.isCredentialsNonExpired()) {
+      if (user instanceof AccountUserDetails account
+              && account.isMustChangePassword()
+              && !ALLOWED_WHILE_PASSWORD_CHANGE_PENDING.contains(pathOf(request))) {
+       rejectPasswordChangePending(response);
+       return;
+      }
       var authentication = new UsernamePasswordAuthenticationToken(
               user.getUsername(),
               null,
@@ -60,5 +80,19 @@ public class JwtFilter extends OncePerRequestFilter {
   }
 
   chain.doFilter(request, response);
+ }
+
+ private static String pathOf(HttpServletRequest request) {
+  return request.getRequestURI().substring(request.getContextPath().length());
+ }
+
+ private static void rejectPasswordChangePending(HttpServletResponse response) throws IOException {
+  SecurityContextHolder.clearContext();
+  response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+  response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+  response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+  response.getWriter().write("{\"status\":403,\"code\":\"" + PASSWORD_CHANGE_REQUIRED + "\","
+          + "\"error\":\"Debes cambiar tu contraseña antes de continuar\","
+          + "\"message\":\"Debes cambiar tu contraseña antes de continuar\"}");
  }
 }

@@ -49,6 +49,8 @@ class UsermanagementApplicationTests {
         return client.send(builder.build(), HttpResponse.BodyHandlers.ofString());
     }
 
+    private static final String TECH_PASSWORD = "Tecnico#2026";
+
     private String login(String identifier, String password) throws Exception {
         String body = String.format("{\"username\":\"%s\",\"password\":\"%s\"}", identifier, password);
         HttpResponse<String> response = request("POST", "/api/auth/login", body, null);
@@ -173,6 +175,12 @@ class UsermanagementApplicationTests {
                 """;
         request("POST", "/api/user/add", createTechBody, adminToken);
 
+        // B03: la cuenta creada por el administrador debe cambiar su clave temporal antes de operar.
+        String techTemporaryToken = login("tecnico_soporte", "Password123!");
+        HttpResponse<String> techPasswordChange = request("POST", "/api/auth/change-password",
+                "{\"currentPassword\": \"Password123!\", \"newPassword\": \"" + TECH_PASSWORD + "\"}", techTemporaryToken);
+        assertThat(techPasswordChange.statusCode()).isEqualTo(200);
+
         // CP-08: Standard user attempts to assign technician -> 403
         String userToken = login("usuario_test1", "Password123!");
         String assignBody = "{\"technicianUsername\": \"tecnico_soporte\"}";
@@ -190,7 +198,7 @@ class UsermanagementApplicationTests {
     @Test
     @Order(10)
     void cp09_rejectsModificationOfTicketByTechnician() throws Exception {
-        String techToken = login("tecnico_soporte", "Password123!");
+        String techToken = login("tecnico_soporte", TECH_PASSWORD);
         String updateBody = """
                 {
                   "title": "Intento de modificación no autorizada",
@@ -206,7 +214,7 @@ class UsermanagementApplicationTests {
     @Test
     @Order(11)
     void cp10_rejectsResolvingTicketWithoutInProgress() throws Exception {
-        String techToken = login("tecnico_soporte", "Password123!");
+        String techToken = login("tecnico_soporte", TECH_PASSWORD);
 
         // Attempt transition directly from ASSIGNED to RESOLVED (skipping IN_PROGRESS) -> 409
         String body = "{\"action\": \"RESOLVE\"}";
@@ -217,7 +225,7 @@ class UsermanagementApplicationTests {
     @Test
     @Order(12)
     void cp11_and_cp12_transitionsThroughLifecycleAndClosesTicket() throws Exception {
-        String techToken = login("tecnico_soporte", "Password123!");
+        String techToken = login("tecnico_soporte", TECH_PASSWORD);
         String userToken = login("usuario_test1", "Password123!");
 
         // 1. Start progress (ASSIGNED -> IN_PROGRESS)

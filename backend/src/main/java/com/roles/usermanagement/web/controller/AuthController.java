@@ -80,7 +80,9 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    @Operation(summary = "Obtener token JWT", description = "Valida credenciales por usuario o correo y devuelve token junto a mustChangePassword")
+    @Operation(summary = "Obtener token JWT", description = "Valida credenciales por usuario o correo y devuelve token junto a mustChangePassword. "
+            + "Si mustChangePassword es true, el token solo permite /api/auth/change-password y /api/auth/me; "
+            + "el resto de la API responde 403 con code PASSWORD_CHANGE_REQUIRED hasta cambiar la contraseña")
     public ResponseEntity<?> login(@RequestBody LoginDto loginDto) {
         String identifier = loginDto.getIdentifier();
         if (identifier == null || loginDto.getPassword() == null || loginDto.getPassword().isBlank()) {
