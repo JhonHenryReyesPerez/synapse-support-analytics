@@ -29,6 +29,9 @@ import java.util.List;
 @Service
 public class TicketService {
 
+    public static final int MAX_TITLE = 150;
+    public static final int MAX_DESCRIPTION = 10_000;
+
     // Dependencies: final = immutable after instantiation
     private final TicketRepository ticketRepository;   // talks to tickets table
     private final UserCrudRepository userRepository;   // talks to users table
@@ -68,8 +71,8 @@ public class TicketService {
 
         // Build ticket field by field (Lombok Builder pattern)
         Ticket ticket = Ticket.builder()
-                .title(request.title().trim())               // trim() quita espacios sobrantes
-                .description(request.description().trim())
+                .title(cleanTitle(request.title()))
+                .description(cleanDescription(request.description()))
                 .category(category)
                 .priority(request.priority())
                 .status(TicketStatus.OPEN)                   // initial status set by server
@@ -88,6 +91,24 @@ public class TicketService {
                 StatusHistoryAction.CREATION);  // change type
 
         return mapper.toResponse(savedTicket);
+    }
+
+    /** §6.1: los límites se aplican tras quitar espacios; el DTO solo descarta entradas vacías o desmedidas. */
+    private static String cleanTitle(String title) {
+        String clean = title.trim();
+        if (clean.length() > MAX_TITLE) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El título no puede superar " + MAX_TITLE + " caracteres");
+        }
+        return clean;
+    }
+
+    private static String cleanDescription(String description) {
+        String clean = description.trim();
+        if (clean.length() > MAX_DESCRIPTION) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "La descripción no puede superar " + MAX_DESCRIPTION + " caracteres");
+        }
+        return clean;
     }
 
     // ---------- GET BY ID ----------
@@ -169,8 +190,8 @@ public class TicketService {
         }
 
         // Copy new request data to entity (trimming excess whitespace)
-        ticket.setTitle(request.title().trim());
-        ticket.setDescription(request.description().trim());
+        ticket.setTitle(cleanTitle(request.title()));
+        ticket.setDescription(cleanDescription(request.description()));
         ticket.setCategory(categoryService.requireActive(request.categoryId(), request.category()));
         ticket.setPriority(request.priority());
 

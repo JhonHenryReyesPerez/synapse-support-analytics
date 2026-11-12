@@ -47,6 +47,8 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	// Misma zona de negocio que fija la aplicación al arrancar.
+	systemProperty 'user.timezone', 'America/Bogota'
 }
 
 idea {

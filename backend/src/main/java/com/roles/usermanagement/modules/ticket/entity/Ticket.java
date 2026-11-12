@@ -62,8 +62,21 @@ public class Ticket {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    /** Auditoría de edición; NO es la fecha de resolución. */
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    /** Instante de la transición a RESOLVED (B08). Null si aún no se resuelve o si es un dato previo incompleto. */
+    @Column(name = "resolved_at")
+    private LocalDateTime resolvedAt;
+
+    /** Instante de la confirmación de cierre; no reemplaza a resolvedAt. */
+    @Column(name = "closed_at")
+    private LocalDateTime closedAt;
+
+    /** Nota de solución registrada por el técnico al resolver. */
+    @Column(name = "resolution_note", columnDefinition = "TEXT")
+    private String resolutionNote;
 
     @PrePersist
     protected void onCreate() {

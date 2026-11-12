@@ -14,7 +14,8 @@ public class TicketMapper {
                 t.getApplicant().getUsername(),
                 // If ticket has no assigned technician yet, returns null instead of failing
                 t.getTechnician() == null ? null : t.getTechnician().getUsername(),
-                t.getCreatedAt(), t.getUpdatedAt()
+                t.getCreatedAt(), t.getUpdatedAt(),
+                t.getResolvedAt(), t.getClosedAt(), t.getResolutionNote()
         );
 
     }

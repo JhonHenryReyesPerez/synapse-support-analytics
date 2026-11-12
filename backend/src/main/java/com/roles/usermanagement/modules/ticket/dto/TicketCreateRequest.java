@@ -9,12 +9,12 @@ import jakarta.validation.constraints.Size;
 
 public record TicketCreateRequest(
 
-        @NotBlank(message = "the title is obligatory")
-        @Size(min = 5, max = 150, message = "The title must be between 5 and 150 characters long.")
+        @NotBlank(message = "El título es obligatorio")
+        @Size(max = 300, message = "El título no puede superar 150 caracteres")
         String title,
 
-        @NotBlank(message = "The description is mandatory.")
-        @Size(min = 10, max = 2000, message = "The description must be between 10 and 2,000 characters long")
+        @NotBlank(message = "La descripción es obligatoria")
+        @Size(max = 20000, message = "La descripción no puede superar 10.000 caracteres")
         String description,
 
         @Schema(description = "Id de una categoría activa (GET /api/categories). Tiene precedencia sobre category.")
@@ -22,7 +22,7 @@ public record TicketCreateRequest(
         @Schema(description = "Alternativa a categoryId: nombre de la categoría o valor del enum anterior (HARDWARE, REDES, NETWORK...)")
         String category,
 
-        @NotNull(message = "The priority is mandatory.")
+        @NotNull(message = "La prioridad es obligatoria")
         TicketPriority priority
 ) {
 }

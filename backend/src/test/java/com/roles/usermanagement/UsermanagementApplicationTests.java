@@ -237,7 +237,7 @@ class UsermanagementApplicationTests {
         assertThat(startProgress.statusCode()).isEqualTo(200);
 
         // 2. Mark as resolved (IN_PROGRESS -> RESOLVED)
-        HttpResponse<String> resolve = request("PATCH", "/api/tickets/" + ticketId + "/status", "{\"status\": \"RESOLVED\"}", techToken);
+        HttpResponse<String> resolve = request("PATCH", "/api/tickets/" + ticketId + "/status", "{\"status\": \"RESOLVED\", \"resolutionNote\": \"Se reemplazó el cable de red\"}", techToken);
         assertThat(resolve.statusCode()).isEqualTo(200);
 
         // 3. Requester confirms closure (RESOLVED -> CLOSED)

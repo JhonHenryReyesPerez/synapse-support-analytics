@@ -12,7 +12,9 @@ public record StateTransitionRequest(
         String technicianUsername,
         String status,
         /** Obligatoria para REASSIGN. */
-        String justification
+        String justification,
+        /** Nota de solución; obligatoria para RESOLVE. */
+        String resolutionNote
 ) {
     public StateTransitionRequest {
         if (action == null && status != null && !status.isBlank()) {

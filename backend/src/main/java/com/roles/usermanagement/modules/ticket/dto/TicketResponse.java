@@ -15,6 +15,9 @@ public record TicketResponse(
         String applicantUsername,
         String technicianUsername,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        LocalDateTime resolvedAt,
+        LocalDateTime closedAt,
+        String resolutionNote
 ) {
 }

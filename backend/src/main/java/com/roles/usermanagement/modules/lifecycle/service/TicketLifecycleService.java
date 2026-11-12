@@ -16,6 +16,7 @@ import com.roles.usermanagement.modules.ticket.repository.TicketRepository;
 import com.roles.usermanagement.modules.ticket.service.TicketAccessPolicy;
 import com.roles.usermanagement.persistance.crud.UserCrudRepository;
 import com.roles.usermanagement.persistance.entity.UserEntity;
+import java.time.LocalDateTime;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class TicketLifecycleService {
+
+    public static final int MAX_RESOLUTION_NOTE = 5000;
 
     private final TicketRepository ticketRepository;
     private final LifecycleRuleRepository ruleRepository;
@@ -85,6 +88,23 @@ public class TicketLifecycleService {
         // 5. Change status and record history (same transaction)
         UserEntity actor = userRepository.findById(auth.getName())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        // B08: resolver exige nota de solución y fija resolvedAt; cerrar fija closedAt sin tocar resolvedAt.
+        LocalDateTime now = LocalDateTime.now();
+        if (request.action() == TransitionAction.RESOLVE) {
+            String note = request.resolutionNote() == null ? "" : request.resolutionNote().trim();
+            if (note.isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La nota de solución es obligatoria para resolver");
+            }
+            if (note.length() > MAX_RESOLUTION_NOTE) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "La nota de solución no puede superar " + MAX_RESOLUTION_NOTE + " caracteres");
+            }
+            ticket.setResolutionNote(note);
+            ticket.setResolvedAt(now);
+        } else if (request.action() == TransitionAction.CONFIRM_CLOSE) {
+            ticket.setClosedAt(now);
+        }
 
         ticket.setStatus(rule.getTargetStatus());
         ticketRepository.save(ticket);
