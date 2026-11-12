@@ -16,6 +16,9 @@ public interface TicketRepository extends JpaRepository<Ticket, Long>, JpaSpecif
     @Query("select t from Ticket t where t.id = :id")
     Optional<Ticket> findForUpdate(@Param("id") Long id);
 
+    long countByTechnicianUsernameAndStatusIn(String username,
+            java.util.Collection<com.roles.usermanagement.modules.lifecycle.enums.TicketStatus> statuses);
+
     /** Carga por técnico: número de tickets en los estados indicados. Columnas: username, count. */
     @Query("""
             select t.technician.username, count(t) from Ticket t

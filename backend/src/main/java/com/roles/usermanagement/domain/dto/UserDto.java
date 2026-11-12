@@ -9,6 +9,10 @@ import lombok.Data;
 public class UserDto {
   private String username;
   private String email;
+  @Schema(description = "Nombre de la persona", example = "Ana Gómez")
+  private String fullName;
+  @Schema(description = "Área o dependencia", example = "Contabilidad")
+  private String area;
   private Boolean locked;
   private Boolean disabled;
   @Schema(description = "Indica si el usuario debe cambiar su contraseña obligatoriamente", example = "true")
@@ -18,7 +22,7 @@ public class UserDto {
   /** Uso interno (emisión/validación de tokens); no forma parte del contrato público. */
   @com.fasterxml.jackson.annotation.JsonIgnore
   private Integer credentialVersion;
-  @Schema(description = "Rol único del usuario. CUSTOMER por defecto al crear.", example = "CUSTOMER")
+  @Schema(description = "Rol único del usuario: USER (por defecto), TECHNICIAN o ADMIN.", example = "USER")
   private String role;
   @Schema(description = "Formato anterior compatible: como máximo un rol.", deprecated = true)
   private List<UserRoleDto> roles;

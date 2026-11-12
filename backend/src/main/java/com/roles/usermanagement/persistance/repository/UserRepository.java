@@ -40,6 +40,21 @@ public class UserRepository implements IUserRepository {
   private void invalidateTokens(UserEntity user) {
     user.setCredentialVersion((user.getCredentialVersion() == null ? 0 : user.getCredentialVersion()) + 1);
   }
+  private static String optionalText(String value, int max, String field) {
+    if (value == null || value.isBlank()) return null;
+    String clean = value.trim();
+    if (clean.length() > max) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, field + " no puede superar " + max + " caracteres");
+    }
+    return clean;
+  }
+  /** Baja lógica: deshabilita la cuenta e invalida sus tokens. */
+  @Transactional
+  public void disable(String username) {
+    UserEntity user = account(username);
+    user.setDisabled(true);
+    invalidateTokens(user);
+  }
   private UserEntity account(String username) {
     if(username == null || username.isBlank()) throw invalid("El usuario es obligatorio");
     return users.findForUpdate(username).orElseThrow(() ->
@@ -103,6 +118,8 @@ public class UserRepository implements IUserRepository {
     user.setPassword(encoder.encode(dto.getPassword())); user.setLocked(Boolean.TRUE.equals(dto.getLocked()));
     user.setDisabled(Boolean.TRUE.equals(dto.getDisabled()));
     user.setMustChangePassword(dto.getMustChangePassword() != null ? dto.getMustChangePassword() : true);
+    user.setFullName(optionalText(dto.getFullName(), 150, "El nombre"));
+    user.setArea(optionalText(dto.getArea(), 100, "El área"));
     user.setRoles(new ArrayList<>());
     setPermissions(user,dto.getAdditionalPermissions());
     user=users.save(user); setRole(user,role); em.flush(); return mapper.toUserDto(user);
@@ -118,6 +135,8 @@ public class UserRepository implements IUserRepository {
         throw new ResponseStatusException(HttpStatus.CONFLICT,"El correo ya pertenece a otro usuario");
       user.setEmail(cleanEmail);
     }
+    if(dto.getFullName()!=null) user.setFullName(optionalText(dto.getFullName(), 150, "El nombre"));
+    if(dto.getArea()!=null) user.setArea(optionalText(dto.getArea(), 100, "El área"));
     if(dto.getLocked()!=null) user.setLocked(dto.getLocked());
     if(dto.getDisabled()!=null) user.setDisabled(dto.getDisabled());
     if(dto.getPassword()!=null) {
@@ -171,7 +190,7 @@ public class UserRepository implements IUserRepository {
   @Override public List<UserDto> getAllUsers() {
     List<UserEntity> result=new ArrayList<>(); users.findAll().forEach(result::add); return mapper.toUsersDto(result);
   }
-  @Override public void deleteUser(String username) {users.deleteById(username);}
+  @Override public void deleteUser(String username) {disable(username);}
   @Override public boolean existsByUsername(String username) {return users.existsById(username);}
 
   @Transactional
@@ -200,6 +219,8 @@ public class UserRepository implements IUserRepository {
     user.setLocked(false);
     user.setDisabled(false);
     user.setMustChangePassword(false);
+    user.setFullName(optionalText(dto.getFullName(), 150, "El nombre"));
+    user.setArea(optionalText(dto.getArea(), 100, "El área"));
     user.setRoles(new ArrayList<>());
     user = users.save(user);
 

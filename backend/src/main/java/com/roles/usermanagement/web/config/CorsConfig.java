@@ -20,23 +20,18 @@ public class CorsConfig {
      * @return CORS configuration source.
      */
     @Bean
-    CorsConfigurationSource corsConfigurationSource() {
+    CorsConfigurationSource corsConfigurationSource(
+            @org.springframework.beans.factory.annotation.Value("${app.cors.allowed-origins:}") java.util.List<String> allowedOrigins) {
         // CORS configuration
         CorsConfiguration corsConfiguration = new CorsConfiguration();
 
-        // Allow all requests from any origin (can be restricted to specific origins here)
-        corsConfiguration.setAllowedOrigins(Arrays.asList(
-            "http://localhost:5500",
-            "http://127.0.0.1:5500",
-            "http://localhost:5501",
-            "http://127.0.0.1:5501"
-        )); // Can be changed to a list of allowed origins e.g.: http://localhost:4200
-
+        // Orígenes concretos configurados por entorno (CORS_ALLOWED_ORIGINS); sin configuración no se admite ninguno.
+        corsConfiguration.setAllowedOrigins(allowedOrigins.stream().map(String::trim).filter(o -> !o.isEmpty()).toList());
         // Allow specific HTTP methods (GET, POST, PUT, PATCH, DELETE, OPTIONS)
         corsConfiguration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
 
         // Allow all headers in requests
-        corsConfiguration.setAllowedHeaders(Arrays.asList("*"));
+        corsConfiguration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept"));
 
         // URL-based CORS configuration
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

@@ -41,6 +41,14 @@ public class UserEntity {
   @Column(nullable = false, length = 200, unique = true)
   private String email;
 
+  /** Nombre de la persona (B07). Null en cuentas anteriores que aún no lo registran. */
+  @Column(name = "full_name", length = 150)
+  private String fullName;
+
+  /** Área o dependencia a la que pertenece (B07). */
+  @Column(name = "area", length = 100)
+  private String area;
+
   @Column(nullable = false)
   private Boolean locked;
 

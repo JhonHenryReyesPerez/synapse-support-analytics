@@ -18,4 +18,10 @@ public class RegisterDto {
 
     @Schema(description = "Contraseña segura (minimo 6 caracteres)", example = "Password123!")
     private String password;
+
+    @Schema(description = "Nombre de la persona (opcional)", example = "Ana Gómez")
+    private String fullName;
+
+    @Schema(description = "Área o dependencia (opcional)", example = "Contabilidad")
+    private String area;
 }

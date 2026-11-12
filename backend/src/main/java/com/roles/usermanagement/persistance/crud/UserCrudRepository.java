@@ -18,5 +18,12 @@ public interface UserCrudRepository extends CrudRepository<UserEntity, String> {
 
     boolean existsByEmail(String email);
 
+    /** Cuentas habilitadas y sin bloqueo que tienen el rol indicado. */
+    @org.springframework.data.jpa.repository.Query("""
+            select count(u) from UserEntity u join u.roles r
+            where r.role = :role and u.disabled = false and u.locked = false
+            """)
+    long countActiveByRole(@org.springframework.data.repository.query.Param("role") String role);
+
     java.util.Optional<UserEntity> findByEmail(String email);
 }
