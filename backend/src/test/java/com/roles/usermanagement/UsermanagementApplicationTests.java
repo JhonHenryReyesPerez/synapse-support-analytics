@@ -49,6 +49,9 @@ class UsermanagementApplicationTests {
         return client.send(builder.build(), HttpResponse.BodyHandlers.ofString());
     }
 
+    /** ID real del ticket creado en CP-05; las pruebas siguientes lo reutilizan en orden. */
+    private static long ticketId;
+
     private static final String TECH_PASSWORD = "Tecnico#2026";
 
     private String login(String identifier, String password) throws Exception {
@@ -138,6 +141,7 @@ class UsermanagementApplicationTests {
         JsonNode json = mapper.readTree(response.body());
         assertThat(json.get("status").asText()).isEqualTo("OPEN");
         assertThat(json.get("applicantUsername").asText()).isEqualTo("usuario_test1");
+        ticketId = json.get("id").asLong();
     }
 
     @Test
@@ -155,7 +159,7 @@ class UsermanagementApplicationTests {
         String user2Token = login("usuario_ajeno", "Password123!");
 
         // User 2 attempts to query ticket 1 created by usuario_test1
-        HttpResponse<String> response = request("GET", "/api/tickets/1", null, user2Token);
+        HttpResponse<String> response = request("GET", "/api/tickets/" + ticketId, null, user2Token);
         assertThat(response.statusCode()).isEqualTo(403);
     }
 
@@ -184,11 +188,11 @@ class UsermanagementApplicationTests {
         // CP-08: Standard user attempts to assign technician -> 403
         String userToken = login("usuario_test1", "Password123!");
         String assignBody = "{\"technicianUsername\": \"tecnico_soporte\"}";
-        HttpResponse<String> userAssign = request("PATCH", "/api/tickets/1/assign", assignBody, userToken);
+        HttpResponse<String> userAssign = request("PATCH", "/api/tickets/" + ticketId + "/assign", assignBody, userToken);
         assertThat(userAssign.statusCode()).isEqualTo(403);
 
         // CP-07: Admin assigns technician with PATCH /api/tickets/1/assign -> 200 and ASSIGNED status
-        HttpResponse<String> adminAssign = request("PATCH", "/api/tickets/1/assign", assignBody, adminToken);
+        HttpResponse<String> adminAssign = request("PATCH", "/api/tickets/" + ticketId + "/assign", assignBody, adminToken);
         assertThat(adminAssign.statusCode()).isEqualTo(200);
 
         JsonNode json = mapper.readTree(adminAssign.body());
@@ -207,7 +211,7 @@ class UsermanagementApplicationTests {
                   "priority": "BAJA"
                 }
                 """;
-        HttpResponse<String> response = request("PUT", "/api/tickets/1", updateBody, techToken);
+        HttpResponse<String> response = request("PUT", "/api/tickets/" + ticketId, updateBody, techToken);
         assertThat(response.statusCode()).isEqualTo(403);
     }
 
@@ -218,7 +222,7 @@ class UsermanagementApplicationTests {
 
         // Attempt transition directly from ASSIGNED to RESOLVED (skipping IN_PROGRESS) -> 409
         String body = "{\"action\": \"RESOLVE\"}";
-        HttpResponse<String> response = request("POST", "/api/tickets/1/transitions", body, techToken);
+        HttpResponse<String> response = request("POST", "/api/tickets/" + ticketId + "/transitions", body, techToken);
         assertThat(response.statusCode()).isEqualTo(409);
     }
 
@@ -229,19 +233,19 @@ class UsermanagementApplicationTests {
         String userToken = login("usuario_test1", "Password123!");
 
         // 1. Start progress (ASSIGNED -> IN_PROGRESS)
-        HttpResponse<String> startProgress = request("PATCH", "/api/tickets/1/status", "{\"status\": \"IN_PROGRESS\"}", techToken);
+        HttpResponse<String> startProgress = request("PATCH", "/api/tickets/" + ticketId + "/status", "{\"status\": \"IN_PROGRESS\"}", techToken);
         assertThat(startProgress.statusCode()).isEqualTo(200);
 
         // 2. Mark as resolved (IN_PROGRESS -> RESOLVED)
-        HttpResponse<String> resolve = request("PATCH", "/api/tickets/1/status", "{\"status\": \"RESOLVED\"}", techToken);
+        HttpResponse<String> resolve = request("PATCH", "/api/tickets/" + ticketId + "/status", "{\"status\": \"RESOLVED\"}", techToken);
         assertThat(resolve.statusCode()).isEqualTo(200);
 
         // 3. Requester confirms closure (RESOLVED -> CLOSED)
-        HttpResponse<String> close = request("PATCH", "/api/tickets/1/status", "{\"status\": \"CLOSED\"}", userToken);
+        HttpResponse<String> close = request("PATCH", "/api/tickets/" + ticketId + "/status", "{\"status\": \"CLOSED\"}", userToken);
         assertThat(close.statusCode()).isEqualTo(200);
 
         // CP-11: Verify that changes were recorded in status history
-        HttpResponse<String> historyResp = request("GET", "/api/tickets/1/history", null, userToken);
+        HttpResponse<String> historyResp = request("GET", "/api/tickets/" + ticketId + "/history", null, userToken);
         assertThat(historyResp.statusCode()).isEqualTo(200);
         JsonNode historyJson = mapper.readTree(historyResp.body());
         assertThat(historyJson.isArray()).isTrue();
@@ -253,7 +257,7 @@ class UsermanagementApplicationTests {
     void cp13_rejectsCommentsOnClosedTicket() throws Exception {
         String userToken = login("usuario_test1", "Password123!");
         String body = "{\"content\": \"Comentario posterior al cierre\"}";
-        HttpResponse<String> response = request("POST", "/api/tickets/1/comments", body, userToken);
+        HttpResponse<String> response = request("POST", "/api/tickets/" + ticketId + "/comments", body, userToken);
         assertThat(response.statusCode()).isEqualTo(400);
     }
 

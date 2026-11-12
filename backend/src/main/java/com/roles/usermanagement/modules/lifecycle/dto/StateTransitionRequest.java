@@ -10,7 +10,9 @@ import jakarta.validation.constraints.NotNull;
 public record StateTransitionRequest(
         TransitionAction action,
         String technicianUsername,
-        String status
+        String status,
+        /** Obligatoria para REASSIGN. */
+        String justification
 ) {
     public StateTransitionRequest {
         if (action == null && status != null && !status.isBlank()) {

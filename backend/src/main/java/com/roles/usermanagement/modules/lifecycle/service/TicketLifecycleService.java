@@ -9,8 +9,8 @@ import com.roles.usermanagement.modules.lifecycle.repository.LifecycleRuleReposi
 import com.roles.usermanagement.modules.statushistory.entity.StatusHistory;
 import com.roles.usermanagement.modules.statushistory.enums.StatusHistoryAction;
 import com.roles.usermanagement.modules.statushistory.service.StatusHistoryService;
-import com.roles.usermanagement.modules.technician.entity.TechnicianProfile;
-import com.roles.usermanagement.modules.technician.repository.TechnicianRepository;
+import com.roles.usermanagement.modules.assignment.dto.TicketAssignmentResponse;
+import com.roles.usermanagement.modules.assignment.service.TicketAssignmentService;
 import com.roles.usermanagement.modules.ticket.entity.Ticket;
 import com.roles.usermanagement.modules.ticket.repository.TicketRepository;
 import com.roles.usermanagement.modules.ticket.service.TicketAccessPolicy;
@@ -27,7 +27,7 @@ public class TicketLifecycleService {
 
     private final TicketRepository ticketRepository;
     private final LifecycleRuleRepository ruleRepository;
-    private final TechnicianRepository technicianRepository;
+    private final TicketAssignmentService assignmentService;
     private final UserCrudRepository userRepository;
     private final StatusHistoryService historyService;
     private final TicketAccessPolicy policy;
@@ -35,13 +35,13 @@ public class TicketLifecycleService {
     // Constructor injection: Spring provides each dependency when creating the service
     public TicketLifecycleService(TicketRepository ticketRepository,
                                   LifecycleRuleRepository ruleRepository,
-                                  TechnicianRepository technicianRepository,
+                                  TicketAssignmentService assignmentService,
                                   UserCrudRepository userRepository,
                                   StatusHistoryService historyService,
                                   TicketAccessPolicy policy) {
         this.ticketRepository = ticketRepository;
         this.ruleRepository = ruleRepository;
-        this.technicianRepository = technicianRepository;
+        this.assignmentService = assignmentService;
         this.userRepository = userRepository;
         this.historyService = historyService;
         this.policy = policy;
@@ -50,6 +50,15 @@ public class TicketLifecycleService {
     // Single transaction: status change and history record are committed together or not at all (RF-06)
     @Transactional
     public StateTransitionResponse transition(Long ticketId, StateTransitionRequest request, Authentication auth) {
+
+        if (request.action() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Acción o estado requerido no válido");
+        }
+
+        // B05: asignar y reasignar tienen una única implementación, compartida con /assign y /reassign.
+        if (request.action() == TransitionAction.ASSIGN || request.action() == TransitionAction.REASSIGN) {
+            return delegateAssignment(ticketId, request, auth);
+        }
 
         // 1. Find ticket with LOCKING; if it does not exist, 404
         Ticket ticket = ticketRepository.findForUpdate(ticketId)
@@ -73,19 +82,6 @@ public class TicketLifecycleService {
         // 3. Verify requester satisfies the rule requirements
         assertCanPerform(rule, ticket, auth);
 
-        // 4. If assignment, validate technician BEFORE modifying ticket
-        if (request.action() == TransitionAction.ASSIGN || request.action() == TransitionAction.REASSIGN) {
-            UserEntity technician = resolveTechnician(request.technicianUsername());
-
-            // Reassigning to the same technician is not allowed
-            if (ticket.getTechnician() != null
-                    && ticket.getTechnician().getUsername().equals(technician.getUsername())) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT,
-                        "The ticket is already assigned to that technician");
-            }
-            ticket.setTechnician(technician);
-        }
-
         // 5. Change status and record history (same transaction)
         UserEntity actor = userRepository.findById(auth.getName())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
@@ -107,6 +103,21 @@ public class TicketLifecycleService {
                 entry.getChangedAt());
     }
 
+    private StateTransitionResponse delegateAssignment(Long ticketId, StateTransitionRequest request, Authentication auth) {
+        boolean initial = request.action() == TransitionAction.ASSIGN;
+        TicketAssignmentResponse result = initial
+                ? assignmentService.assign(ticketId, request.technicianUsername(), auth.getName())
+                : assignmentService.reassign(ticketId, request.technicianUsername(), request.justification(), auth.getName());
+        return new StateTransitionResponse(
+                result.ticketId(),
+                request.action(),
+                initial ? TicketStatus.OPEN : TicketStatus.ASSIGNED,
+                result.status(),
+                result.newTechnicianUsername(),
+                result.assignedByUsername(),
+                result.assignedAt());
+    }
+
     // Verifies requester satisfies rule requirements; otherwise throws 403
     private void assertCanPerform(LifecycleRule rule, Ticket ticket, Authentication auth) {
         // User must have the role required by rule
@@ -121,18 +132,6 @@ public class TicketLifecycleService {
         if (rule.isMustBeAssignedTechnician() && !policy.isAssignedTechnician(ticket, auth)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the assigned technician can perform this action");
         }
-    }
-
-    // Validates that username corresponds to a technician (has profile) and returns user
-    private UserEntity resolveTechnician(String username) {
-        if (username == null || username.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "technicianUsername is required for this action");
-        }
-        TechnicianProfile profile = technicianRepository.findById(username)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "The selected user is not a technician"));
-        return profile.getUser();
     }
 
     // Translates lifecycle action into event type saved in status history

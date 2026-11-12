@@ -32,7 +32,8 @@ public class TicketLifecycleController {
             method = {org.springframework.web.bind.annotation.RequestMethod.POST, org.springframework.web.bind.annotation.RequestMethod.PATCH}
     )
     @Operation(summary = "Ejecutar un cambio de estado o acción sobre el ticket (PATCH /status o POST /transitions)",
-            description = "ASSIGN/REASSIGN: solo ADMIN (requiere technicianUsername). "
+            description = "ASSIGN/REASSIGN: solo ADMIN (requiere technicianUsername; REASSIGN exige justification). "
+                    + "Usan el mismo caso de uso que /assign y /reassign y dejan la misma auditoría. "
                     + "START_PROGRESS/RESOLVE: solo el técnico asignado. "
                     + "CONFIRM_CLOSE: solo el solicitante. El backend valida el flujo y los permisos.")
     public StateTransitionResponse transition(@PathVariable Long ticketId,

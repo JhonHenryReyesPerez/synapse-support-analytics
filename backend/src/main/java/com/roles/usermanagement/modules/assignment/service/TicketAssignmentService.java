@@ -7,6 +7,9 @@ import com.roles.usermanagement.modules.assignment.repository.TicketAssignmentLo
 import com.roles.usermanagement.modules.lifecycle.enums.TicketStatus;
 import com.roles.usermanagement.modules.statushistory.entity.StatusHistory;
 import com.roles.usermanagement.modules.statushistory.enums.StatusHistoryAction;
+import com.roles.usermanagement.modules.technician.entity.TechnicianProfile;
+import com.roles.usermanagement.modules.technician.enums.TechnicianAvailabilityStatus;
+import com.roles.usermanagement.modules.technician.repository.TechnicianRepository;
 import com.roles.usermanagement.modules.ticket.entity.Ticket;
 import com.roles.usermanagement.persistance.entity.UserEntity;
 import com.roles.usermanagement.persistance.entity.UserRoleEntity;
@@ -14,6 +17,7 @@ import com.roles.usermanagement.persistance.crud.UserCrudRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import jakarta.persistence.PersistenceContext;
+import java.time.LocalDateTime;
 import java.util.Objects;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -21,20 +25,25 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Assigns technicians and records the corresponding audit trail.
+ * Único caso de uso de asignación y reasignación (B05). Lo utilizan tanto los endpoints
+ * /assign y /reassign como las acciones ASSIGN/REASSIGN de /transitions y /status, de modo
+ * que todas las rutas aplican las mismas validaciones y dejan la misma auditoría.
  */
 @Service
 public class TicketAssignmentService {
 
     private final TicketAssignmentLogRepository assignmentLogs;
     private final UserCrudRepository users;
+    private final TechnicianRepository technicianProfiles;
 
     @PersistenceContext
     private EntityManager entityManager;
 
-    public TicketAssignmentService(TicketAssignmentLogRepository assignmentLogs, UserCrudRepository users) {
+    public TicketAssignmentService(TicketAssignmentLogRepository assignmentLogs, UserCrudRepository users,
+                                   TechnicianRepository technicianProfiles) {
         this.assignmentLogs = assignmentLogs;
         this.users = users;
+        this.technicianProfiles = technicianProfiles;
     }
 
     /**
@@ -47,11 +56,10 @@ public class TicketAssignmentService {
 
         Ticket ticket = findTicket(ticketId);
         if (ticket.getStatus() != TicketStatus.OPEN) {
-            throw badRequest("Solo se pueden asignar incidencias en estado ABIERTA");
+            throw conflict("Solo se pueden asignar incidencias en estado ABIERTA");
         }
 
-        UserEntity technician = findUser(technicianUsername, "El técnico seleccionado no existe");
-        requireRole(technician, "TECHNICIAN", "El usuario seleccionado no tiene el rol TECHNICIAN");
+        UserEntity technician = requireAssignableTechnician(technicianUsername);
 
         ticket.setTechnician(technician);
         ticket.setStatus(TicketStatus.ASSIGNED);
@@ -83,17 +91,23 @@ public class TicketAssignmentService {
 
         Ticket ticket = findTicket(ticketId);
         if (ticket.getStatus() != TicketStatus.ASSIGNED) {
-            throw badRequest("Solo se pueden reasignar incidencias en estado ASIGNADA");
+            throw conflict("Solo se pueden reasignar incidencias en estado ASIGNADA");
+        }
+        if (justification == null || justification.isBlank()) {
+            throw badRequest("La justificación de la reasignación es obligatoria");
+        }
+        if (justification.trim().length() > 300) {
+            throw badRequest("La justificación no puede superar 300 caracteres");
+        }
+        if (ticket.getTechnician() == null) {
+            throw conflict("La incidencia no tiene un técnico asignado");
+        }
+        if (technicianUsername != null
+                && Objects.equals(ticket.getTechnician().getUsername(), technicianUsername.trim())) {
+            throw conflict("La incidencia ya está asignada a ese técnico");
         }
 
-        UserEntity technician = findUser(technicianUsername, "El técnico seleccionado no existe");
-        requireRole(technician, "TECHNICIAN", "El usuario seleccionado no tiene el rol TECHNICIAN");
-        if (ticket.getTechnician() == null) {
-            throw badRequest("La incidencia no tiene un técnico asignado");
-        }
-        if (Objects.equals(ticket.getTechnician().getUsername(), technicianUsername)) {
-            throw badRequest("La incidencia ya está asignada a ese técnico");
-        }
+        UserEntity technician = requireAssignableTechnician(technicianUsername);
 
         UserEntity previousTechnician = ticket.getTechnician();
         ticket.setTechnician(technician);
@@ -117,10 +131,39 @@ public class TicketAssignmentService {
         if (ticket == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "La incidencia no existe");
         }
-        if (ticket.getStatus() == TicketStatus.CLOSED) {
-            throw badRequest("No se puede asignar un técnico a una incidencia cerrada");
-        }
         return ticket;
+    }
+
+    /**
+     * Valida al técnico destino: cuenta existente y activa, rol TECHNICIAN vigente y perfil
+     * disponible. El rol es la fuente de verdad; el perfil se crea si falta y nunca lo sustituye.
+     */
+    private UserEntity requireAssignableTechnician(String technicianUsername) {
+        if (technicianUsername == null || technicianUsername.isBlank()) {
+            throw badRequest("El usuario del técnico es obligatorio");
+        }
+        UserEntity technician = users.findById(technicianUsername.trim())
+                .orElseThrow(() -> badRequest("El técnico seleccionado no existe"));
+        boolean isTechnician = technician.getRoles() != null && technician.getRoles().stream()
+                .map(UserRoleEntity::getRole)
+                .anyMatch("TECHNICIAN"::equals);
+        if (!isTechnician) {
+            throw badRequest("El usuario seleccionado no tiene el rol TECHNICIAN");
+        }
+        if (Boolean.TRUE.equals(technician.getDisabled()) || Boolean.TRUE.equals(technician.getLocked())) {
+            throw badRequest("El técnico seleccionado no tiene la cuenta activa");
+        }
+        TechnicianProfile profile = technicianProfiles.findById(technician.getUsername())
+                .orElseGet(() -> technicianProfiles.save(TechnicianProfile.builder()
+                        .user(technician)
+                        .availabilityStatus(TechnicianAvailabilityStatus.AVAILABLE)
+                        .activeTicketsCount(0)
+                        .build()));
+        if (profile.getAvailabilityStatus() != TechnicianAvailabilityStatus.AVAILABLE) {
+            throw conflict("El técnico seleccionado no está disponible");
+        }
+        profile.setLastAssignedAt(LocalDateTime.now());
+        return technician;
     }
 
     private UserEntity findUser(String username, String message) {
@@ -163,6 +206,10 @@ public class TicketAssignmentService {
                 log.getAssignedAt(),
                 ticket.getStatus()
         );
+    }
+
+    private ResponseStatusException conflict(String message) {
+        return new ResponseStatusException(HttpStatus.CONFLICT, message);
     }
 
     private ResponseStatusException badRequest(String message) {

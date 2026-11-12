@@ -17,4 +17,17 @@ public interface TechnicianRepository extends JpaRepository<TechnicianProfile, S
      */
     List<TechnicianProfile> findByAvailabilityStatusOrderByActiveTicketsCountAsc(
             TechnicianAvailabilityStatus status);
+
+    /**
+     * Técnicos vigentes: cuentas activas con rol TECHNICIAN, tengan o no perfil.
+     * Columnas: username, specialty, availabilityStatus, lastAssignedAt.
+     */
+    @org.springframework.data.jpa.repository.Query("""
+            select u.username, p.specialty, p.availabilityStatus, p.lastAssignedAt
+            from UserEntity u join u.roles r
+            left join TechnicianProfile p on p.username = u.username
+            where r.role = 'TECHNICIAN' and u.disabled = false and u.locked = false
+            order by u.username
+            """)
+    List<Object[]> findActiveTechnicians();
 }

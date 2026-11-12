@@ -1,45 +1,72 @@
 package com.roles.usermanagement.modules.technician.service;
 
+import com.roles.usermanagement.modules.lifecycle.enums.TicketStatus;
 import com.roles.usermanagement.modules.technician.dto.TechnicianAvailabilityResponse;
 import com.roles.usermanagement.modules.technician.dto.TechnicianResponse;
 import com.roles.usermanagement.modules.technician.enums.TechnicianAvailabilityStatus;
-import com.roles.usermanagement.modules.technician.mapper.TechnicianMapper;
 import com.roles.usermanagement.modules.technician.repository.TechnicianRepository;
+import com.roles.usermanagement.modules.ticket.repository.TicketRepository;
+import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Query technicians and their availability, allowing administrator to assign tickets.
+ * Consulta de técnicos para la asignación. Un técnico es una cuenta activa con rol TECHNICIAN;
+ * el perfil solo aporta especialidad y disponibilidad (sin perfil se considera AVAILABLE).
+ * La carga se calcula desde los tickets ASSIGNED e IN_PROGRESS, no desde un contador persistido.
  */
 @Service
 public class TechnicianService {
 
-    private final TechnicianRepository technicianRepository;  // profile data access
-    private final TechnicianMapper mapper;                    // entidad -> DTO
+    private static final List<TicketStatus> ACTIVE_STATUSES = List.of(TicketStatus.ASSIGNED, TicketStatus.IN_PROGRESS);
 
-    // Spring supplies both dependencies via constructor
-    public TechnicianService(TechnicianRepository technicianRepository, TechnicianMapper mapper) {
+    private final TechnicianRepository technicianRepository;
+    private final TicketRepository ticketRepository;
+
+    public TechnicianService(TechnicianRepository technicianRepository, TicketRepository ticketRepository) {
         this.technicianRepository = technicianRepository;
-        this.mapper = mapper;
+        this.ticketRepository = ticketRepository;
     }
 
-    /** Returns all technicians, regardless of availability. */
+    /** Todos los técnicos vigentes, sin importar su disponibilidad. */
     @Transactional(readOnly = true)
     public List<TechnicianResponse> listAll() {
-        return technicianRepository.findAll()
-                .stream()
-                .map(mapper::toResponse)
+        Map<String, Integer> load = activeLoad();
+        return technicianRepository.findActiveTechnicians().stream()
+                .map(row -> new TechnicianResponse(
+                        (String) row[0],
+                        (String) row[1],
+                        availability(row),
+                        load.getOrDefault((String) row[0], 0),
+                        (LocalDateTime) row[3]))
                 .toList();
     }
 
-    /** Returns only available technicians, from least to most loaded. */
+    /** Técnicos disponibles, del menos al más cargado. */
     @Transactional(readOnly = true)
     public List<TechnicianAvailabilityResponse> listAvailable() {
-        return technicianRepository
-                .findByAvailabilityStatusOrderByActiveTicketsCountAsc(TechnicianAvailabilityStatus.AVAILABLE)
-                .stream()
-                .map(mapper::toAvailabilityResponse)
+        Map<String, Integer> load = activeLoad();
+        return technicianRepository.findActiveTechnicians().stream()
+                .filter(row -> availability(row) == TechnicianAvailabilityStatus.AVAILABLE)
+                .map(row -> new TechnicianAvailabilityResponse(
+                        (String) row[0], (String) row[1], load.getOrDefault((String) row[0], 0)))
+                .sorted(Comparator.comparing(TechnicianAvailabilityResponse::activeTicketsCount)
+                        .thenComparing(TechnicianAvailabilityResponse::username))
                 .toList();
+    }
+
+    private Map<String, Integer> activeLoad() {
+        Map<String, Integer> load = new HashMap<>();
+        ticketRepository.countByTechnicianAndStatusIn(ACTIVE_STATUSES)
+                .forEach(row -> load.put((String) row[0], ((Number) row[1]).intValue()));
+        return load;
+    }
+
+    private static TechnicianAvailabilityStatus availability(Object[] row) {
+        return row[2] == null ? TechnicianAvailabilityStatus.AVAILABLE : (TechnicianAvailabilityStatus) row[2];
     }
 }
