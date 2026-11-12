@@ -15,6 +15,8 @@ import com.roles.usermanagement.modules.ticket.repository.TicketRepository;
 import com.roles.usermanagement.modules.ticket.repository.TicketSpecifications;
 import com.roles.usermanagement.persistance.crud.UserCrudRepository;
 import com.roles.usermanagement.persistance.entity.UserEntity;
+import com.roles.usermanagement.web.dto.PageResponse;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
@@ -131,12 +133,17 @@ public class TicketService {
 
     // ---------- LIST ----------
 
+    /** B11: listado paginado (20 por defecto, máximo 100) con orden estable por fecha e id. */
     @Transactional(readOnly = true)
-    public List<TicketResponse> list(TicketStatus status,      // filtros opcionales: pueden venir null
-                                     TicketPriority priority,
-                                     Long categoryId,
-                                     String categoryName,
-                                     Authentication auth) {
+    public PageResponse<TicketResponse> list(TicketStatus status,
+                                             TicketPriority priority,
+                                             Long categoryId,
+                                             String categoryName,
+                                             Integer page,
+                                             Integer size,
+                                             Authentication auth) {
+        Pageable pageable = PageResponse.request(page, size,
+                Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id")));
         Category category = categoryService.resolveFilter(categoryId, categoryName).orElse(null);
 
         // Variable holding PERMISSION predicate (which tickets user can view)
@@ -159,11 +166,7 @@ public class TicketService {
                 TicketSpecifications.hasPriority(priority),
                 TicketSpecifications.hasCategory(category));
 
-        // findAll executes single SQL query with all predicates, sorted from newest to oldest
-        return ticketRepository.findAll(spec, Sort.by(Sort.Direction.DESC, "createdAt"))
-                .stream()                       // stream ticket list
-                .map(mapper::toResponse)        // converts each Ticket to TicketResponse
-                .toList();                      // collect results into list
+        return PageResponse.of(ticketRepository.findAll(spec, pageable), mapper::toResponse);
     }
 
     /**

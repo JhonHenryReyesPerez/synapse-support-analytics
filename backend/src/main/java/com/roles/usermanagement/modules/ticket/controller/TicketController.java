@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
+import com.roles.usermanagement.web.dto.PageResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -47,13 +48,16 @@ public class TicketController {
 
     /** Lists tickets visible to the user, with optional filters. */
     @GetMapping
-    @Operation(summary = "List visible tickets with optional filters")
-    public List<TicketResponse> list(@RequestParam(required = false) TicketStatus status,
+    @Operation(summary = "Listar tickets visibles con filtros y paginación",
+            description = "page desde 0; size 20 por defecto y máximo 100. Orden: más recientes primero (createdAt, id).")
+    public PageResponse<TicketResponse> list(@RequestParam(required = false) TicketStatus status,
                                      @RequestParam(required = false) TicketPriority priority,
                                      @RequestParam(required = false) Long categoryId,
                                      @RequestParam(required = false) String category,
+                                     @RequestParam(required = false) Integer page,
+                                     @RequestParam(required = false) Integer size,
                                      Authentication auth) {
-        return ticketService.list(status, priority, categoryId, category, auth);
+        return ticketService.list(status, priority, categoryId, category, page, size, auth);
     }
 
     /** Returns ticket details if user has permission to view it. */

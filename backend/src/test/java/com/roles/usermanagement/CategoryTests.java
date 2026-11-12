@@ -60,7 +60,7 @@ class CategoryTests extends ApiTestSupport {
         assertThat(createTicket(userToken, "\"categoryId\":" + id).statusCode()).isEqualTo(400);
         assertThat(categoryNames(userToken)).doesNotContain(name);
         // El ticket anterior conserva su categoría aunque ya no esté activa.
-        assertThat(json(request("GET", "/api/tickets?categoryId=" + id, null, userToken))).hasSize(1);
+        assertThat(json(request("GET", "/api/tickets?categoryId=" + id, null, userToken)).get("content")).hasSize(1);
     }
 
     @Test
@@ -79,8 +79,8 @@ class CategoryTests extends ApiTestSupport {
         createTicket(userToken, "\"category\":\"HARDWARE\",\"priority\":\"HIGH\"");
         createTicket(userToken, "\"category\":\"SOFTWARE\",\"priority\":\"BAJA\"");
 
-        JsonNode hardware = json(request("GET", "/api/tickets?category=HARDWARE", null, userToken));
-        JsonNode high = json(request("GET", "/api/tickets?priority=HIGH", null, userToken));
+        JsonNode hardware = json(request("GET", "/api/tickets?category=HARDWARE", null, userToken)).get("content");
+        JsonNode high = json(request("GET", "/api/tickets?priority=HIGH", null, userToken)).get("content");
 
         assertThat(hardware).hasSize(1);
         assertThat(hardware.get(0).get("category").asText()).isEqualTo("Hardware");

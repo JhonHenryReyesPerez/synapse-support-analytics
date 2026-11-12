@@ -16,6 +16,13 @@ public interface TicketRepository extends JpaRepository<Ticket, Long>, JpaSpecif
     @Query("select t from Ticket t where t.id = :id")
     Optional<Ticket> findForUpdate(@Param("id") Long id);
 
+    /** Listado paginado; la categoría se carga en la misma consulta para evitar N+1. */
+    @Override
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = "category")
+    org.springframework.data.domain.Page<Ticket> findAll(
+            org.springframework.data.jpa.domain.Specification<Ticket> spec,
+            org.springframework.data.domain.Pageable pageable);
+
     long countByTechnicianUsernameAndStatusIn(String username,
             java.util.Collection<com.roles.usermanagement.modules.lifecycle.enums.TicketStatus> statuses);
 
