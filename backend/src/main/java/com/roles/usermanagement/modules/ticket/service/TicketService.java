@@ -7,7 +7,8 @@ import com.roles.usermanagement.modules.ticket.dto.TicketCreateRequest;
 import com.roles.usermanagement.modules.ticket.dto.TicketResponse;
 import com.roles.usermanagement.modules.ticket.dto.TicketUpdateRequest;
 import com.roles.usermanagement.modules.ticket.entity.Ticket;
-import com.roles.usermanagement.modules.ticket.enums.TicketCategory;
+import com.roles.usermanagement.modules.category.entity.Category;
+import com.roles.usermanagement.modules.category.service.CategoryService;
 import com.roles.usermanagement.modules.ticket.enums.TicketPriority;
 import com.roles.usermanagement.modules.ticket.mapper.TicketMapper;
 import com.roles.usermanagement.modules.ticket.repository.TicketRepository;
@@ -34,13 +35,16 @@ public class TicketService {
     private final TicketMapper mapper;                 // convierte Ticket -> TicketResponse
     private final TicketAccessPolicy policy;           // rules for who can view what
     private final StatusHistoryService historyService;
+    private final CategoryService categoryService;
 
     // Constructor: Spring injects required dependencies
     public TicketService(TicketRepository ticketRepository,
                          UserCrudRepository userRepository,
                          TicketMapper mapper,
                          TicketAccessPolicy policy,
-                         StatusHistoryService historyService) {
+                         StatusHistoryService historyService,
+                         CategoryService categoryService) {
+        this.categoryService = categoryService;
         // Stores each received dependency in its field
         this.ticketRepository = ticketRepository;
         this.userRepository = userRepository;
@@ -60,11 +64,13 @@ public class TicketService {
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "User not found"));
 
+        Category category = categoryService.requireActive(request.categoryId(), request.category());
+
         // Build ticket field by field (Lombok Builder pattern)
         Ticket ticket = Ticket.builder()
                 .title(request.title().trim())               // trim() quita espacios sobrantes
                 .description(request.description().trim())
-                .category(request.category())
+                .category(category)
                 .priority(request.priority())
                 .status(TicketStatus.OPEN)                   // initial status set by server
                 .applicant(applicant)                        // applicant retrieved from token
@@ -107,8 +113,10 @@ public class TicketService {
     @Transactional(readOnly = true)
     public List<TicketResponse> list(TicketStatus status,      // filtros opcionales: pueden venir null
                                      TicketPriority priority,
-                                     TicketCategory category,
+                                     Long categoryId,
+                                     String categoryName,
                                      Authentication auth) {
+        Category category = categoryService.resolveFilter(categoryId, categoryName).orElse(null);
 
         // Variable holding PERMISSION predicate (which tickets user can view)
         Specification<Ticket> visibility;
@@ -163,7 +171,7 @@ public class TicketService {
         // Copy new request data to entity (trimming excess whitespace)
         ticket.setTitle(request.title().trim());
         ticket.setDescription(request.description().trim());
-        ticket.setCategory(request.category());
+        ticket.setCategory(categoryService.requireActive(request.categoryId(), request.category()));
         ticket.setPriority(request.priority());
 
         // Save and return response DTO

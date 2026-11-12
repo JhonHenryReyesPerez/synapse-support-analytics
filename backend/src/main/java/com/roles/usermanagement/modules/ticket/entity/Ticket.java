@@ -1,6 +1,6 @@
 package com.roles.usermanagement.modules.ticket.entity;
 import com.roles.usermanagement.modules.lifecycle.enums.TicketStatus;
-import com.roles.usermanagement.modules.ticket.enums.TicketCategory;
+import com.roles.usermanagement.modules.category.entity.Category;
 import com.roles.usermanagement.modules.ticket.enums.TicketPriority;
 import com.roles.usermanagement.persistance.entity.UserEntity;
 import jakarta.persistence.*;
@@ -16,7 +16,10 @@ import java.time.LocalDateTime;
 @Table(name = "tickets", indexes = {
         @Index(name = "idx_ticket_status", columnList = "status"),
         @Index(name = "idx_ticket_applicant", columnList = "applicant_username"),
-        @Index(name = "idx_ticket_technician", columnList = "technician_username")
+        @Index(name = "idx_ticket_technician", columnList = "technician_username"),
+        @Index(name = "idx_ticket_category", columnList = "category_id"),
+        @Index(name = "idx_ticket_priority", columnList = "priority"),
+        @Index(name = "idx_ticket_created", columnList = "created_at, id")
 })
 public class Ticket {
     @Id
@@ -29,9 +32,9 @@ public class Ticket {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String description;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 30)
-    private TicketCategory category;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "category_id", nullable = false)
+    private Category category;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

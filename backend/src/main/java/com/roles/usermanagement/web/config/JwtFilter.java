@@ -6,9 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import com.roles.usermanagement.domain.service.AccountUserDetails;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Set;
-import org.springframework.http.MediaType;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -96,11 +94,7 @@ public class JwtFilter extends OncePerRequestFilter {
 
  private static void rejectPasswordChangePending(HttpServletResponse response) throws IOException {
   SecurityContextHolder.clearContext();
-  response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-  response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-  response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-  response.getWriter().write("{\"status\":403,\"code\":\"" + PASSWORD_CHANGE_REQUIRED + "\","
-          + "\"error\":\"Debes cambiar tu contraseña antes de continuar\","
-          + "\"message\":\"Debes cambiar tu contraseña antes de continuar\"}");
+  SecurityErrorHandlers.write(response, HttpServletResponse.SC_FORBIDDEN, PASSWORD_CHANGE_REQUIRED,
+          "Debes cambiar tu contraseña antes de continuar");
  }
 }

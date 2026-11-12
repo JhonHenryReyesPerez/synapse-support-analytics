@@ -14,6 +14,8 @@ import java.util.Map;
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ApiExceptionHandler.class);
+
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<Map<String, Object>> handleResponseStatus(ResponseStatusException e) {
         Map<String, Object> body = new LinkedHashMap<>();
@@ -55,5 +57,43 @@ public class ApiExceptionHandler {
         body.put("error", "JSON inválido");
         body.put("message", "JSON inválido o tipo de dato incorrecto");
         return ResponseEntity.badRequest().body(body);
+    }
+
+    /** Parámetro de consulta o de ruta con un valor no convertible (enum, número, fecha). */
+    @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Map<String, Object>> handleTypeMismatch(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException e) {
+        return simple(HttpStatus.BAD_REQUEST, "Valor no válido para el parámetro " + e.getName());
+    }
+
+    @ExceptionHandler({
+            org.springframework.web.method.annotation.HandlerMethodValidationException.class,
+            jakarta.validation.ConstraintViolationException.class,
+            org.springframework.web.bind.MissingServletRequestParameterException.class})
+    public ResponseEntity<Map<String, Object>> handleInvalidRequest(Exception e) {
+        return simple(HttpStatus.BAD_REQUEST, "La solicitud contiene parámetros no válidos o incompletos");
+    }
+
+    /**
+     * Fallo no previsto: respuesta controlada sin detalles internos. Las excepciones de seguridad
+     * se relanzan para que Spring Security responda 401/403.
+     */
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, Object>> handleUnexpected(Exception e) throws Exception {
+        if (e instanceof org.springframework.security.access.AccessDeniedException
+                || e instanceof org.springframework.security.core.AuthenticationException
+                || e instanceof org.springframework.web.ErrorResponse) {
+            throw e;
+        }
+        log.error("Error no controlado", e);
+        return simple(HttpStatus.INTERNAL_SERVER_ERROR, "Error interno del servidor");
+    }
+
+    private static ResponseEntity<Map<String, Object>> simple(HttpStatus status, String message) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("status", status.value());
+        body.put("error", message);
+        body.put("message", message);
+        return ResponseEntity.status(status).body(body);
     }
 }

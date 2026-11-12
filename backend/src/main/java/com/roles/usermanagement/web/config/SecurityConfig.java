@@ -1,10 +1,8 @@
 package com.roles.usermanagement.web.config;
 
-import com.roles.usermanagement.domain.service.UserRoles;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -42,18 +40,15 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .authorizeHttpRequests(customRequest -> customRequest
+                // El reenvío interno a /error conserva el código original (400, 404...) en vez de convertirlo en 403.
+                .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ERROR).permitAll()
                 .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**", "/v3/api-docs.yaml").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/user/**").authenticated()
-                /*.requestMatchers("/api/customers/**").hasAnyRole(UserRoles.Role.ADMIN.name(), UserRoles.Role.CUSTOMER.name())
-                .requestMatchers(HttpMethod.GET, "/api/pizzas/**").hasAnyRole(UserRoles.Role.ADMIN.name(), UserRoles.Role.CUSTOMER.name())
-                .requestMatchers(HttpMethod.POST, "/api/pizzas/**").hasRole(UserRoles.Role.ADMIN.name())
-                .requestMatchers(HttpMethod.PUT).hasRole(UserRoles.Role.ADMIN.name())
-                .requestMatchers("/api/orders/random").hasAuthority(UserRoles.Authority.RANDOM_ORDER.name())
-                .requestMatchers("/api/orders/**").hasRole(UserRoles.Role.ADMIN.name())
-                .requestMatchers(HttpMethod.GET,"/api/**").permitAll()
-                .requestMatchers(HttpMethod.PUT).denyAll()*/
                 .anyRequest().authenticated())
+            .exceptionHandling(errors -> errors
+                .authenticationEntryPoint(SecurityErrorHandlers.unauthorized())
+                .accessDeniedHandler(SecurityErrorHandlers.forbidden()))
             .csrf(AbstractHttpConfigurer::disable)
             .cors(Customizer.withDefaults())
             .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

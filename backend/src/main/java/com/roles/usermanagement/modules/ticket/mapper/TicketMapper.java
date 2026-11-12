@@ -10,7 +10,7 @@ public class TicketMapper {
     public TicketResponse toResponse(Ticket t) {
         return new TicketResponse(
                 t.getId(), t.getTitle(), t.getDescription(),
-                t.getCategory(), t.getPriority(), t.getStatus(),
+                t.getCategory().getId(), t.getCategory().getName(), t.getPriority(), t.getStatus(),
                 t.getApplicant().getUsername(),
                 // If ticket has no assigned technician yet, returns null instead of failing
                 t.getTechnician() == null ? null : t.getTechnician().getUsername(),

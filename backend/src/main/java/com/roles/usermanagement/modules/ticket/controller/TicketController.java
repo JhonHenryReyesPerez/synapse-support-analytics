@@ -4,7 +4,6 @@ import com.roles.usermanagement.modules.lifecycle.enums.TicketStatus;
 import com.roles.usermanagement.modules.ticket.dto.TicketCreateRequest;
 import com.roles.usermanagement.modules.ticket.dto.TicketResponse;
 import com.roles.usermanagement.modules.ticket.dto.TicketUpdateRequest;
-import com.roles.usermanagement.modules.ticket.enums.TicketCategory;
 import com.roles.usermanagement.modules.ticket.enums.TicketPriority;
 import com.roles.usermanagement.modules.ticket.service.TicketService;
 import com.roles.usermanagement.web.config.OpenApiConfig;
@@ -51,9 +50,10 @@ public class TicketController {
     @Operation(summary = "List visible tickets with optional filters")
     public List<TicketResponse> list(@RequestParam(required = false) TicketStatus status,
                                      @RequestParam(required = false) TicketPriority priority,
-                                     @RequestParam(required = false) TicketCategory category,
+                                     @RequestParam(required = false) Long categoryId,
+                                     @RequestParam(required = false) String category,
                                      Authentication auth) {
-        return ticketService.list(status, priority, category, auth);
+        return ticketService.list(status, priority, categoryId, category, auth);
     }
 
     /** Returns ticket details if user has permission to view it. */

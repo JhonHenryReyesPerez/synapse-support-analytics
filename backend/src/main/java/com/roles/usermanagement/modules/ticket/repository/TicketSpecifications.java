@@ -2,7 +2,7 @@ package com.roles.usermanagement.modules.ticket.repository;
 
 import com.roles.usermanagement.modules.lifecycle.enums.TicketStatus;
 import com.roles.usermanagement.modules.ticket.entity.Ticket;
-import com.roles.usermanagement.modules.ticket.enums.TicketCategory;
+import com.roles.usermanagement.modules.category.entity.Category;
 import com.roles.usermanagement.modules.ticket.enums.TicketPriority;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -22,7 +22,7 @@ public final class TicketSpecifications {
                 priority == null ? null : cb.equal(root.get("priority"), priority);
     }
 
-    public static Specification<Ticket> hasCategory(TicketCategory category){
+    public static Specification<Ticket> hasCategory(Category category){
         return (root, query, cb) ->
                 category == null ? null : cb.equal(root.get("category"), category);
     }
