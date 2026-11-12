@@ -71,6 +71,37 @@ abstract class ApiTestSupport {
         return mapper.readTree(response.body());
     }
 
+    protected static final String INTEGRATION_TOKEN = "test-integration-token-0123456789abcdef";
+
+    /** Llamada de servicio como n8n: sin JWT, con el secreto de integración indicado (o ninguno). */
+    protected HttpResponse<String> integrationRequest(String method, String path, String body, String integrationToken)
+            throws Exception {
+        int port = Integer.parseInt(environment.getProperty("local.server.port", "8080"));
+        var builder = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+                .header("Content-Type", "application/json");
+        if (integrationToken != null) {
+            builder.header("X-Integration-Token", integrationToken);
+        }
+        builder.method(method, body == null
+                ? HttpRequest.BodyPublishers.noBody()
+                : HttpRequest.BodyPublishers.ofString(body));
+        return client.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    /** Crea un artículo como ADMIN, lo verifica y lo activa; devuelve su id. */
+    protected long publishArticle(String title, String solution) throws Exception {
+        String admin = adminToken();
+        String body = mapper.createObjectNode()
+                .put("title", title).put("problem", "Problema: " + title).put("symptoms", "Síntomas: " + title)
+                .put("cause", "Causa: " + title).put("solution", solution).toString();
+        HttpResponse<String> created = request("POST", "/api/knowledge/articles", body, admin);
+        assertThat(created.statusCode()).as(created.body()).isEqualTo(201);
+        long id = json(created).get("id").asLong();
+        assertThat(request("POST", "/api/knowledge/articles/" + id + "/verify", null, admin).statusCode()).isEqualTo(200);
+        assertThat(request("POST", "/api/knowledge/articles/" + id + "/activate", null, admin).statusCode()).isEqualTo(200);
+        return id;
+    }
+
     protected HttpResponse<String> request(String method, String path, String body, String token) throws Exception {
         int port = Integer.parseInt(environment.getProperty("local.server.port", "8080"));
         var builder = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))

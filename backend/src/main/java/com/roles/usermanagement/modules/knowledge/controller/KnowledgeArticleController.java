@@ -2,7 +2,9 @@ package com.roles.usermanagement.modules.knowledge.controller;
 
 import com.roles.usermanagement.modules.knowledge.dto.ArticleRequest;
 import com.roles.usermanagement.modules.knowledge.dto.ArticleResponse;
+import com.roles.usermanagement.modules.knowledge.dto.IndexSyncSummary;
 import com.roles.usermanagement.modules.knowledge.service.KnowledgeArticleService;
+import com.roles.usermanagement.modules.knowledge.service.KnowledgeIndexService;
 import com.roles.usermanagement.modules.knowledge.service.KnowledgeArticleService.Scope;
 import com.roles.usermanagement.web.config.OpenApiConfig;
 import com.roles.usermanagement.web.dto.PageResponse;
@@ -30,9 +32,20 @@ import org.springframework.web.bind.annotation.RestController;
 public class KnowledgeArticleController {
 
     private final KnowledgeArticleService service;
+    private final KnowledgeIndexService indexService;
 
-    public KnowledgeArticleController(KnowledgeArticleService service) {
+    public KnowledgeArticleController(KnowledgeArticleService service, KnowledgeIndexService indexService) {
         this.service = service;
+        this.indexService = indexService;
+    }
+
+    /**
+     * Tras confirmar el cambio editorial se intenta sincronizar el índice una vez. Si n8n falla,
+     * el cambio editorial se conserva y el artículo queda con indexStatus=ERROR para reintentar.
+     */
+    private ArticleResponse synced(Long id, Authentication auth) {
+        indexService.sync(id);
+        return service.getById(id, auth);
     }
 
     @GetMapping
@@ -66,7 +79,8 @@ public class KnowledgeArticleController {
             description = "TECHNICIAN: solo sus borradores. ADMIN: cualquiera. Un cambio de contenido incrementa la "
                     + "versión, revoca la verificación y desactiva el artículo.")
     public ArticleResponse update(@PathVariable Long id, @Valid @RequestBody ArticleRequest request, Authentication auth) {
-        return service.update(id, request, auth);
+        service.update(id, request, auth);
+        return synced(id, auth);
     }
 
     @PostMapping("/{id}/verify")
@@ -78,16 +92,35 @@ public class KnowledgeArticleController {
 
     @PostMapping("/{id}/activate")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Activar un artículo verificado (ADMIN)", description = "Queda pendiente de indexación.")
-    public ArticleResponse activate(@PathVariable Long id) {
-        return service.activate(id);
+    @Operation(summary = "Activar un artículo verificado (ADMIN)",
+            description = "Se envía a indexar; indexStatus indica INDEXED o ERROR. Un fallo de indexación no revierte la activación.")
+    public ArticleResponse activate(@PathVariable Long id, Authentication auth) {
+        service.activate(id);
+        return synced(id, auth);
     }
 
     @PostMapping("/{id}/deactivate")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Desactivar (ADMIN)",
             description = "Deja de ser fuente de nuevas respuestas de inmediato; no se elimina ni altera respuestas históricas.")
-    public ArticleResponse deactivate(@PathVariable Long id) {
-        return service.deactivate(id);
+    public ArticleResponse deactivate(@PathVariable Long id, Authentication auth) {
+        service.deactivate(id);
+        return synced(id, auth);
+    }
+
+    @PostMapping("/{id}/reindex")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Reintentar la sincronización de un artículo con el índice (ADMIN)")
+    public ArticleResponse reindex(@PathVariable Long id, Authentication auth) {
+        service.requestReindex(id);
+        return synced(id, auth);
+    }
+
+    @PostMapping("/index/reconcile")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Reconciliar el índice vectorial (ADMIN)",
+            description = "Sincroniza los artículos con indexStatus PENDING o ERROR, hasta 50 por llamada.")
+    public IndexSyncSummary reconcile() {
+        return indexService.reconcile();
     }
 }

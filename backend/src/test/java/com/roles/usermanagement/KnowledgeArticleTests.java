@@ -49,7 +49,7 @@ class KnowledgeArticleTests extends ApiTestSupport {
 
         JsonNode active = json(request("POST", "/api/knowledge/articles/" + id + "/activate", null, admin));
         assertThat(active.get("eligible").asBoolean()).isTrue();
-        assertThat(active.get("indexStatus").asText()).isEqualTo("PENDING");
+        assertThat(active.get("indexStatus").asText()).isEqualTo("INDEXED");
 
         // Publicado: cualquier rol lo consulta y aparece en el listado por defecto.
         assertThat(request("GET", "/api/knowledge/articles/" + id, null, userToken).statusCode()).isEqualTo(200);

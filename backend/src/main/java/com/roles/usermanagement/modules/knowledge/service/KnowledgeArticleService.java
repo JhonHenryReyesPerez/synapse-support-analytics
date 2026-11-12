@@ -150,6 +150,19 @@ public class KnowledgeArticleService {
         return toResponse(article);
     }
 
+    /**
+     * Reintento explícito de indexación (ADMIN): deja pendiente la sincronización del estado vigente.
+     * Sirve tras un error o para forzar la reindexación de un artículo ya indexado.
+     */
+    @Transactional
+    public void requestReindex(Long id) {
+        KnowledgeArticle article = lock(id);
+        if (article.isEligible() || article.getIndexedVersion() != null
+                || article.getIndexStatus() == IndexSyncStatus.ERROR) {
+            article.setIndexStatus(IndexSyncStatus.PENDING);
+        }
+    }
+
     @Transactional(readOnly = true)
     public PageResponse<ArticleResponse> list(Scope scope, Integer page, Integer size, Authentication auth) {
         Pageable pageable = PageResponse.request(page, size, Sort.by(Sort.Order.desc("updatedAt"), Sort.Order.desc("id")));

@@ -28,4 +28,13 @@ public interface KnowledgeArticleRepository extends JpaRepository<KnowledgeArtic
     List<KnowledgeArticle> findByIndexStatusInOrderByIdAsc(Collection<IndexSyncStatus> statuses);
 
     long countByActiveTrueAndVerifiedTrue();
+
+    /** ¿Hay otro artículo indexado con un modelo o dimensión de embeddings distintos? */
+    @Query("""
+            select count(a) > 0 from KnowledgeArticle a
+            where a.id <> :id and a.indexStatus = com.roles.usermanagement.modules.knowledge.enums.IndexSyncStatus.INDEXED
+              and (a.embeddingModel <> :model or a.embeddingDimension <> :dimension)
+            """)
+    boolean existsIndexedWithDifferentEmbedding(@Param("id") Long id, @Param("model") String model,
+                                                @Param("dimension") Integer dimension);
 }

@@ -38,6 +38,12 @@ public class JwtFilter extends OncePerRequestFilter {
   this.users = users;
  }
 
+ /** Las rutas de integración solo admiten el secreto de servicio, no tokens de usuario. */
+ @Override
+ protected boolean shouldNotFilter(HttpServletRequest request) {
+  return pathOf(request).startsWith("/api/integration/");
+ }
+
  @Override
  protected void doFilterInternal(
          HttpServletRequest request,

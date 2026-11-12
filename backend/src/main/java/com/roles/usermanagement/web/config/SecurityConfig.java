@@ -23,10 +23,13 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 @EnableMethodSecurity(securedEnabled = true)
 public class SecurityConfig {
     private final JwtFilter jwtFilter;
+    private final com.roles.usermanagement.integration.n8n.IntegrationTokenFilter integrationTokenFilter;
 
     @Autowired
-    public SecurityConfig(JwtFilter jwtFilter) {
+    public SecurityConfig(JwtFilter jwtFilter,
+                          com.roles.usermanagement.integration.n8n.IntegrationTokenFilter integrationTokenFilter) {
         this.jwtFilter = jwtFilter;
+        this.integrationTokenFilter = integrationTokenFilter;
     }
 
     /**
@@ -44,6 +47,8 @@ public class SecurityConfig {
                 .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ERROR).permitAll()
                 .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**", "/v3/api-docs.yaml").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
+                // Contrato de servicio de n8n: solo el secreto de integración, nunca un JWT de usuario.
+                .requestMatchers("/api/integration/**").hasRole("INTEGRATION")
                 .requestMatchers("/api/user/**").authenticated()
                 .anyRequest().authenticated())
             .exceptionHandling(errors -> errors
@@ -52,7 +57,8 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .cors(Customizer.withDefaults())
             .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(integrationTokenFilter, UsernamePasswordAuthenticationFilter.class);
 
 
         return http.build();
