@@ -100,6 +100,8 @@ cp .env.example .env      # editar los valores; .env está excluido de Git
 | `JWT_SECRET` | Clave HMAC256, mínimo 32 caracteres (`openssl rand -hex 32`) | Obligatoria |
 | `JWT_ISSUER` | Emisor del token | `campusdesk-api` |
 | `JWT_EXPIRATION` | Vida del token (`30m`, `8h`) | `30m` |
+| `LOGIN_MAX_ATTEMPTS` | Logins fallidos seguidos de un mismo identificador antes del bloqueo temporal (responde 429) | `5` |
+| `LOGIN_ATTEMPT_WINDOW`, `LOGIN_LOCK_DURATION` | Ventana en la que se cuentan los fallos y duración del bloqueo | `15m`, `15m` |
 | `SERVER_PORT` | Puerto HTTP | `8051` |
 | `CORS_ALLOWED_ORIGINS` | Orígenes del frontend, separados por comas | Ninguno (en `dev`: `localhost:5500` y `5501`) |
 | `APP_TIME_ZONE` | Zona de negocio para fechas y agrupaciones | `America/Bogota` |
@@ -224,8 +226,8 @@ cuando falla n8n (con `queryId` en el cuerpo).
 ## Pruebas
 
 ```bash
-./gradlew test                    # H2 en memoria: 100 pruebas, 6 omitidas
-bash scripts/test-postgres.sh     # PostgreSQL 17 en Docker con las migraciones reales: 100 pruebas
+./gradlew test                    # H2 en memoria: 104 pruebas, 6 omitidas
+bash scripts/test-postgres.sh     # PostgreSQL 17 en Docker con las migraciones reales: 104 pruebas
 ```
 
 Resultados, correspondencia con las diez pruebas obligatorias y limitaciones:
@@ -263,7 +265,6 @@ Pendiente o sin comprobar:
 - Calibración del umbral de similitud con el modelo de embeddings real.
 - Migraciones sobre una copia de la base de desarrollo existente.
 - Capturas de Swagger con los endpoints nuevos.
-- Control de intentos de inicio de sesión (endurecimiento propuesto).
 - Revisión humana del código generado con asistencia de IA (`AI_USAGE.md`).
 
 ## Documentación

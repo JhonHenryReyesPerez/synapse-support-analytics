@@ -6,7 +6,7 @@
     "version" : "1.0"
   },
   "servers" : [ {
-    "url" : "http://localhost:58779",
+    "url" : "http://localhost:55453",
     "description" : "Generated server url"
   } ],
   "tags" : [ {
@@ -1642,7 +1642,7 @@
       "post" : {
         "tags" : [ "Autenticación" ],
         "summary" : "Obtener token JWT",
-        "description" : "Valida credenciales por usuario o correo y devuelve token junto a mustChangePassword. Si mustChangePassword es true, el token solo permite /api/auth/change-password y /api/auth/me; el resto de la API responde 403 con code PASSWORD_CHANGE_REQUIRED hasta cambiar la contraseña",
+        "description" : "Valida credenciales por usuario o correo y devuelve token junto a mustChangePassword. Si mustChangePassword es true, el token solo permite /api/auth/change-password y /api/auth/me; el resto de la API responde 403 con code PASSWORD_CHANGE_REQUIRED hasta cambiar la contraseña. Tras varios intentos fallidos seguidos responde 429 con code TOO_MANY_LOGIN_ATTEMPTS y la cabecera Retry-After",
         "operationId" : "login",
         "requestBody" : {
           "content" : {
