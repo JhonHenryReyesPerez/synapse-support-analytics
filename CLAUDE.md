@@ -537,7 +537,7 @@ Registro de lo realizado en la rama `dev/JhonReyes`. Las secciones anteriores si
 
 ### 21.1 Listo y verificado
 
-Verificado con `./gradlew test` en H2 y con `backend/scripts/test-postgres.sh` en PostgreSQL 17 (migraciones reales de Flyway y Hibernate en modo `validate`), salvo donde se indica.
+Verificado con `./gradlew test` en H2 y con `backend/scripts/test-postgres.sh` en PostgreSQL 17 (migraciones reales de Flyway y Hibernate en modo `validate`), salvo donde se indica. Última ejecución: 100 pruebas y 0 fallos en ambos (en H2 se omiten las 6 de datos iniciales).
 
 | ID / etapa | Qué quedó implementado | Prueba principal |
 |---|---|---|
@@ -546,7 +546,7 @@ Verificado con `./gradlew test` en H2 y con `backend/scripts/test-postgres.sh` e
 | B03 | Cuenta con cambio de clave pendiente: solo `login`, `change-password` y `me`; el resto responde 403 `PASSWORD_CHANGE_REQUIRED` | `PasswordChangeRequiredTests` |
 | B04 | Token de 30 min; claim `cv` comparado con `credential_version`; el cambio o restablecimiento invalida tokens previos; `change-password` devuelve token nuevo; clave temporal aleatoria | `TokenInvalidationTests` |
 | B05 | `TicketAssignmentService` es el único caso de uso de asignación; `/transitions` y `/status` delegan en él; listado de técnicos derivado del rol con carga calculada desde tickets | `TicketAssignmentTests` (incluye concurrencia) |
-| Migraciones | Flyway: `V1` línea base … `V6`; `ddl-auto=validate`; `baseline-on-migrate` para bases ya existentes | Suite completa en PostgreSQL |
+| Migraciones | Flyway: `V1` línea base … `V8`; `ddl-auto=validate`; `baseline-on-migrate` para bases ya existentes | Suite completa en PostgreSQL |
 | B06 | `modules/category` (entidad, CRUD de ADMIN, activar/desactivar); `Ticket.category` ManyToOne; prioridad canónica BAJA/MEDIA/ALTA/CRITICA; alias anteriores solo como entrada | `CategoryTests` |
 | B07 | `fullName` y `area` opcionales en el usuario; `username` sigue siendo la clave primaria (sin ID técnico) | `UserAccountPolicyTests` |
 | B08 | `resolvedAt`, `closedAt`, `resolutionNote`; RESOLVE exige nota; fechas previas derivadas del historial; límites de título (150) y descripción (10.000) tras trim | `TicketResolutionTests` |
@@ -559,16 +559,24 @@ Verificado con `./gradlew test` en H2 y con `backend/scripts/test-postgres.sh` e
 | Etapa 4 (RF03) | `integration/n8n` (`HttpN8nClient` con URL fija, secreto en cabecera, tiempos límite y tope de respuesta; contrato v1; `IntegrationTokenFilter`); `KnowledgeIndexService` sincroniza fuera de transacción con estados `NOT_INDEXED`/`PENDING`/`INDEXED`/`ERROR`, reindexar y reconciliar; `/api/integration/knowledge/eligibility` y `/eligible` para n8n con `X-Integration-Token`; `spring.jpa.open-in-view=false` | `KnowledgeIndexTests` (con `FakeN8nClient`; no ejecutado contra un n8n real) |
 | Etapa 5 (RF04, RF05) | `modules/assistance`: `POST /api/tickets/{id}/assistance` persiste la consulta en `PENDING`, llama a n8n sin transacción abierta y fija `ANSWERED`, `NO_RESULTS` o `ERROR`; `AssistResponseValidator` rechaza respuestas que no cumplen el contrato v1; las fuentes se contrastan con la base relacional (existencia, elegibilidad, versión, modelo de embeddings); un único reintento por fuentes obsoletas; evidencia conservada por fuente; una sola consulta en proceso por usuario e incidente, `requestId` idempotente y reintento explícito enlazado; `AssistanceRecovery` cierra las `PENDING` abandonadas; historial paginado por incidente; errores 502/503/504 con `queryId`; migración `V7` | `AssistanceTests` (con `FakeN8nClient`; no ejecutado contra un n8n real) |
 | Etapa 6 (RF08) | `PUT /api/assistance/queries/{id}/rating`: solo quien hizo una consulta `ANSWERED` la califica (entero 1–5, comentario opcional); una por respuesta y usuario, repetir la actualiza; admitida con el incidente cerrado; rango y unicidad también en la base (`V8`); la calificación aparece en la consulta y en el historial | `AssistanceRatingTests` |
+| Etapa 8 (parte del backend) | Datos iniciales deterministas por script explícito (`db/seed/demo_data.sql`: 13 usuarios, 31 artículos, 180 incidentes con historial); README raíz y del backend; contratos para el frontend y para n8n; diagramas de arquitectura y entidad-relación; informe de análisis con cifras reales del conjunto; documento de pruebas; OpenAPI exportado | `DemoDataSeedTests` (solo PostgreSQL), `OpenApiDocumentationTests`, `CommentVisibilityTests` |
 
 ### 21.2 En curso, sin terminar
 
-Nada en curso al cierre de la etapa 4.
+Nada en curso.
 
 ### 21.3 Pendiente
 
-- Etapa 8: datos iniciales (150 incidentes, 25 artículos, 10 usuarios), README actualizado, documento de pruebas, informe de análisis, diagramas, evidencias de Swagger.
-- Las diez pruebas obligatorias del §17.1: cubiertas las diez; la 1, 2, 3, 6, 7, 8, 9 y 10 usan el doble de n8n (la 1, 2, 3, 6 y 8 comprueban el comportamiento del backend ante cada respuesta del flujo, no la recuperación real); falta ejecutarlas contra los workflows reales.
-- No verificado: migraciones sobre una copia de la base de desarrollo existente (solo sobre base vacía); control de intentos de login (endurecimiento propuesto, no implementado).
+Del backend:
+
+- Prueba integrada de la indexación y del asistente contra los workflows reales de n8n: todo lo de las etapas 4 a 6 se probó con `FakeN8nClient`. Las pruebas obligatorias 1, 2, 3, 6 y 8 comprueban el comportamiento del backend ante cada respuesta del flujo, no la recuperación real.
+- Calibrar `ASSIST_MIN_SCORE` (0,70 es un valor inicial) con el modelo de embeddings real y casos con y sin cobertura; documentar la justificación.
+- Migraciones sobre una copia de la base de desarrollo existente (solo se han ejecutado sobre bases vacías).
+- Capturas de Swagger con los endpoints nuevos (la especificación ya está exportada en `docs/backend/openapi.json`).
+- Control de intentos de login (endurecimiento propuesto, no implementado).
+- Revisión humana de todo lo listado en 21.1 y ratificación de las decisiones de 21.4.
+
+De otros integrantes o del equipo (fuera del alcance de esta guía): frontend, Docker Compose, Qdrant, workflows JSON de n8n y presentación final.
 
 ### 21.4 Decisiones tomadas durante la implementación
 
@@ -580,6 +588,12 @@ Añadidas a las del §20; requieren ratificación del equipo.
 4. **Asignación:** conflicto de estado responde 409 y técnico inválido 400; el rol, no el perfil técnico, decide quién es asignable; `active_tickets_count` deja de usarse.
 5. **Índice vectorial:** cuatro estados de sincronización en lugar de los tres propuestos; indexación por envío desde Spring Boot a n8n con un intento automático y reintentos explícitos.
 6. **Secretos de integración separados:** `N8N_SERVICE_TOKEN` (Spring Boot → n8n) e `INTEGRATION_API_TOKEN` (n8n → Spring Boot).
+7. **Open-Session-In-View desactivado** (`spring.jpa.open-in-view=false`): cada transacción usa su propio contexto de persistencia; las relaciones LAZY se leen dentro del servicio.
+8. **Asistente:** la pregunta es opcional (por defecto, la descripción del incidente); una sola consulta en proceso por usuario e incidente; `requestId` idempotente opcional y reintento explícito enlazado (`retryOfQueryId`); el contrato v1 solo admite similitud coseno; los metadatos de recuperación se guardan en la consulta (también en `NO_RESULTS`) y el modelo de generación en la respuesta, a diferencia de lo propuesto en el §7.
+9. **Evidencia de las fuentes:** cada fuente guarda una copia del título y del contenido usado, porque los artículos no conservan versiones anteriores.
+10. **Errores del asistente:** 502, 503 o 504 según la causa, con `queryId`; una consulta `PENDING` se da por abandonada a los 5 minutos (`ASSIST_PENDING_TIMEOUT`).
+11. **Calificaciones:** `ADMIN` no califica consultas ajenas; la puntuación se recibe como número para rechazar decimales en lugar de truncarlos.
+12. **Datos iniciales:** sintéticos y deterministas, con un pico de conectividad y un crecimiento gradual diseñados; usuarios de demostración con contraseña pública (`Demo.2026`) y sin cambio obligatorio, cargados solo por script explícito. El conjunto no incluye consultas al asistente ni calificaciones.
 
 ### 21.5 Cambios de contrato para el frontend y n8n
 
@@ -589,3 +603,5 @@ Añadidas a las del §20; requieren ratificación del equipo.
 - Sin token: 401. Cambio de clave pendiente: 403 con `code=PASSWORD_CHANGE_REQUIRED`.
 - `POST /api/auth/change-password` devuelve un `token` nuevo; el anterior deja de servir.
 - Compose, Qdrant y workflows de n8n pertenecen a otro integrante (rama `dev/Json`); el backend solo define el contrato.
+- Asistente: `POST` y `GET /api/tickets/{id}/assistance`, `GET /api/assistance/queries/{id}`, `PUT /api/assistance/queries/{id}/rating`. Contrato en `docs/backend/API_CONOCIMIENTO_ASISTENTE_ANALITICA.md`.
+- n8n: contrato v1 de indexación y asistencia, y endpoints `/api/integration/knowledge/**`, en `docs/backend/CONTRATO_N8N.md`.
