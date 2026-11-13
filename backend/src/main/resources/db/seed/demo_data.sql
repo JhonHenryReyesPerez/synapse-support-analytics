@@ -259,7 +259,7 @@ FROM (VALUES
 ) AS a(ord, state, author, title, problem, symptoms, cause, solution);
 
 -- -------------------------------------------------------------------------------------
--- 3. Incidentes: 180, del 2026-05-04 al 2026-11-02, en días hábiles y horario de oficina.
+-- 3. Incidentes: 180, creados entre el 2026-05-25 y el 2026-11-02, en días hábiles y horario de oficina.
 --    - 24 corresponden a una caída de conectividad en la semana del 2026-09-14 (pico).
 --    - El resto crece de forma gradual: las semanas recientes tienen más incidentes.
 --    - Tiempo de resolución según categoría y prioridad (horas transcurridas).

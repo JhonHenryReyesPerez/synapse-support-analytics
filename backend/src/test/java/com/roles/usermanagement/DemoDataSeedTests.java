@@ -80,7 +80,7 @@ class DemoDataSeedTests extends ApiTestSupport {
         assertThat(count("select count(distinct t.status) " + COHORT)).isEqualTo(5);
         assertThat(count("select count(distinct t.priority) " + COHORT)).isEqualTo(4);
         assertThat(count("select count(distinct t.category_id) " + COHORT)).isGreaterThanOrEqualTo(5);
-        // Varias fechas y responsables: 27 semanas distintas, 8 solicitantes y 4 técnicos.
+        // Varias fechas y responsables: más de 20 semanas con incidentes, 8 solicitantes y 4 técnicos.
         assertThat(count("select count(distinct date_trunc('week', t.created_at)) " + COHORT)).isGreaterThanOrEqualTo(20);
         assertThat(count("select count(distinct t.applicant_username) " + COHORT)).isEqualTo(8);
         assertThat(count("select count(distinct t.technician_username) " + COHORT)).isEqualTo(4);
