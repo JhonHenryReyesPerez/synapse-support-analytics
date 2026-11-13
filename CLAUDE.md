@@ -557,6 +557,7 @@ Verificado con `./gradlew test` en H2 y con `backend/scripts/test-postgres.sh` e
 | Errores | 401 sin autenticación válida, 403 sin permiso, 400 para parámetros inválidos, 500 controlado; respuestas JSON uniformes | Suite completa |
 | Etapa 3 (RF02) | `modules/knowledge`: borrador → verificado → activo; solo `active AND verified` es elegible; un cambio de contenido incrementa versión, revoca verificación y desactiva; sin borrado | `KnowledgeArticleTests` |
 | Etapa 4 (RF03) | `integration/n8n` (`HttpN8nClient` con URL fija, secreto en cabecera, tiempos límite y tope de respuesta; contrato v1; `IntegrationTokenFilter`); `KnowledgeIndexService` sincroniza fuera de transacción con estados `NOT_INDEXED`/`PENDING`/`INDEXED`/`ERROR`, reindexar y reconciliar; `/api/integration/knowledge/eligibility` y `/eligible` para n8n con `X-Integration-Token`; `spring.jpa.open-in-view=false` | `KnowledgeIndexTests` (con `FakeN8nClient`; no ejecutado contra un n8n real) |
+| Etapa 5 (RF04, RF05) | `modules/assistance`: `POST /api/tickets/{id}/assistance` persiste la consulta en `PENDING`, llama a n8n sin transacción abierta y fija `ANSWERED`, `NO_RESULTS` o `ERROR`; `AssistResponseValidator` rechaza respuestas que no cumplen el contrato v1; las fuentes se contrastan con la base relacional (existencia, elegibilidad, versión, modelo de embeddings); un único reintento por fuentes obsoletas; evidencia conservada por fuente; una sola consulta en proceso por usuario e incidente, `requestId` idempotente y reintento explícito enlazado; `AssistanceRecovery` cierra las `PENDING` abandonadas; historial paginado por incidente; errores 502/503/504 con `queryId`; migración `V7` | `AssistanceTests` (con `FakeN8nClient`; no ejecutado contra un n8n real) |
 
 ### 21.2 En curso, sin terminar
 
@@ -564,10 +565,9 @@ Nada en curso al cierre de la etapa 4.
 
 ### 21.3 Pendiente
 
-- Etapa 5 (RF04, RF05): `modules/assistance` — ConsultaIA, RespuestaIA, FuenteRespuesta, validación de la respuesta de n8n, reintento único por fuentes obsoletas, recuperación de PENDING abandonadas. Solo existen los DTO del contrato.
-- Etapa 6 (RF08): historial de asistencias y calificaciones.
+- Etapa 6 (RF08): calificaciones de las respuestas (el historial ya existe).
 - Etapa 8: datos iniciales (150 incidentes, 25 artículos, 10 usuarios), README actualizado, documento de pruebas, informe de análisis, diagramas, evidencias de Swagger.
-- Las diez pruebas obligatorias del §17.1: cubiertas la 4 y la 5 (analítica); la 7 solo en la parte de validación de creación de tickets; el resto depende de las etapas 5 y 6.
+- Las diez pruebas obligatorias del §17.1: cubiertas de la 1 a la 9 con el doble de n8n (la 1, 2, 3, 6 y 8 comprueban el comportamiento del backend ante cada respuesta del flujo, no la recuperación real); falta la 10 (calificación) y la ejecución contra los workflows reales.
 - No verificado: migraciones sobre una copia de la base de desarrollo existente (solo sobre base vacía); control de intentos de login (endurecimiento propuesto, no implementado).
 
 ### 21.4 Decisiones tomadas durante la implementación

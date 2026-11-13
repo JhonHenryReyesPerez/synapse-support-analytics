@@ -26,6 +26,25 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(e.getStatusCode()).body(body);
     }
 
+    /**
+     * Fallo técnico del asistente con la consulta ya persistida en ERROR: 502, 503 o 504 según la
+     * causa. El cuerpo incluye queryId para consultarla o reintentarla, y un código seguro.
+     */
+    @ExceptionHandler(com.roles.usermanagement.modules.assistance.service.AssistanceFailedException.class)
+    public ResponseEntity<Map<String, Object>> handleAssistanceFailed(
+            com.roles.usermanagement.modules.assistance.service.AssistanceFailedException e) {
+        String message = "No fue posible completar la consulta al asistente por un fallo técnico";
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("status", e.httpStatus().value());
+        body.put("error", message);
+        body.put("message", message);
+        body.put("code", e.errorCode());
+        body.put("queryId", e.queryId());
+        body.put("requestId", e.requestId());
+        return ResponseEntity.status(e.httpStatus()).body(body);
+    }
+
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, Object>> handleDataIntegrity(DataIntegrityViolationException e) {
         Map<String, Object> body = new LinkedHashMap<>();

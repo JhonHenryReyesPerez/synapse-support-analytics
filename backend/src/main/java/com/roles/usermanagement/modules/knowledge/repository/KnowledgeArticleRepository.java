@@ -19,6 +19,14 @@ public interface KnowledgeArticleRepository extends JpaRepository<KnowledgeArtic
     @Query("select a from KnowledgeArticle a where a.id = :id")
     Optional<KnowledgeArticle> findForUpdate(@Param("id") Long id);
 
+    /**
+     * Bloqueo de lectura sobre los artículos citados por una respuesta: mientras se comprueban y se
+     * registran como fuentes no pueden editarse ni desactivarse. El orden por id evita interbloqueos.
+     */
+    @Lock(LockModeType.PESSIMISTIC_READ)
+    @Query("select a from KnowledgeArticle a where a.id in :ids order by a.id")
+    List<KnowledgeArticle> findAllByIdForShare(@Param("ids") Collection<Long> ids);
+
     Page<KnowledgeArticle> findByActiveTrueAndVerifiedTrue(Pageable pageable);
 
     Page<KnowledgeArticle> findByAuthorUsername(String username, Pageable pageable);
