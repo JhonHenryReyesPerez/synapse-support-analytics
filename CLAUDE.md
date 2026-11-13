@@ -660,7 +660,7 @@ Reglas de negocio del enunciado (§11): las consultas inteligentes solo entran p
 Ordenados por importancia para la entrega.
 
 1. **Modo de uso de la IA.** El enunciado y el §1.1 piden tutoría técnica y ejemplos parciales, no generación integral. La mayor parte del código del backend de esta rama fue generada por la IA a petición explícita del responsable; `AI_USAGE.md` lo registra así y ninguna entrada tiene revisión humana. Es el principal riesgo frente a los criterios de evaluación: el responsable debe revisar el código, poder explicarlo y completar la columna de revisión con lo que realmente haya revisado.
-2. **Sin integración a `main`.** El 13 de noviembre se creó la rama `test` desde `main` y se abrieron dos pull requests hacia ella: el n.º 1 con `dev/JhonReyes` y el n.º 2 (borrador) con `integration/n8n-json`. Ninguno está fusionado y falta el paso de `test` a `main`.
+2. **Sin integración a `main`.** El 13 de noviembre se creó la rama `test` desde `main` y se abrió hacia ella el pull request n.º 1 con `dev/JhonReyes`, aún sin fusionar; falta también el paso de `test` a `main`. `dev/Json` no tiene pull request: GitHub no lo admite entre historias sin relación (§22.5).
 3. **RAG sin ejecutar de extremo a extremo.** Las pruebas obligatorias 1, 2, 3, 6 y 8 solo están demostradas con `FakeN8nClient`. Depende de los workflows de la rama `dev/Json`.
 4. **Umbral de similitud sin justificar.** RF04 exige un umbral «configurable y justificado»; es configurable, pero 0,70 es un valor inicial sin casos de prueba que lo respalden.
 5. **Código sin uso en `modules/dashboard`.** `DashboardCacheMetric`, `MetricFilterRequest` y `MetricPeriod` no tienen referencias; la tabla `dashboard_metrics_cache` existe en `V1` y queda vacía. No se eliminaron porque retirar la entidad exige decidir qué hacer con la tabla.
@@ -674,9 +674,9 @@ Ordenados por importancia para la entrega.
 
 ### 22.5 Revisión de la rama `dev/Json` (13 de noviembre de 2026)
 
-`dev/Json` es un único commit sin historia común con `main`. Contiene una copia del backend en el estado del commit `a8d88fa`, un segundo módulo de asistencia con su propia migración `V7`, los dos flujos de n8n, la configuración de Qdrant, `docker-compose.yml`, un `Dockerfile` y otro conjunto de datos iniciales. La rama `integration/n8n-json` la fusiona sobre `dev/JhonReyes` conservando el commit original y tomando solo los archivos de infraestructura, sin modificarlos; el módulo de asistencia y la migración duplicados quedaron fuera.
+`dev/Json` es un único commit sin historia común con `main`. Contiene una copia del backend en el estado del commit `a8d88fa`, un segundo módulo de asistencia con su propia migración `V7`, los dos flujos de n8n, la configuración de Qdrant, `docker-compose.yml`, un `Dockerfile` y otro conjunto de datos iniciales. Por no compartir historia, GitHub no permite abrir un pull request de `dev/Json` hacia `test` ni hacia `main`. Se probó una rama puente (`integration/n8n-json`, pull request n.º 2) y se eliminó el mismo día por decisión del responsable; para integrar este trabajo, su autor debe rehacer la rama partiendo de `test`. El módulo de asistencia y la migración `V7` de `dev/Json` duplican los existentes y no deben entrar.
 
-Resultado de la revisión por lectura frente a `docs/backend/CONTRATO_N8N.md` (detalle completo en el pull request n.º 2): tal como están, no funcionan con el backend.
+Resultado de la revisión por lectura frente a `docs/backend/CONTRATO_N8N.md` (detalle completo en la descripción del pull request n.º 2, ya cerrado): tal como están, no funcionan con el backend.
 
 - Los dos flujos leen campos que el backend no envía (`operation`, `version`, `content`, `prompt`, `title`) y devuelven respuestas sin `schemaVersion`, `requestId` ni los nombres del contrato, de modo que el backend las rechaza.
 - El flujo de asistencia usa `limit: 3` y umbral 0,60 fijos en lugar de `maxResults` y `minScore`, llama al endpoint de elegibilidad con un cuerpo distinto del esperado y arma el cuerpo de la llamada al modelo con una concatenación que n8n envía como texto literal.
