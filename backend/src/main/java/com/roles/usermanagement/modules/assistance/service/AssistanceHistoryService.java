@@ -3,9 +3,11 @@ package com.roles.usermanagement.modules.assistance.service;
 import com.roles.usermanagement.modules.assistance.dto.AssistanceQueryResponse;
 import com.roles.usermanagement.modules.assistance.entity.AssistanceQuery;
 import com.roles.usermanagement.modules.assistance.entity.AssistanceResponse;
+import com.roles.usermanagement.modules.assistance.entity.ResponseRating;
 import com.roles.usermanagement.modules.assistance.entity.ResponseSource;
 import com.roles.usermanagement.modules.assistance.repository.AssistanceQueryRepository;
 import com.roles.usermanagement.modules.assistance.repository.AssistanceResponseRepository;
+import com.roles.usermanagement.modules.assistance.repository.ResponseRatingRepository;
 import com.roles.usermanagement.modules.knowledge.entity.KnowledgeArticle;
 import com.roles.usermanagement.modules.ticket.entity.Ticket;
 import com.roles.usermanagement.modules.ticket.repository.TicketRepository;
@@ -36,13 +38,15 @@ public class AssistanceHistoryService {
 
     private final AssistanceQueryRepository queries;
     private final AssistanceResponseRepository responses;
+    private final ResponseRatingRepository ratings;
     private final TicketRepository tickets;
     private final TicketAccessPolicy policy;
 
     public AssistanceHistoryService(AssistanceQueryRepository queries, AssistanceResponseRepository responses,
-                                    TicketRepository tickets, TicketAccessPolicy policy) {
+                                    ResponseRatingRepository ratings, TicketRepository tickets, TicketAccessPolicy policy) {
         this.queries = queries;
         this.responses = responses;
+        this.ratings = ratings;
         this.tickets = tickets;
         this.policy = policy;
     }
@@ -67,7 +71,7 @@ public class AssistanceHistoryService {
                 result.getTotalElements(), result.getTotalPages());
     }
 
-    /** Las respuestas y sus fuentes se cargan en bloque para toda la página. */
+    /** Las respuestas, sus fuentes y sus calificaciones se cargan en bloque para toda la página. */
     private List<AssistanceQueryResponse> toResponses(List<AssistanceQuery> page) {
         if (page.isEmpty()) {
             return List.of();
@@ -75,10 +79,18 @@ public class AssistanceHistoryService {
         List<Long> ids = page.stream().map(AssistanceQuery::getId).toList();
         Map<Long, AssistanceResponse> byQuery = responses.findWithSourcesByQueryIdIn(ids).stream()
                 .collect(Collectors.toMap(response -> response.getQuery().getId(), Function.identity()));
-        return page.stream().map(query -> toResponse(query, byQuery.get(query.getId()))).toList();
+        List<Long> responseIds = byQuery.values().stream().map(AssistanceResponse::getId).toList();
+        // Solo quien hizo la consulta puede calificarla: hay como máximo una calificación por respuesta.
+        Map<Long, ResponseRating> byResponse = responseIds.isEmpty() ? Map.of()
+                : ratings.findByResponseIdIn(responseIds).stream()
+                        .collect(Collectors.toMap(rating -> rating.getResponse().getId(), Function.identity(), (a, b) -> a));
+        return page.stream().map(query -> {
+            AssistanceResponse response = byQuery.get(query.getId());
+            return toResponse(query, response, response == null ? null : byResponse.get(response.getId()));
+        }).toList();
     }
 
-    private static AssistanceQueryResponse toResponse(AssistanceQuery query, AssistanceResponse response) {
+    private static AssistanceQueryResponse toResponse(AssistanceQuery query, AssistanceResponse response, ResponseRating rating) {
         List<AssistanceQueryResponse.Source> sources = response == null ? List.of()
                 : response.getSources().stream().map(AssistanceHistoryService::toSource).toList();
         boolean limited = response != null && sources.size() < FULL_EVIDENCE_SOURCES;
@@ -102,6 +114,7 @@ public class AssistanceHistoryService {
                 query.getWorkflowVersion(),
                 query.getAttempts(),
                 query.getRetryOf() == null ? null : query.getRetryOf().getId(),
+                rating == null ? null : RatingService.toResponse(query.getId(), rating),
                 query.getCreatedAt(),
                 query.getCompletedAt());
     }

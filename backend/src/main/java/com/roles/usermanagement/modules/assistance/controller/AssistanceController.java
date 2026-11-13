@@ -2,8 +2,11 @@ package com.roles.usermanagement.modules.assistance.controller;
 
 import com.roles.usermanagement.modules.assistance.dto.AssistanceQueryResponse;
 import com.roles.usermanagement.modules.assistance.dto.AssistanceRequest;
+import com.roles.usermanagement.modules.assistance.dto.RatingRequest;
+import com.roles.usermanagement.modules.assistance.dto.RatingResponse;
 import com.roles.usermanagement.modules.assistance.service.AssistanceHistoryService;
 import com.roles.usermanagement.modules.assistance.service.AssistanceService;
+import com.roles.usermanagement.modules.assistance.service.RatingService;
 import com.roles.usermanagement.web.config.OpenApiConfig;
 import com.roles.usermanagement.web.dto.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -17,6 +20,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -32,10 +36,12 @@ public class AssistanceController {
 
     private final AssistanceService assistance;
     private final AssistanceHistoryService history;
+    private final RatingService ratings;
 
-    public AssistanceController(AssistanceService assistance, AssistanceHistoryService history) {
+    public AssistanceController(AssistanceService assistance, AssistanceHistoryService history, RatingService ratings) {
         this.assistance = assistance;
         this.history = history;
+        this.ratings = ratings;
     }
 
     @PostMapping("/api/tickets/{ticketId}/assistance")
@@ -78,5 +84,20 @@ public class AssistanceController {
             description = "Sirve para recuperar el resultado de una consulta tras un error de red o mientras está pendiente.")
     public AssistanceQueryResponse getById(@PathVariable Long queryId, Authentication auth) {
         return history.getById(queryId, auth);
+    }
+
+    @PutMapping("/api/assistance/queries/{queryId}/rating")
+    @Operation(summary = "Calificar la utilidad de una respuesta (1 a 5)",
+            description = "Solo quien hizo la consulta, y solo si fue respondida. Una calificación por respuesta y usuario: "
+                    + "repetir la llamada la actualiza. Se admite aunque el incidente ya esté cerrado.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Calificación creada o actualizada"),
+                    @ApiResponse(responseCode = "400", description = "Puntuación ausente, no entera o fuera de 1 a 5"),
+                    @ApiResponse(responseCode = "403", description = "La consulta es de otro usuario o no hay acceso al incidente"),
+                    @ApiResponse(responseCode = "404", description = "La consulta no existe"),
+                    @ApiResponse(responseCode = "409", description = "La consulta no fue respondida")
+            })
+    public RatingResponse rate(@PathVariable Long queryId, @Valid @RequestBody RatingRequest request, Authentication auth) {
+        return ratings.rate(queryId, request, auth);
     }
 }

@@ -35,6 +35,8 @@ public record AssistanceQueryResponse(
         int attempts,
         @Schema(description = "Consulta anterior que este reintento repite")
         Long retryOfQueryId,
+        @Schema(description = "Calificación dada por quien hizo la consulta; null si aún no la califica")
+        RatingResponse rating,
         LocalDateTime createdAt,
         @Schema(description = "Instante del estado terminal; null mientras está pendiente")
         LocalDateTime completedAt
