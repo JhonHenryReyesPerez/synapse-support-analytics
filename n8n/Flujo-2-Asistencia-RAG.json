@@ -1,0 +1,475 @@
+{
+  "name": "Flujo 2 - Asistencia RAG",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "campusdesk-assist",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-assist",
+      "name": "Webhook Asistencia",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        180,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const expectedToken = $env.N8N_SERVICE_TOKEN || 'campusdesk-super-secret-service-token-2026';\nconst headers = $input.first().json.headers || {};\nconst token = headers['x-service-token'] || headers['X-Service-Token'];\n\nif (!token || token !== expectedToken) {\n  return [{ json: { authorized: false, error: 'Unauthorized: Invalid or missing X-Service-Token' } }];\n}\n\nconst body = $input.first().json.body || {};\nconst queryText = body.prompt || body.queryText || (body.title + ': ' + body.category);\n\nreturn [{\n  json: {\n    authorized: true,\n    queryId: body.queryId,\n    ticketId: body.ticketId,\n    category: body.category || 'General',\n    title: body.title || 'Consulta',\n    queryText: queryText\n  }\n}];"
+      },
+      "id": "auth-and-parse",
+      "name": "Validar Token y Parametros",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.authorized }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-authorized",
+      "name": "Esta Autorizado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        620,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"ERROR\",\n  \"errorMessage\": \"{{ $json.error }}\"\n}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "id": "respond-unauthorized",
+      "name": "Responder 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        840,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/embeddings",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"text-embedding-3-small\",\n  \"input\": {{ JSON.stringify($json.queryText) }}\n}",
+        "options": {}
+      },
+      "id": "openrouter-embedding",
+      "name": "Embedding de Consulta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        840,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://qdrant:6333/collections/articulos_soporte/points/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"vector\": {{ JSON.stringify($json.data[0].embedding) }},\n  \"limit\": 3,\n  \"score_threshold\": 0.60,\n  \"with_payload\": true,\n  \"filter\": {\n    \"must\": [\n      {\n        \"key\": \"estado\",\n        \"match\": {\n          \"value\": \"activo\"\n        }\n      }\n    ]\n  }\n}",
+        "options": {}
+      },
+      "id": "qdrant-search",
+      "name": "Busqueda Semantica en Qdrant",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1060,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const qdrantResults = $input.first().json.result || [];\nconst prevData = $('Validar Token y Parametros').first().json;\n\nif (qdrantResults.length === 0) {\n  return [{\n    json: {\n      hasMatches: false,\n      queryId: prevData.queryId,\n      queryText: prevData.queryText,\n      category: prevData.category,\n      title: prevData.title,\n      candidates: []\n    }\n  }];\n}\n\nconst candidates = qdrantResults.map(r => ({\n  articleId: r.payload.articleId || r.payload.articulo_id || r.id,\n  title: r.payload.title || r.payload.titulo || '',\n  category: r.payload.category || r.payload.categoria || '',\n  content: r.payload.content || r.payload.contenido || '',\n  version: r.payload.version || 1,\n  score: r.score\n}));\n\nreturn [{\n  json: {\n    hasMatches: true,\n    queryId: prevData.queryId,\n    queryText: prevData.queryText,\n    category: prevData.category,\n    title: prevData.title,\n    candidates: candidates\n  }\n}];"
+      },
+      "id": "process-matches",
+      "name": "Procesar Coincidencias",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.hasMatches }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-has-matches",
+      "name": "Hay Coincidencias?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"queryId\": {{ $json.queryId }},\n  \"status\": \"NO_RESULTS\",\n  \"summary\": null,\n  \"steps\": [],\n  \"recommendations\": null,\n  \"sources\": []\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "respond-no-results-qdrant",
+      "name": "Responder NO_RESULTS (Qdrant vacio)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1740,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8080/api/integration/knowledge/eligibility",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Integration-Token",
+              "value": "={{ $env.INTEGRATION_API_TOKEN || 'campusdesk-super-secret-integration-token-2026' }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"articleIds\": {{ JSON.stringify($json.candidates.map(c => c.articleId)) }}\n}",
+        "options": {}
+      },
+      "id": "check-eligibility",
+      "name": "Validar Elegibilidad Relacional",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1740,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const eligibilityResponse = $input.first().json;\nconst eligibleMap = eligibilityResponse.eligible || {};\nconst processData = $('Procesar Coincidencias').first().json;\nconst candidates = processData.candidates || [];\n\nconst validSources = candidates.filter(c => eligibleMap[c.articleId] === true);\n\nif (validSources.length === 0) {\n  return [{\n    json: {\n      hasValidSources: false,\n      queryId: processData.queryId\n    }\n  }];\n}\n\nlet contextText = '';\nvalidSources.forEach((src, idx) => {\n  contextText += `--- FUENTE ${idx + 1}: ${src.title} (ID: ${src.articleId}, Categoría: ${src.category}) ---\\n${src.content}\\n\\n`;\n});\n\nreturn [{\n  json: {\n    hasValidSources: true,\n    queryId: processData.queryId,\n    queryText: processData.queryText,\n    category: processData.category,\n    title: processData.title,\n    validSources: validSources,\n    contextText: contextText\n  }\n}];"
+      },
+      "id": "filter-eligible",
+      "name": "Filtrar Fuentes Elegibles",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1960,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.hasValidSources }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-valid-sources",
+      "name": "Tiene Fuentes Validas?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        2180,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"queryId\": {{ $json.queryId }},\n  \"status\": \"NO_RESULTS\",\n  \"summary\": null,\n  \"steps\": [],\n  \"recommendations\": null,\n  \"sources\": []\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "respond-no-results-ineligible",
+      "name": "Responder NO_RESULTS (Inelegibles)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2400,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"google/gemini-2.5-flash\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Eres un asistente experto de soporte técnico para la plataforma de gestión de incidentes tecnológicos. Tu tarea es responder a la consulta del usuario basándote ESTRICTAMENTE en las fuentes de conocimiento verificadas adjuntas.\\n\\nREGLAS OBLIGATORIAS:\\n1. Basa toda tu orientación técnica únicamente en la información presente en el contexto.\\n2. Si las fuentes no contienen suficiente información para responder adecuadamente, responde con un objeto JSON indicando que no hay información.\\n3. No inventes procedimientos, contraseñas, URLs ni comandos no respaldados.\\n4. Responde SIEMPRE con un objeto JSON válido (sin formato markdown ```json) con los siguientes campos:\\n   - summary: Resumen conciso de la orientación técnica o solución.\\n   - steps: Array de strings con los pasos ordenados de resolución sugeridos.\\n   - recommendations: Recomendaciones preventivas o notas de advertencia.\\n\\nEjemplo de salida:\\n{\\\"summary\\\": \\\"Solución para falla de red local\\\", \\\"steps\\\": [\\\"Paso 1: Reiniciar el switch\\\", \\\"Paso 2: Comprobar la IP asignada\\\"], \\\"recommendations\\\": \\\"Si persiste, solicitar cambio de cable de red\\\"}\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"CONTEXTO VERIFICADO:\\n\" + $json.contextText + \"\\n\\nINCIDENTE/CONSULTA:\\nCategoría: \" + $json.category + \"\\nTítulo: \" + $json.title + \"\\nConsulta: \" + $json.queryText\n    }\n  ],\n  \"temperature\": 0.2\n}",
+        "options": {}
+      },
+      "id": "openrouter-llm",
+      "name": "OpenRouter Gemini Chat",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2400,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const responseData = $input.first().json;\nconst filterData = $('Filtrar Fuentes Elegibles').first().json;\n\nconst contentStr = responseData.choices[0].message.content.trim();\nlet parsed = {};\ntry {\n  const cleaned = contentStr.replace(/^```json\\s*/, '').replace(/\\s*```$/, '');\n  parsed = JSON.parse(cleaned);\n} catch (e) {\n  parsed = {\n    summary: contentStr,\n    steps: [],\n    recommendations: null\n  };\n}\n\nconst sourcesFormatted = (filterData.validSources || []).map(src => ({\n  articleId: src.articleId,\n  title: src.title,\n  similarityScore: src.score,\n  version: src.version\n}));\n\nreturn [{\n  json: {\n    queryId: filterData.queryId,\n    status: 'ANSWERED',\n    summary: parsed.summary || 'Solución sugerida por IA',\n    steps: Array.isArray(parsed.steps) ? parsed.steps : [],\n    recommendations: parsed.recommendations || null,\n    sources: sourcesFormatted,\n    modelName: 'google/gemini-2.5-flash'\n  }\n}];"
+      },
+      "id": "parse-llm-response",
+      "name": "Formatear Respuesta Final",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "respond-final-rag",
+      "name": "Responder Asistencia RAG",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2860,
+        140
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Asistencia": {
+      "main": [
+        [
+          {
+            "node": "Validar Token y Parametros",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar Token y Parametros": {
+      "main": [
+        [
+          {
+            "node": "Esta Autorizado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Esta Autorizado?": {
+      "main": [
+        [
+          {
+            "node": "Embedding de Consulta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embedding de Consulta": {
+      "main": [
+        [
+          {
+            "node": "Busqueda Semantica en Qdrant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Busqueda Semantica en Qdrant": {
+      "main": [
+        [
+          {
+            "node": "Procesar Coincidencias",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar Coincidencias": {
+      "main": [
+        [
+          {
+            "node": "Hay Coincidencias?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hay Coincidencias?": {
+      "main": [
+        [
+          {
+            "node": "Validar Elegibilidad Relacional",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder NO_RESULTS (Qdrant vacio)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar Elegibilidad Relacional": {
+      "main": [
+        [
+          {
+            "node": "Filtrar Fuentes Elegibles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar Fuentes Elegibles": {
+      "main": [
+        [
+          {
+            "node": "Tiene Fuentes Validas?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tiene Fuentes Validas?": {
+      "main": [
+        [
+          {
+            "node": "OpenRouter Gemini Chat",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder NO_RESULTS (Inelegibles)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Gemini Chat": {
+      "main": [
+        [
+          {
+            "node": "Formatear Respuesta Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatear Respuesta Final": {
+      "main": [
+        [
+          {
+            "node": "Responder Asistencia RAG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

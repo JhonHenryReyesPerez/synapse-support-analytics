@@ -1,0 +1,70 @@
+package com.roles.usermanagement.persistance.entity;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+import java.util.List;
+import java.util.Set;
+import java.util.LinkedHashSet;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.UniqueConstraint;
+import lombok.Getter;
+import lombok.Setter;
+
+/**
+ * Represents the user entity in the database.
+ */
+@Getter
+@Setter
+@Entity
+@Table(name = "user")
+public class UserEntity {
+
+  @Id
+  @Column(nullable = false, length = 50, unique = true)
+  private String username;
+
+  @Column(name = "must_change_password", nullable = false)
+  private Boolean mustChangePassword = true; // attribute added to class to enable password
+                                             // change.
+  /** B04: se incrementa al cambiar o restablecer la contraseña; invalida los tokens anteriores. */
+  @Column(name = "credential_version", nullable = false)
+  @org.hibernate.annotations.ColumnDefault("0")
+  private Integer credentialVersion = 0;
+
+  @Column(nullable = false, length = 200, unique = true)
+  private String email;
+
+  /** Nombre de la persona (B07). Null en cuentas anteriores que aún no lo registran. */
+  @Column(name = "full_name", length = 150)
+  private String fullName;
+
+  /** Área o dependencia a la que pertenece (B07). */
+  @Column(name = "area", length = 100)
+  private String area;
+
+  @Column(nullable = false)
+  private Boolean locked;
+
+  @Column(nullable = false)
+  private Boolean disabled;
+
+  @Column(nullable = false, length = 200)
+  private String password;
+
+  @OneToMany(mappedBy = "user", fetch = FetchType.EAGER, cascade = CascadeType.ALL)
+  private List<UserRoleEntity> roles;
+
+  @ManyToMany(fetch = FetchType.EAGER)
+  @JoinTable(name = "user_permission",
+      joinColumns = @JoinColumn(name = "username"),
+      inverseJoinColumns = @JoinColumn(name = "permission_name"),
+      uniqueConstraints = @UniqueConstraint(columnNames = {"username", "permission_name"}))
+  private Set<PermissionEntity> additionalPermissions = new LinkedHashSet<>();
+}

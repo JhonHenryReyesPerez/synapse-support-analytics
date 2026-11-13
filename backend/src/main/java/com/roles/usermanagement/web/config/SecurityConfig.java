@@ -1,0 +1,88 @@
+package com.roles.usermanagement.web.config;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+
+/**
+ * Application security configuration. This class configures application security
+ * by setting access permissions for different routes and defining authentication behavior.
+ */
+@Configuration
+@EnableMethodSecurity(securedEnabled = true)
+public class SecurityConfig {
+    private final JwtFilter jwtFilter;
+    private final com.roles.usermanagement.integration.n8n.IntegrationTokenFilter integrationTokenFilter;
+
+    @Autowired
+    public SecurityConfig(JwtFilter jwtFilter,
+                          com.roles.usermanagement.integration.n8n.IntegrationTokenFilter integrationTokenFilter) {
+        this.jwtFilter = jwtFilter;
+        this.integrationTokenFilter = integrationTokenFilter;
+    }
+
+    /**
+     * Defines security configuration for routes and access restrictions.
+     *
+     * @param http The HttpSecurity object to configure security.
+     * @return The security filter configured for the application.
+     * @throws Exception If there are errors configuring security.
+     */
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+            .authorizeHttpRequests(customRequest -> customRequest
+                // El reenvío interno a /error conserva el código original (400, 404...) en vez de convertirlo en 403.
+                .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ERROR).permitAll()
+                .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**", "/v3/api-docs.yaml").permitAll()
+                .requestMatchers("/api/auth/**").permitAll()
+                // Contrato de servicio de n8n: solo el secreto de integración, nunca un JWT de usuario.
+                .requestMatchers("/api/integration/**").hasRole("INTEGRATION")
+                .requestMatchers("/api/user/**").authenticated()
+                .anyRequest().authenticated())
+            .exceptionHandling(errors -> errors
+                .authenticationEntryPoint(SecurityErrorHandlers.unauthorized())
+                .accessDeniedHandler(SecurityErrorHandlers.forbidden()))
+            .csrf(AbstractHttpConfigurer::disable)
+            .cors(Customizer.withDefaults())
+            .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(integrationTokenFilter, UsernamePasswordAuthenticationFilter.class);
+
+
+        return http.build();
+    }
+
+    /**
+     * Defines custom authentication manager used for user authentication.
+     *
+     * @param configuration Authentication configuration.
+     * @return The custom authentication manager.
+     * @throws Exception If there are errors retrieving the authentication manager.
+     */
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
+        return configuration.getAuthenticationManager();
+    }
+
+    /**
+     * Returns the password encoder used for secure password storage.
+     *
+     * @return The password encoder used to encrypt and match passwords.
+     */
+    @Bean
+    public static PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+}
