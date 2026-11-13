@@ -5,12 +5,12 @@ El frontend, Docker Compose y los workflows de n8n tienen sus propias pruebas a 
 
 ## 1. Resultado de la última ejecución
 
-Fecha: 12 de noviembre de 2026. Rama `dev/JhonReyes`. Java 21 (Temurin 21.0.12), Gradle Wrapper.
+Fecha: 13 de noviembre de 2026. Rama `dev/JhonReyes`. Java 21 (Temurin 21.0.12), Gradle Wrapper.
 
 | Ejecución | Comando | Base de datos | Pruebas | Fallos | Omitidas |
 |---|---|---|---:|---:|---:|
-| Rápida | `./gradlew test` | H2 en memoria, esquema generado por Hibernate | 100 | 0 | 6 |
-| Completa | `backend/scripts/test-postgres.sh` | PostgreSQL 17.11 desechable, 8 migraciones de Flyway, Hibernate en `validate` | 100 | 0 | 0 |
+| Rápida | `./gradlew test` | H2 en memoria, esquema generado por Hibernate | 104 | 0 | 6 |
+| Completa | `backend/scripts/test-postgres.sh` | PostgreSQL 17.11 desechable, 8 migraciones de Flyway, Hibernate en `validate` | 104 | 0 | 0 |
 
 Las 6 omitidas en H2 son `DemoDataSeedTests`: cargan el script de datos iniciales, que es SQL de
 PostgreSQL, y solo se ejecutan en la ejecución completa.
@@ -30,6 +30,7 @@ PostgreSQL, y solo se ejecutan en la ejecución completa.
 | `PasswordChangeFlowTests` | 4 | Cambio y restablecimiento de contraseña |
 | `PasswordChangeRequiredTests` | 4 | Restricción con cambio de contraseña pendiente (B03) |
 | `TokenInvalidationTests` | 4 | Invalidación de tokens por versión de credenciales (B04) |
+| `LoginAttemptLimitTests` | 4 | Control de intentos de login: bloqueo temporal por identificador (§14) |
 | `AssistanceRatingTests` | 3 | Calificación de respuestas (RF08) |
 | `JwtPropertiesBindingTests` | 3 | Secretos obligatorios por entorno (B01) |
 | `TicketResolutionTests` | 3 | Fechas de resolución y máquina de estados (B08) |
@@ -37,7 +38,7 @@ PostgreSQL, y solo se ejecutan en la ejecución completa.
 | `CommentVisibilityTests` | 1 | El solicitante no ve ni crea notas internas (§6.3) |
 | `OpenApiDocumentationTests` | 1 | El contrato de Swagger incluye los endpoints nuevos |
 | `TicketPaginationTests` | 1 | Paginación y orden estable (B11) |
-| **Total** | **100** | |
+| **Total** | **104** | |
 
 ## 2. Cómo reproducirlas
 
@@ -121,7 +122,28 @@ indicadores de la API coinciden con SQL independiente sobre los 180 incidentes.
 - Interfaz: `http://localhost:8051/swagger-ui.html` con la aplicación arrancada.
 - Las capturas de pantalla de Swagger con los endpoints nuevos **están pendientes**: las de `docs/assets` son anteriores a estos módulos.
 
-## 7. Limitaciones y lo que no se ha comprobado
+## 7. Arranque real con el perfil `dev`
+
+Comprobado el 13 de noviembre de 2026 con `SPRING_PROFILES_ACTIVE=dev ./gradlew bootRun` contra una
+base PostgreSQL 17 vacía, sin n8n configurado:
+
+| Comprobación | Resultado observado |
+|---|---|
+| Arranque | Flyway aplicó las 8 migraciones y la aplicación inició en unos 16 s |
+| Carga de `db/seed/demo_data.sql` | 13 usuarios, 31 artículos (28 elegibles), 180 incidentes |
+| Login con un usuario de demostración | 200 con token |
+| `GET /api/analytics/summary` como ADMIN | `totalIncidents` = 180 |
+| `GET /api/tickets?size=2` como ADMIN | `totalElements` = 180, `totalPages` = 90 |
+| `GET /api/tickets` sin token | 401 |
+| `GET /api/user/all` como USER | 403 |
+| `POST /api/tickets/{id}/assistance` sin n8n | 503 con `code=N8N_NOT_CONFIGURED` y `queryId`; la consulta queda en el historial con estado `ERROR` |
+| Seis logins fallidos seguidos | 401 cinco veces y 429 en la sexta |
+| `GET /api/integration/knowledge/eligible` sin secreto | 401 |
+| `GET /swagger-ui.html` | 200 |
+
+Fue una comprobación manual con `curl`, no una prueba automatizada. La base usada se eliminó al terminar.
+
+## 8. Limitaciones y lo que no se ha comprobado
 
 | Limitación | Consecuencia |
 |---|---|
@@ -131,5 +153,5 @@ indicadores de la API coinciden con SQL independiente sobre los 180 incidentes.
 | Las migraciones solo se han ejecutado sobre bases vacías | No se han probado sobre una copia de la base de desarrollo existente (creada antes de adoptar Flyway) |
 | H2 no ejecuta las migraciones | Las restricciones definidas solo en SQL (índice único parcial de consultas pendientes, varios `CHECK`) solo se validan en la ejecución con PostgreSQL |
 | Sin pruebas de carga | No se midió el comportamiento con muchas consultas simultáneas al asistente |
-| Control de intentos de inicio de sesión | Endurecimiento propuesto, no implementado |
+| El control de intentos de login guarda su estado en memoria | Se reinicia con la aplicación y no se comparte entre instancias; cuenta por identificador enviado, así que usuario y correo de una misma cuenta llevan contadores separados |
 | Revisión humana | El código de estas etapas fue generado con asistencia de IA y su revisión por el responsable está pendiente (ver `AI_USAGE.md`) |
