@@ -531,13 +531,13 @@ Esta guía ofrece valores por defecto para trabajar sin ambigüedad, pero estos 
 
 Antes de cambiar cualquiera, explicar impacto en entidades, endpoints, pruebas y consumidores. No presentar supuestos como decisiones confirmadas por el equipo.
 
-## 21. Estado de implementación (actualizado el 12 de noviembre de 2026)
+## 21. Estado de implementación (actualizado el 13 de noviembre de 2026)
 
 Registro de lo realizado en la rama `dev/JhonReyes`. Las secciones anteriores siguen siendo la especificación; esta sección indica qué parte ya existe en el código. Actualizarla al cerrar cada incremento. La revisión humana de todo lo listado está pendiente (ver `AI_USAGE.md`).
 
 ### 21.1 Listo y verificado
 
-Verificado con `./gradlew test` en H2 y con `backend/scripts/test-postgres.sh` en PostgreSQL 17 (migraciones reales de Flyway y Hibernate en modo `validate`), salvo donde se indica.
+Verificado con `./gradlew test` en H2 y con `backend/scripts/test-postgres.sh` en PostgreSQL 17 (migraciones reales de Flyway y Hibernate en modo `validate`), salvo donde se indica. Última ejecución (13 de noviembre de 2026): 104 pruebas y 0 fallos en ambos (en H2 se omiten las 6 de datos iniciales).
 
 | ID / etapa | Qué quedó implementado | Prueba principal |
 |---|---|---|
@@ -546,7 +546,7 @@ Verificado con `./gradlew test` en H2 y con `backend/scripts/test-postgres.sh` e
 | B03 | Cuenta con cambio de clave pendiente: solo `login`, `change-password` y `me`; el resto responde 403 `PASSWORD_CHANGE_REQUIRED` | `PasswordChangeRequiredTests` |
 | B04 | Token de 30 min; claim `cv` comparado con `credential_version`; el cambio o restablecimiento invalida tokens previos; `change-password` devuelve token nuevo; clave temporal aleatoria | `TokenInvalidationTests` |
 | B05 | `TicketAssignmentService` es el único caso de uso de asignación; `/transitions` y `/status` delegan en él; listado de técnicos derivado del rol con carga calculada desde tickets | `TicketAssignmentTests` (incluye concurrencia) |
-| Migraciones | Flyway: `V1` línea base … `V6`; `ddl-auto=validate`; `baseline-on-migrate` para bases ya existentes | Suite completa en PostgreSQL |
+| Migraciones | Flyway: `V1` línea base … `V8`; `ddl-auto=validate`; `baseline-on-migrate` para bases ya existentes | Suite completa en PostgreSQL |
 | B06 | `modules/category` (entidad, CRUD de ADMIN, activar/desactivar); `Ticket.category` ManyToOne; prioridad canónica BAJA/MEDIA/ALTA/CRITICA; alias anteriores solo como entrada | `CategoryTests` |
 | B07 | `fullName` y `area` opcionales en el usuario; `username` sigue siendo la clave primaria (sin ID técnico) | `UserAccountPolicyTests` |
 | B08 | `resolvedAt`, `closedAt`, `resolutionNote`; RESOLVE exige nota; fechas previas derivadas del historial; límites de título (150) y descripción (10.000) tras trim | `TicketResolutionTests` |
@@ -554,25 +554,30 @@ Verificado con `./gradlew test` en H2 y con `backend/scripts/test-postgres.sh` e
 | B10 | Reglas de cuentas trasladadas a `UserService` y `UserAccountPolicy`; `UserRepository` conserva validación de datos y persistencia (traslado parcial) | `UserAccountPolicyTests` |
 | B11 | `GET /api/tickets` paginado (20 por defecto, máximo 100, orden `createdAt, id`) | `TicketPaginationTests` |
 | B12 y §5 | Política efectiva: el rol delimita y el permiso individual solo habilita dentro de ese límite; último administrador activo protegido; técnico con tickets activos no cambia de rol; baja lógica de usuarios; catálogo de roles/permisos solo ADMIN | `UserAccountPolicyTests` |
+| §14, intentos de login | `LoginAttemptLimiter`: tras 5 fallos seguidos de un mismo identificador en 15 min, el login responde 429 `TOO_MANY_LOGIN_ATTEMPTS` con `Retry-After` durante 15 min, exista o no la cuenta; un login correcto reinicia la cuenta; valores configurables (`LOGIN_MAX_ATTEMPTS`, `LOGIN_ATTEMPT_WINDOW`, `LOGIN_LOCK_DURATION`); estado en memoria | `LoginAttemptLimitTests` |
 | Errores | 401 sin autenticación válida, 403 sin permiso, 400 para parámetros inválidos, 500 controlado; respuestas JSON uniformes | Suite completa |
 | Etapa 3 (RF02) | `modules/knowledge`: borrador → verificado → activo; solo `active AND verified` es elegible; un cambio de contenido incrementa versión, revoca verificación y desactiva; sin borrado | `KnowledgeArticleTests` |
-| Etapa 4 (RF03) | `integration/n8n`: cliente HTTP, sincronización de índice vectorial (UPSERT/DELETE), 4 estados de sincronización (`NOT_INDEXED`, `PENDING`, `INDEXED`, `ERROR`), endpoint de elegibilidad relacional con token. Resuelto fallo de caché Hibernate con `spring.jpa.open-in-view=false` | `KnowledgeIndexTests` (100% pasando) |
-| Etapa 5 (RF04, RF05) | `modules/assistance`: consultas RAG (`AiQuery`, `AiResponse`, `AiSource`), ciclo de vida PENDING → ANSWERED/NO_RESULTS/ERROR, snapshot relacional en transacción, validación estricta de fuentes elegibles, reintento único ante fuentes obsoletas | `AssistanceTests` |
-| Etapa 6 (RF08) | `modules/assistance`: calificaciones de respuestas IA (`AiRating`), escala 1-5 estrellas, exclusivo para el solicitante de la consulta, editable | `AssistanceTests` |
-| Migración V7 | Flyway: `V7__ai_assistance_and_ratings.sql` para tablas de consultas, respuestas, fuentes y calificaciones | Suite completa en H2 y esquema Flyway |
-| Automatización n8n | `n8n/Flujo-1-Indexacion-Conocimiento.json` y `n8n/Flujo-2-Asistencia-RAG.json` con OpenRouter (`text-embedding-3-small`, `google/gemini-2.5-flash`), Qdrant y doble validación relacional | Verificado contra esquemas de contrato |
-| Infraestructura y Datos | `docker-compose.yml`, `backend/Dockerfile`, `.env.example`, `qdrant/collection_config.json`, `qdrant/setup_qdrant.sh`, `database/seed_data.sql` (150 incidentes, 25 artículos, 10 usuarios) | Orquestación reproducible |
+| Etapa 4 (RF03) | `integration/n8n` (`HttpN8nClient` con URL fija, secreto en cabecera, tiempos límite y tope de respuesta; contrato v1; `IntegrationTokenFilter`); `KnowledgeIndexService` sincroniza fuera de transacción con estados `NOT_INDEXED`/`PENDING`/`INDEXED`/`ERROR`, reindexar y reconciliar; `/api/integration/knowledge/eligibility` y `/eligible` para n8n con `X-Integration-Token`; `spring.jpa.open-in-view=false` | `KnowledgeIndexTests` (con `FakeN8nClient`; no ejecutado contra un n8n real) |
+| Etapa 5 (RF04, RF05) | `modules/assistance`: `POST /api/tickets/{id}/assistance` persiste la consulta en `PENDING`, llama a n8n sin transacción abierta y fija `ANSWERED`, `NO_RESULTS` o `ERROR`; `AssistResponseValidator` rechaza respuestas que no cumplen el contrato v1; las fuentes se contrastan con la base relacional (existencia, elegibilidad, versión, modelo de embeddings); un único reintento por fuentes obsoletas; evidencia conservada por fuente; una sola consulta en proceso por usuario e incidente, `requestId` idempotente y reintento explícito enlazado; `AssistanceRecovery` cierra las `PENDING` abandonadas; historial paginado por incidente; errores 502/503/504 con `queryId`; migración `V7` | `AssistanceTests` (con `FakeN8nClient`; no ejecutado contra un n8n real) |
+| Etapa 6 (RF08) | `PUT /api/assistance/queries/{id}/rating`: solo quien hizo una consulta `ANSWERED` la califica (entero 1–5, comentario opcional); una por respuesta y usuario, repetir la actualiza; admitida con el incidente cerrado; rango y unicidad también en la base (`V8`); la calificación aparece en la consulta y en el historial | `AssistanceRatingTests` |
+| Etapa 8 (parte del backend) | Datos iniciales deterministas por script explícito (`db/seed/demo_data.sql`: 13 usuarios, 31 artículos, 180 incidentes con historial); README raíz y del backend; contratos para el frontend y para n8n; diagramas de arquitectura y entidad-relación; informe de análisis con cifras reales del conjunto; documento de pruebas; OpenAPI exportado | `DemoDataSeedTests` (solo PostgreSQL), `OpenApiDocumentationTests`, `CommentVisibilityTests` |
 
-### 21.2 Estado de pruebas
+### 21.2 En curso, sin terminar
 
-Total de pruebas ejecutadas con `./gradlew test` en JDK 21: **82 pruebas, 0 fallos, 0 errores (100% exitosas)**.
+Nada en curso.
 
-### 21.3 Pendiente para entrega final
+### 21.3 Pendiente
 
-- Frontend (`HTML/CSS/JS`): Formularios, pantallas de asistencia RAG, catálogo de conocimiento, reportes y gráficos de analítica (acordado para siguiente fase).
-- Evidencias de Swagger y exportación de colección Postman.
-- Informe formal de análisis de incidentes con conclusiones respaldadas por datos.
-- Presentación final del proyecto.
+Del backend:
+
+- Prueba integrada de la indexación y del asistente contra los workflows reales de n8n: todo lo de las etapas 4 a 6 se probó con `FakeN8nClient`. Las pruebas obligatorias 1, 2, 3, 6 y 8 comprueban el comportamiento del backend ante cada respuesta del flujo, no la recuperación real.
+- Calibrar `ASSIST_MIN_SCORE` (0,70 es un valor inicial) con el modelo de embeddings real y casos con y sin cobertura; documentar la justificación.
+- Migraciones sobre una copia de la base de desarrollo existente (solo se han ejecutado sobre bases vacías).
+- Capturas de Swagger con los endpoints nuevos (la especificación ya está exportada en `docs/backend/openapi.json`).
+- Hallazgos abiertos de la auditoría (§22.4).
+- Revisión humana de todo lo listado en 21.1 y ratificación de las decisiones de 21.4.
+
+De otros integrantes o del equipo (fuera del alcance de esta guía): frontend, Docker Compose, Qdrant, workflows JSON de n8n y presentación final.
 
 ### 21.4 Decisiones tomadas durante la implementación
 
@@ -584,6 +589,15 @@ Añadidas a las del §20; requieren ratificación del equipo.
 4. **Asignación:** conflicto de estado responde 409 y técnico inválido 400; el rol, no el perfil técnico, decide quién es asignable; `active_tickets_count` deja de usarse.
 5. **Índice vectorial:** cuatro estados de sincronización en lugar de los tres propuestos; indexación por envío desde Spring Boot a n8n con un intento automático y reintentos explícitos.
 6. **Secretos de integración separados:** `N8N_SERVICE_TOKEN` (Spring Boot → n8n) e `INTEGRATION_API_TOKEN` (n8n → Spring Boot).
+7. **Open-Session-In-View desactivado** (`spring.jpa.open-in-view=false`): cada transacción usa su propio contexto de persistencia; las relaciones LAZY se leen dentro del servicio.
+8. **Asistente:** la pregunta es opcional (por defecto, la descripción del incidente); una sola consulta en proceso por usuario e incidente; `requestId` idempotente opcional y reintento explícito enlazado (`retryOfQueryId`); el contrato v1 solo admite similitud coseno; los metadatos de recuperación se guardan en la consulta (también en `NO_RESULTS`) y el modelo de generación en la respuesta, a diferencia de lo propuesto en el §7.
+9. **Evidencia de las fuentes:** cada fuente guarda una copia del título y del contenido usado, porque los artículos no conservan versiones anteriores.
+10. **Errores del asistente:** 502, 503 o 504 según la causa, con `queryId`; una consulta `PENDING` se da por abandonada a los 5 minutos (`ASSIST_PENDING_TIMEOUT`).
+11. **Calificaciones:** `ADMIN` no califica consultas ajenas; la puntuación se recibe como número para rechazar decimales en lugar de truncarlos.
+12. **Datos iniciales:** sintéticos y deterministas, con un pico de conectividad y un crecimiento gradual diseñados; usuarios de demostración con contraseña pública (`Demo.2026`) y sin cambio obligatorio, cargados solo por script explícito. El conjunto no incluye consultas al asistente ni calificaciones.
+
+13. **Control de intentos de login:** por identificador enviado (usuario o correo, sin distinguir mayúsculas) y en memoria, sin tabla ni dependencia nueva. Se reinicia con la aplicación, no se comparte entre instancias, y usuario y correo de una misma cuenta llevan contadores separados. No modifica el campo `locked` de la cuenta. Un tercero puede bloquear temporalmente el acceso de otra persona fallando a propósito con su identificador.
+14. **Migración de roles al arrancar eliminada:** `UserRoleSchemaMigration` ejecutaba `db/postgresql/single-role-and-user-permissions.sql` en cada arranque, fuera de Flyway. Sus tablas y su restricción única ya están en `V1`, y a una cuenta sin rol le asignaba `CUSTOMER`, que no es un rol del sistema. Flyway queda como único mecanismo de cambio de esquema.
 
 ### 21.5 Cambios de contrato para el frontend y n8n
 
@@ -593,3 +607,88 @@ Añadidas a las del §20; requieren ratificación del equipo.
 - Sin token: 401. Cambio de clave pendiente: 403 con `code=PASSWORD_CHANGE_REQUIRED`.
 - `POST /api/auth/change-password` devuelve un `token` nuevo; el anterior deja de servir.
 - Compose, Qdrant y workflows de n8n pertenecen a otro integrante (rama `dev/Json`); el backend solo define el contrato.
+- Asistente: `POST` y `GET /api/tickets/{id}/assistance`, `GET /api/assistance/queries/{id}`, `PUT /api/assistance/queries/{id}/rating`. Contrato en `docs/backend/API_CONOCIMIENTO_ASISTENTE_ANALITICA.md`.
+- n8n: contrato v1 de indexación y asistencia, y endpoints `/api/integration/knowledge/**`, en `docs/backend/CONTRATO_N8N.md`.
+- `POST /api/auth/login` puede responder 429 con `code=TOO_MANY_LOGIN_ATTEMPTS`, `retryAfterSeconds` y la cabecera `Retry-After`; el frontend debe mostrar la espera en lugar de tratarlo como credenciales incorrectas.
+
+## 22. Auditoría del backend (13 de noviembre de 2026)
+
+Revisión del código de la rama `dev/JhonReyes` frente al enunciado (`docs/requerimientos/requerimientosSpringBoot.md`) y a esta guía. La hizo la misma herramienta de IA que asistió la implementación, de modo que no sustituye la revisión del responsable ni la de un tercero. Método: lectura del código de seguridad, configuración y migraciones; búsqueda de secretos y referencias obsoletas en el repositorio; ejecución de las dos suites; arranque real con el perfil `dev` sobre una base vacía con los datos de demostración (`docs/backend/PRUEBAS.md` §7).
+
+### 22.1 Cobertura de los requerimientos funcionales
+
+| Requisito | Estado en el backend | Qué falta para darlo por cumplido en el proyecto |
+|---|---|---|
+| RF01 Incidentes | Implementado: registro, consulta, filtros, paginación y máquina de estados | Frontend |
+| RF02 Base de conocimiento | Implementado: ciclo borrador → verificado → activo; solo `active AND verified` es fuente | Frontend; revisión humana del contenido de los 31 artículos |
+| RF03 Embeddings | Implementado el lado de Spring Boot: contrato, estados de sincronización y endpoints para n8n | El flujo de n8n con OpenRouter y Qdrant (otro integrante); nunca se ejecutó contra un n8n real |
+| RF04 Búsqueda semántica | Implementado el contrato: 3 a 5 resultados, umbral configurable, validación de similitudes | El flujo real; el umbral 0,70 no está calibrado ni justificado con casos |
+| RF05 Asistente RAG | Implementado: persistencia, validación de fuentes contra la base y `NO_RESULTS` sin texto inventado | El flujo real; la fidelidad del texto generado requiere revisión humana |
+| RF06 Análisis de datos | Implementado: siete indicadores en SQL, contrastados con cálculo manual y con el conjunto de 180 incidentes | Nada del backend |
+| RF07 Dashboard | Implementada la API con filtros de fecha, categoría y prioridad | Los gráficos interactivos son del frontend |
+| RF08 Historial y evaluación | Implementado: consulta, respuesta, fuentes, estado, fecha y calificación 1–5 | Frontend |
+
+Reglas de negocio del enunciado (§11): las consultas inteligentes solo entran por Spring Boot; las fuentes se validan contra la base relacional; los cuatro estados existen; los secretos se leen del entorno. La búsqueda en el repositorio no encontró claves ni credenciales reales versionadas: `backend/.env.example` solo contiene marcadores, y la contraseña `Demo.2026` de los usuarios de demostración es pública a propósito (decisión 12 de §21.4).
+
+### 22.2 Entregables
+
+| Entregable | Estado |
+|---|---|
+| Repositorio con historial progresivo | La rama `dev/JhonReyes` está publicada, con más de 20 commits por delante de `main`. No hay merge ni pull request hacia `main` todavía, y el enunciado los evalúa |
+| Backend Spring Boot | Hecho |
+| Script SQL de datos iniciales y migraciones | Hecho: `db/migration/V1`–`V8` y `db/seed/demo_data.sql` |
+| Diagramas entidad-relación y arquitectura | Hechos en Mermaid (`docs/backend/DIAGRAMAS.md`); no se ha comprobado cómo se muestran |
+| `.env.example` | Hecho para el backend; el del proyecto completo depende del Compose |
+| Evidencias de Swagger o Postman | Parcial: `docs/backend/openapi.json` exportado; faltan capturas de los endpoints nuevos |
+| Documento de pruebas | Hecho: `docs/backend/PRUEBAS.md` con resultados reales y limitaciones |
+| README | Hecho: raíz y `backend/` |
+| Informe de análisis de datos | Hecho sobre datos sintéticos: `docs/backend/INFORME_ANALISIS.md` |
+| `AI_USAGE.md` | Al día; toda la columna de revisión humana sigue en «Pendiente» |
+| Frontend, workflows JSON de n8n, Docker Compose, presentación | De otros integrantes o del equipo; no están en esta rama |
+
+### 22.3 Hallazgos corregidos en esta auditoría
+
+| Hallazgo | Corrección |
+|---|---|
+| `UserRoleSchemaMigration` ejecutaba un script SQL en cada arranque sobre PostgreSQL, fuera de Flyway y con un bloqueo de tabla. A una cuenta sin rol le asignaba `CUSTOMER`, que no es uno de los roles del sistema (`USER`, `TECHNICIAN`, `ADMIN`) | Eliminados la clase y el script; las tablas y la restricción única que creaba ya están en `V1` (decisión 14 de §21.4) |
+| El control de intentos de login estaba pendiente (§14) | `LoginAttemptLimiter` (decisión 13 de §21.4) |
+| El arranque con el perfil `dev` nunca se había ejecutado | Comprobado manualmente; resultados en `PRUEBAS.md` §7 |
+| `docs/backend/openapi.json` no reflejaba la descripción actual del login | Regenerado desde la aplicación |
+
+### 22.4 Hallazgos abiertos
+
+Ordenados por importancia para la entrega.
+
+1. **Modo de uso de la IA.** El enunciado y el §1.1 piden tutoría técnica y ejemplos parciales, no generación integral. La mayor parte del código del backend de esta rama fue generada por la IA a petición explícita del responsable; `AI_USAGE.md` lo registra así y ninguna entrada tiene revisión humana. Es el principal riesgo frente a los criterios de evaluación: el responsable debe revisar el código, poder explicarlo y completar la columna de revisión con lo que realmente haya revisado.
+2. **Sin integración a `main`.** El 13 de noviembre se creó la rama `test` desde `main` y se abrió hacia ella el pull request n.º 1 con `dev/JhonReyes`, aún sin fusionar; falta también el paso de `test` a `main`. `dev/Json` no tiene pull request: GitHub no lo admite entre historias sin relación (§22.5).
+3. **RAG sin ejecutar de extremo a extremo.** Las pruebas obligatorias 1, 2, 3, 6 y 8 solo están demostradas con `FakeN8nClient`. Depende de los workflows de la rama `dev/Json`.
+4. **Umbral de similitud sin justificar.** RF04 exige un umbral «configurable y justificado»; es configurable, pero 0,70 es un valor inicial sin casos de prueba que lo respalden.
+5. **Código sin uso en `modules/dashboard`.** `DashboardCacheMetric`, `MetricFilterRequest` y `MetricPeriod` no tienen referencias; la tabla `dashboard_metrics_cache` existe en `V1` y queda vacía. No se eliminaron porque retirar la entidad exige decidir qué hacer con la tabla.
+6. **Validación manual en `AuthController`.** Registro, login y cambio de clave validan con `if` y responden `{"error": ...}`, distinto del formato de `ApiExceptionHandler` (`timestamp`, `status`, `error`, `message`). Funciona y está probado, pero se aparta del §15 (Bean Validation, errores con formato consistente). Cambiarlo altera el contrato que ya consume el frontend.
+7. **Swagger público en todos los perfiles.** `/swagger-ui.html` y `/v3/api-docs` no piden autenticación tampoco fuera de `dev`. Útil para la evidencia del proyecto; en un despliegue real convendría desactivarlos con las propiedades de springdoc (`springdoc.api-docs.enabled`, `springdoc.swagger-ui.enabled`), algo que no se ha probado aquí.
+8. **B07 y B10 parciales.** `username` sigue siendo la clave primaria (el enunciado lista `id` para Usuario) y parte de la validación de usuarios sigue en `UserRepository`.
+9. **Documentos anteriores sin revisar.** `AUDITORIA_CAMPUSDESK_TECHNOVA.md`, `CAMPUSDESK_JPA_ENTIDADES_ENUMS.md`, `ENDPOINTS_AUTH_LOGIN.md`, `ENDPOINTS_FRONTEND_PENDIENTES.md` y `PLANTILLA_MODULOS.md` de `docs/backend` son del 11 de noviembre y describen la base anterior a las migraciones, las categorías relacionales y los módulos nuevos; pueden contradecir el estado actual (por ejemplo, `PLANTILLA_MODULOS.md` dice que Hibernate crea las tablas y tiene caracteres mal codificados).
+10. **Migraciones sin probar sobre datos previos.** Solo se han ejecutado sobre bases vacías. Tras eliminar el script de arranque, una base de desarrollo anterior a Flyway debe tener ya la restricción única `uk_user_role_username`; lo esperable es que la tenga, porque ese script corría en cada arranque, pero no se ha comprobado sobre una copia real.
+11. **Límites del control de intentos.** Los descritos en la decisión 13 de §21.4.
+12. **`AGENTS.md` sin versionar en la raíz.** Era una copia idéntica de este archivo antes de esta actualización; no se modificó ni se añadió al repositorio, así que ya no coincide con `CLAUDE.md`.
+
+### 22.5 Revisión de la rama `dev/Json` (13 de noviembre de 2026)
+
+`dev/Json` es un único commit sin historia común con `main`. Contiene una copia del backend en el estado del commit `a8d88fa`, un segundo módulo de asistencia con su propia migración `V7`, los dos flujos de n8n, la configuración de Qdrant, `docker-compose.yml`, un `Dockerfile` y otro conjunto de datos iniciales. Por no compartir historia, GitHub no permite abrir un pull request de `dev/Json` hacia `test` ni hacia `main`. Se probó una rama puente (`integration/n8n-json`, pull request n.º 2) y se eliminó el mismo día por decisión del responsable; para integrar este trabajo, su autor debe rehacer la rama partiendo de `test`. El módulo de asistencia y la migración `V7` de `dev/Json` duplican los existentes y no deben entrar.
+
+Resultado de la revisión por lectura frente a `docs/backend/CONTRATO_N8N.md` (detalle completo en la descripción del pull request n.º 2, ya cerrado): tal como están, no funcionan con el backend.
+
+- Los dos flujos leen campos que el backend no envía (`operation`, `version`, `content`, `prompt`, `title`) y devuelven respuestas sin `schemaVersion`, `requestId` ni los nombres del contrato, de modo que el backend las rechaza.
+- El flujo de asistencia usa `limit: 3` y umbral 0,60 fijos en lugar de `maxResults` y `minScore`, llama al endpoint de elegibilidad con un cuerpo distinto del esperado y arma el cuerpo de la llamada al modelo con una concatenación que n8n envía como texto literal.
+- El Compose pasa al backend `DB_HOST`, `DB_NAME` y `DB_USER` en lugar de `DB_URL` y `DB_USERNAME`, y asume el puerto 8080 cuando la API escucha en 8051.
+- `setup_qdrant.sh` espera un texto de `/readyz` que Qdrant 1.20.1 no devuelve (comprobado en ejecución), así que la colección no llega a crearse.
+- Hay secretos con valor por defecto en el Compose y en los flujos, y servicios publicados en todas las interfaces.
+
+No se ejecutaron los flujos ni el Compose completo: no hay clave de OpenRouter en este entorno.
+
+### 22.6 No auditado
+
+- Frontend: no está en ninguna de las ramas revisadas.
+- Rendimiento y carga: no se midieron tiempos de las consultas analíticas ni concurrencia del asistente más allá de las pruebas de asignación concurrente.
+- Dependencias: no se analizaron vulnerabilidades conocidas de las bibliotecas.
+- Lectura línea a línea de los módulos anteriores a esta rama (`ticket`, `comment`, `statushistory`, `technician`): se revisaron mediante sus pruebas y por búsquedas dirigidas, no completos.
