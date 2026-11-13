@@ -556,15 +556,11 @@ Verificado con `./gradlew test` en H2 y con `backend/scripts/test-postgres.sh` e
 | B12 y §5 | Política efectiva: el rol delimita y el permiso individual solo habilita dentro de ese límite; último administrador activo protegido; técnico con tickets activos no cambia de rol; baja lógica de usuarios; catálogo de roles/permisos solo ADMIN | `UserAccountPolicyTests` |
 | Errores | 401 sin autenticación válida, 403 sin permiso, 400 para parámetros inválidos, 500 controlado; respuestas JSON uniformes | Suite completa |
 | Etapa 3 (RF02) | `modules/knowledge`: borrador → verificado → activo; solo `active AND verified` es elegible; un cambio de contenido incrementa versión, revoca verificación y desactiva; sin borrado | `KnowledgeArticleTests` |
+| Etapa 4 (RF03) | `integration/n8n` (`HttpN8nClient` con URL fija, secreto en cabecera, tiempos límite y tope de respuesta; contrato v1; `IntegrationTokenFilter`); `KnowledgeIndexService` sincroniza fuera de transacción con estados `NOT_INDEXED`/`PENDING`/`INDEXED`/`ERROR`, reindexar y reconciliar; `/api/integration/knowledge/eligibility` y `/eligible` para n8n con `X-Integration-Token`; `spring.jpa.open-in-view=false` | `KnowledgeIndexTests` (con `FakeN8nClient`; no ejecutado contra un n8n real) |
 
 ### 21.2 En curso, sin terminar
 
-**Etapa 4 (RF03, indexación).** Código presente pero no cerrado:
-
-- `integration/n8n`: `N8nClient`, `HttpN8nClient` (URL fija, secreto en cabecera, tiempos límite, tope de respuesta), DTO de contrato v1 de indexación y de asistencia, `IntegrationTokenFilter`.
-- `KnowledgeIndexService`: sincronización fuera de transacción, estados `NOT_INDEXED`/`PENDING`/`INDEXED`/`ERROR`, reindexar y reconciliar.
-- `KnowledgeIntegrationController`: `/api/integration/knowledge/eligibility` y `/eligible` para n8n, con `X-Integration-Token`.
-- Pruebas con `FakeN8nClient`: última ejecución en H2 con 77 pruebas y **1 fallo**, `KnowledgeIndexTests.articleChangedDuringIndexingIsNotMarkedAsIndexed` (artículo desactivado mientras n8n indexa). Causa sin diagnosticar. Esta etapa no se ha ejecutado contra PostgreSQL ni contra un n8n real.
+Nada en curso al cierre de la etapa 4.
 
 ### 21.3 Pendiente
 
