@@ -561,7 +561,7 @@ Verificado con `./gradlew test` en H2 y con `backend/scripts/test-postgres.sh` e
 | Etapa 5 (RF04, RF05) | `modules/assistance`: `POST /api/tickets/{id}/assistance` persiste la consulta en `PENDING`, llama a n8n sin transacción abierta y fija `ANSWERED`, `NO_RESULTS` o `ERROR`; `AssistResponseValidator` rechaza respuestas que no cumplen el contrato v1; las fuentes se contrastan con la base relacional (existencia, elegibilidad, versión, modelo de embeddings); un único reintento por fuentes obsoletas; evidencia conservada por fuente; una sola consulta en proceso por usuario e incidente, `requestId` idempotente y reintento explícito enlazado; `AssistanceRecovery` cierra las `PENDING` abandonadas; historial paginado por incidente; errores 502/503/504 con `queryId`; migración `V7` | `AssistanceTests` (con `FakeN8nClient`; no ejecutado contra un n8n real) |
 | Etapa 6 (RF08) | `PUT /api/assistance/queries/{id}/rating`: solo quien hizo una consulta `ANSWERED` la califica (entero 1–5, comentario opcional); una por respuesta y usuario, repetir la actualiza; admitida con el incidente cerrado; rango y unicidad también en la base (`V8`); la calificación aparece en la consulta y en el historial | `AssistanceRatingTests` |
 | Etapa 8 (parte del backend) | Datos iniciales deterministas por script explícito (`db/seed/demo_data.sql`: 13 usuarios, 31 artículos, 180 incidentes con historial); README raíz y del backend; contratos para el frontend y para n8n; diagramas de arquitectura y entidad-relación; informe de análisis con cifras reales del conjunto; documento de pruebas; OpenAPI exportado | `DemoDataSeedTests` (solo PostgreSQL), `OpenApiDocumentationTests`, `CommentVisibilityTests` |
-| Integración n8n, Qdrant y Compose | Flujos `n8n/Flujo-1-Indexacion-Conocimiento.json` y `n8n/Flujo-2-Asistencia-RAG.json` ajustados al contrato v1 (un punto por artículo, umbral y máximo tomados de cada solicitud, contexto armado con lo que devuelve el endpoint de elegibilidad, códigos de error propios, sin secretos en el JSON); `docker-compose.yml` con secretos obligatorios, puertos en `127.0.0.1` e imágenes con versión fija; `qdrant/setup_qdrant.sh` idempotente; `n8n/start-n8n.sh` importa y publica los flujos; `HttpN8nClient` fijado en HTTP/1.1 | Prueba integrada manual con n8n 2.47.7 y Qdrant 1.20.1 y el proveedor de modelos simulado (`docs/backend/PRUEBAS.md` §8); no ejecutada con OpenRouter real |
+| Integración n8n, Qdrant y Compose | Flujos `n8n/Flujo-1-Indexacion-Conocimiento.json` y `n8n/Flujo-2-Asistencia-RAG.json` ajustados al contrato v1 (un punto por artículo, umbral y máximo tomados de cada solicitud, contexto armado con lo que devuelve el endpoint de elegibilidad, códigos de error propios, sin secretos en el JSON); `docker-compose.yml` con secretos obligatorios, puertos en `127.0.0.1` e imágenes con versión fija; `qdrant/setup_qdrant.sh` idempotente; `n8n/start-n8n.sh` importa y publica los flujos; `HttpN8nClient` fijado en HTTP/1.1 | Prueba integrada manual con n8n 2.47.7, Qdrant 1.20.1 y modelos reales de OpenRouter (`docs/backend/PRUEBAS.md` §8) |
 
 ### 21.2 En curso, sin terminar
 
@@ -571,8 +571,8 @@ Nada en curso.
 
 Del backend:
 
-- Repetir la prueba integrada con una clave real de OpenRouter: la del 13 de noviembre usó un proveedor de modelos simulado, así que no demuestra la calidad de la recuperación ni la fidelidad del texto generado. Confirmar también los identificadores de modelo por defecto.
-- Calibrar `ASSIST_MIN_SCORE` (0,70 es un valor inicial) con el modelo de embeddings real y casos con y sin cobertura; documentar la justificación.
+- Evaluar la fidelidad de las respuestas con más casos y revisión humana: la prueba con modelos reales del 13 de noviembre cubrió las diez pruebas obligatorias y pocas repeticiones.
+- Recalibrar `ASSIST_MIN_SCORE` (0,55) con consultas reales de usuarios o si cambia el modelo de embeddings: se calibró con 25 consultas redactadas para la prueba.
 - Migraciones sobre una copia de la base de desarrollo existente (solo se han ejecutado sobre bases vacías).
 - Capturas de Swagger con los endpoints nuevos (la especificación ya está exportada en `docs/backend/openapi.json`).
 - Hallazgos abiertos de la auditoría (§22.4).
@@ -604,6 +604,9 @@ Añadidas a las del §20; requieren ratificación del equipo.
 16. **Un punto por artículo en Qdrant:** sin fragmentación; el identificador del punto es el del artículo y el payload no guarda el contenido, solo `articleId`, `contentVersion`, `contentHash`, `chunkIndex`, título y modelo.
 17. **HTTP/1.1 hacia n8n:** el cliente de Java pide por defecto actualizar a HTTP/2 sin TLS y n8n no responde a esa petición.
 
+18. **Umbral de similitud 0,55:** sustituye al 0,70 inicial. Sale de medir 25 consultas con `openai/text-embedding-3-small` (`docs/backend/PRUEBAS.md` §9): el artículo correcto más bajo obtuvo 0,594 y la consulta sin cobertura más alta 0,506. Con ese umbral la media es de 1,3 fuentes por consulta; no se baja para alcanzar tres porque entrarían artículos de temas cercanos. Las pruebas automáticas fijan 0,70 en su perfil para no depender del valor de producción.
+19. **Generación acotada:** el flujo envía `max_tokens` (1500 por defecto) y temperatura 0, y el prompt prohíbe añadir causas o explicaciones que no estén en los artículos y exige responder «sin información suficiente» cuando solo hay artículos de temas cercanos.
+
 ### 21.5 Cambios de contrato para el frontend y n8n
 
 - `GET /api/tickets` devuelve `{content, page, size, totalElements, totalPages}`.
@@ -626,9 +629,9 @@ Revisión del código de la rama `dev/JhonReyes` frente al enunciado (`docs/requ
 |---|---|---|
 | RF01 Incidentes | Implementado: registro, consulta, filtros, paginación y máquina de estados | Frontend |
 | RF02 Base de conocimiento | Implementado: ciclo borrador → verificado → activo; solo `active AND verified` es fuente | Frontend; revisión humana del contenido de los 31 artículos |
-| RF03 Embeddings | Implementado el lado de Spring Boot: contrato, estados de sincronización y endpoints para n8n | El flujo de n8n con OpenRouter y Qdrant (otro integrante); nunca se ejecutó contra un n8n real |
-| RF04 Búsqueda semántica | Implementado el contrato: 3 a 5 resultados, umbral configurable, validación de similitudes | El flujo real; el umbral 0,70 no está calibrado ni justificado con casos |
-| RF05 Asistente RAG | Implementado: persistencia, validación de fuentes contra la base y `NO_RESULTS` sin texto inventado | El flujo real; la fidelidad del texto generado requiere revisión humana |
+| RF03 Embeddings | Implementado: flujo de n8n con OpenRouter y Qdrant, estados de sincronización y endpoints para n8n; 28 artículos indexados con el modelo real | Nada pendiente |
+| RF04 Búsqueda semántica | Implementado: hasta 5 resultados, umbral configurable de 0,55 justificado con la calibración de `PRUEBAS.md` §9 | Recalibrar con consultas reales de usuarios |
+| RF05 Asistente RAG | Implementado y probado con el modelo real: respuesta con fuentes y similitudes, `NO_RESULTS` sin texto inventado | Revisión humana de la fidelidad con más casos; frontend |
 | RF06 Análisis de datos | Implementado: siete indicadores en SQL, contrastados con cálculo manual y con el conjunto de 180 incidentes | Nada del backend |
 | RF07 Dashboard | Implementada la API con filtros de fecha, categoría y prioridad | Los gráficos interactivos son del frontend |
 | RF08 Historial y evaluación | Implementado: consulta, respuesta, fuentes, estado, fecha y calificación 1–5 | Frontend |
@@ -649,7 +652,7 @@ Reglas de negocio del enunciado (§11): las consultas inteligentes solo entran p
 | README | Hecho: raíz y `backend/` |
 | Informe de análisis de datos | Hecho sobre datos sintéticos: `docs/backend/INFORME_ANALISIS.md` |
 | `AI_USAGE.md` | Al día; toda la columna de revisión humana sigue en «Pendiente» |
-| Workflows JSON de n8n y Docker Compose | Hechos en `n8n/` y `docker-compose.yml`; probados con un proveedor de modelos simulado, no con OpenRouter real |
+| Workflows JSON de n8n y Docker Compose | Hechos en `n8n/` y `docker-compose.yml`; probados con modelos reales de OpenRouter |
 | Frontend y presentación | De otros integrantes o del equipo; no están en el repositorio |
 
 ### 22.3 Hallazgos corregidos en esta auditoría
@@ -667,8 +670,8 @@ Ordenados por importancia para la entrega.
 
 1. **Modo de uso de la IA.** El enunciado y el §1.1 piden tutoría técnica y ejemplos parciales, no generación integral. La mayor parte del código del backend de esta rama fue generada por la IA a petición explícita del responsable; `AI_USAGE.md` lo registra así y ninguna entrada tiene revisión humana. Es el principal riesgo frente a los criterios de evaluación: el responsable debe revisar el código, poder explicarlo y completar la columna de revisión con lo que realmente haya revisado.
 2. **Sin integración a `main`.** El 13 de noviembre se creó la rama `test` desde `main` y se abrió hacia ella el pull request n.º 1 con `dev/JhonReyes`, aún sin fusionar; falta también el paso de `test` a `main`. `dev/Json` no tiene pull request: GitHub no lo admite entre historias sin relación (§22.5).
-3. **RAG sin ejecutar con modelos reales.** El 13 de noviembre las diez pruebas obligatorias se ejecutaron de extremo a extremo con n8n y Qdrant reales, pero con el proveedor de modelos simulado (`docs/backend/PRUEBAS.md` §8). Falta repetirlas con una clave de OpenRouter.
-4. **Umbral de similitud sin justificar.** RF04 exige un umbral «configurable y justificado»; es configurable, pero 0,70 es un valor inicial sin casos de prueba que lo respalden.
+3. **Fidelidad del asistente evaluada con pocos casos.** El 13 de noviembre las diez pruebas obligatorias se ejecutaron con modelos reales de OpenRouter y dieron el resultado esperado (`docs/backend/PRUEBAS.md` §8). Con el primer prompt el modelo añadió una vez información que no estaba en los artículos; se corrigió, pero la comprobación posterior son pocas repeticiones.
+4. **Umbral calibrado con un conjunto pequeño.** 0,55 está justificado con 25 consultas (`docs/backend/PRUEBAS.md` §9), todas redactadas para la prueba y sobre artículos sintéticos.
 5. **Código sin uso en `modules/dashboard`.** `DashboardCacheMetric`, `MetricFilterRequest` y `MetricPeriod` no tienen referencias; la tabla `dashboard_metrics_cache` existe en `V1` y queda vacía. No se eliminaron porque retirar la entidad exige decidir qué hacer con la tabla.
 6. **Validación manual en `AuthController`.** Registro, login y cambio de clave validan con `if` y responden `{"error": ...}`, distinto del formato de `ApiExceptionHandler` (`timestamp`, `status`, `error`, `message`). Funciona y está probado, pero se aparta del §15 (Bean Validation, errores con formato consistente). Cambiarlo altera el contrato que ya consume el frontend.
 7. **Swagger público en todos los perfiles.** `/swagger-ui.html` y `/v3/api-docs` no piden autenticación tampoco fuera de `dev`. Útil para la evidencia del proyecto; en un despliegue real convendría desactivarlos con las propiedades de springdoc (`springdoc.api-docs.enabled`, `springdoc.swagger-ui.enabled`), algo que no se ha probado aquí.

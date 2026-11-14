@@ -11,7 +11,7 @@ artículos verificados.
 |---|---|---|
 | Backend | Java 21, Spring Boot, PostgreSQL | Implementado: ver [`backend/README.md`](backend/README.md) |
 | Frontend | HTML, CSS, JavaScript | A cargo de otro integrante; no está en el repositorio |
-| Automatización | n8n, Qdrant, OpenRouter | Flujos en [`n8n/`](n8n) y colección en [`qdrant/`](qdrant); probados con un proveedor de modelos simulado |
+| Automatización | n8n, Qdrant, OpenRouter | Flujos en [`n8n/`](n8n) y colección en [`qdrant/`](qdrant); probados con modelos reales de OpenRouter |
 | Infraestructura | Docker Compose | [`docker-compose.yml`](docker-compose.yml): PostgreSQL, Qdrant, n8n y backend |
 
 ## Estructura del repositorio
@@ -76,10 +76,10 @@ curl -X POST http://localhost:8051/api/knowledge/articles/index/reconcile -H "Au
 El modelo de embeddings (`EMBEDDING_MODEL`) debe producir vectores de 1536 dimensiones y ser el mismo
 para indexar y para consultar. Si se cambia, hay que recrear la colección y reindexar.
 
-Estado de la verificación: el entorno se probó de extremo a extremo con un proveedor de modelos
-simulado ([`docs/backend/PRUEBAS.md`](docs/backend/PRUEBAS.md) §8). **No se ha ejecutado con una
-clave real de OpenRouter**, así que los identificadores de modelo por defecto y el umbral de
-similitud están sin confirmar.
+Estado de la verificación: el entorno se probó de extremo a extremo con modelos reales de OpenRouter
+(`openai/text-embedding-3-small` y `google/gemini-2.5-flash`) y las diez pruebas obligatorias dieron el
+resultado esperado ([`docs/backend/PRUEBAS.md`](docs/backend/PRUEBAS.md) §8). El umbral de similitud por
+defecto, 0,55, sale de la calibración del §9 del mismo documento.
 
 ## Documentación
 
