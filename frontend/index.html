@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Synapse Support Analytics — Autenticación</title>
+  <title>Synapse Support Analytics — Acceso Corporativo</title>
   
   <!-- Estilos Nativos -->
   <link rel="stylesheet" href="css/variables.css">
@@ -18,132 +18,100 @@
     <header class="auth-brand">
       <div class="auth-logo-badge" aria-hidden="true">⚡</div>
       <h1>Synapse Support Analytics</h1>
-      <p>Gestión inteligente de incidentes y asistencia RAG</p>
+      <p>Plataforma Corporativa de Gestión de Incidentes y Asistencia IA</p>
     </header>
 
-    <!-- Tarjeta Principal de Autenticación -->
+    <!-- Tarjeta Principal de Inicio de Sesión -->
     <main class="auth-card" role="main">
       
-      <!-- Navegación por Pestañas (Login / Registro) -->
-      <nav class="tabs-nav" role="tablist">
-        <button class="tab-btn is-active" id="tab-login-btn" role="tab" aria-selected="true" aria-controls="pane-login">
-          Iniciar Sesión
+      <!-- Aviso Institucional de Autenticación -->
+      <div class="corporate-notice">
+        <span class="corporate-notice-icon">🔒</span>
+        <div>
+          <strong>Acceso restringido:</strong> Las cuentas son creadas y gestionadas exclusivamente por los administradores de TI. No se permite el auto-registro público.
+        </div>
+      </div>
+
+      <!-- Formulario de Inicio de Sesión -->
+      <form id="form-login" novalidate>
+        <div class="form-group" id="group-login-identifier">
+          <label class="form-label" for="login-identifier">Usuario o Correo Institucional</label>
+          <input 
+            type="text" 
+            id="login-identifier" 
+            class="form-control" 
+            placeholder="ej. admin.demo o tec.redes" 
+            required 
+            autocomplete="username"
+          >
+        </div>
+
+        <div class="form-group" id="group-login-password">
+          <label class="form-label" for="login-password">Contraseña</label>
+          <input 
+            type="password" 
+            id="login-password" 
+            class="form-control" 
+            placeholder="Ingresa tu contraseña corporativa" 
+            required 
+            autocomplete="current-password"
+          >
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block btn-lg" id="btn-submit-login">
+          Ingresar a la Plataforma
         </button>
-        <button class="tab-btn" id="tab-register-btn" role="tab" aria-selected="false" aria-controls="pane-register">
-          Crear Cuenta
-        </button>
-      </nav>
+      </form>
 
-      <!-- Panel: Iniciar Sesión -->
-      <section class="tab-pane is-active" id="pane-login" role="tabpanel" aria-labelledby="tab-login-btn">
-        <form id="form-login" novalidate>
-          <div class="form-group" id="group-login-identifier">
-            <label class="form-label" for="login-identifier">Usuario o Correo Institucional</label>
-            <input 
-              type="text" 
-              id="login-identifier" 
-              class="form-control" 
-              placeholder="ej. laura.gomez o admin.demo" 
-              required 
-              autocomplete="username"
-            >
-          </div>
+      <!-- Credenciales Hardcodeadas de Prueba para Evaluación -->
+      <div class="demo-credentials-box">
+        <div class="demo-credentials-header">
+          <span>Cuentas de Prueba Hardcodeadas (Seed):</span>
+          <span class="badge badge-priority-media">Contraseña: Demo.2026</span>
+        </div>
 
-          <div class="form-group" id="group-login-password">
-            <label class="form-label" for="login-password">Contraseña</label>
-            <input 
-              type="password" 
-              id="login-password" 
-              class="form-control" 
-              placeholder="Ingresa tu contraseña" 
-              required 
-              autocomplete="current-password"
-            >
-          </div>
-
-          <button type="submit" class="btn btn-primary btn-block btn-lg" id="btn-submit-login">
-            Ingresar a la Plataforma
-          </button>
-        </form>
-
-        <!-- Accesos rápidos para datos de demostración -->
-        <div class="demo-credentials-box">
-          <div class="demo-credentials-header">
-            <span>Cuentas de Demostración (Seed SQL):</span>
-            <span class="badge badge-priority-media">Demo.2026</span>
-          </div>
+        <!-- Grupo Administración -->
+        <div class="demo-group">
+          <div class="demo-group-label">👑 Rol Administrador (Gestión y Publicación)</div>
           <div class="demo-pills">
-            <button type="button" class="demo-pill" data-user="admin.demo" data-pass="Demo.2026" title="Administrador de Sistema">
-              👑 admin.demo (ADMIN)
-            </button>
-            <button type="button" class="demo-pill" data-user="tec.redes" data-pass="Demo.2026" title="Técnico de Redes y Conectividad">
-              🛠️ tec.redes (TECH)
-            </button>
-            <button type="button" class="demo-pill" data-user="laura.gomez" data-pass="Demo.2026" title="Solicitante de Contabilidad">
-              👤 laura.gomez (USER)
+            <button type="button" class="demo-pill pill-admin" data-user="admin.demo" data-pass="Demo.2026" title="Administrador de Sistema">
+              <span>👑</span> admin.demo
             </button>
           </div>
         </div>
-      </section>
 
-      <!-- Panel: Crear Cuenta (Auto-Registro con rol USER) -->
-      <section class="tab-pane" id="pane-register" role="tabpanel" aria-labelledby="tab-register-btn">
-        <form id="form-register" novalidate>
-          <div class="form-group" id="group-reg-username">
-            <label class="form-label" for="reg-username">Nombre de Usuario</label>
-            <input 
-              type="text" 
-              id="reg-username" 
-              class="form-control" 
-              placeholder="ej. usuario.nuevo" 
-              maxlength="50"
-              required 
-              autocomplete="username"
-            >
-            <span class="form-help">Solo caracteres alfanuméricos sin espacios.</span>
+        <!-- Grupo Técnicos -->
+        <div class="demo-group">
+          <div class="demo-group-label">🛠️ Rol Técnicos Especialistas (Atención y Borradores)</div>
+          <div class="demo-pills">
+            <button type="button" class="demo-pill pill-tech" data-user="tec.redes" data-pass="Demo.2026" title="Camilo Herrera - Redes y Conectividad">
+              <span>🌐</span> tec.redes
+            </button>
+            <button type="button" class="demo-pill pill-tech" data-user="tec.hardware" data-pass="Demo.2026" title="Paola Díaz - Hardware y Periféricos">
+              <span>🖥️</span> tec.hardware
+            </button>
+            <button type="button" class="demo-pill pill-tech" data-user="tec.software" data-pass="Demo.2026" title="Julián Ortiz - Sistema Operativo y Ofimática">
+              <span>💻</span> tec.software
+            </button>
+            <button type="button" class="demo-pill pill-tech" data-user="tec.aplicaciones" data-pass="Demo.2026" title="Natalia Suárez - Aplicaciones y Servicios">
+              <span>📱</span> tec.aplicaciones
+            </button>
           </div>
+        </div>
 
-          <div class="form-group" id="group-reg-email">
-            <label class="form-label" for="reg-email">Correo Electrónico</label>
-            <input 
-              type="email" 
-              id="reg-email" 
-              class="form-control" 
-              placeholder="usuario@dominio.com" 
-              required 
-              autocomplete="email"
-            >
+        <!-- Grupo Usuarios Solicitantes -->
+        <div class="demo-group">
+          <div class="demo-group-label">👤 Rol Usuarios Solicitantes (Reporte de Incidentes)</div>
+          <div class="demo-pills">
+            <button type="button" class="demo-pill pill-user" data-user="laura.gomez" data-pass="Demo.2026" title="Laura Gómez - Contabilidad">
+              <span>👤</span> laura.gomez
+            </button>
+            <button type="button" class="demo-pill pill-user" data-user="carlos.ruiz" data-pass="Demo.2026" title="Carlos Ruiz - Recursos Humanos">
+              <span>👤</span> carlos.ruiz
+            </button>
           </div>
-
-          <div class="form-group" id="group-reg-password">
-            <label class="form-label" for="reg-password">Contraseña</label>
-            <input 
-              type="password" 
-              id="reg-password" 
-              class="form-control" 
-              placeholder="Crea una contraseña segura" 
-              required 
-              autocomplete="new-password"
-            >
-            <!-- Validador en vivo de la Política de Contraseña -->
-            <ul class="password-policy-list" id="reg-password-policy">
-              <li class="password-policy-item" id="pol-length">
-                <span class="policy-icon"></span> Mínimo 6 caracteres (máx. 72 bytes)
-              </li>
-              <li class="password-policy-item" id="pol-upper">
-                <span class="policy-icon"></span> Al menos una letra mayúscula (A-Z)
-              </li>
-              <li class="password-policy-item" id="pol-special">
-                <span class="policy-icon"></span> Al menos un carácter especial (!, @, #, $, etc.)
-              </li>
-            </ul>
-          </div>
-
-          <button type="submit" class="btn btn-primary btn-block btn-lg" id="btn-submit-register">
-            Crear Cuenta de Usuario
-          </button>
-        </form>
-      </section>
+        </div>
+      </div>
 
     </main>
 
@@ -155,7 +123,7 @@
         </header>
         <div class="modal-body">
           <p class="text-muted" style="margin-bottom: var(--spacing-4);">
-            Tu cuenta requiere un cambio de contraseña por política de seguridad antes de poder acceder al sistema.
+            Tu cuenta requiere un cambio de contraseña por política de seguridad corporativa antes de acceder.
           </p>
           <form id="form-change-password" novalidate>
             <div class="form-group">
@@ -168,13 +136,13 @@
               <input type="password" id="cp-new" class="form-control" required autocomplete="new-password">
               <ul class="password-policy-list" id="cp-password-policy">
                 <li class="password-policy-item" id="cp-pol-length">
-                  <span class="policy-icon"></span> Mínimo 6 caracteres
+                  <span class="policy-icon"></span> Mínimo 6 caracteres (máx. 72 bytes)
                 </li>
                 <li class="password-policy-item" id="cp-pol-upper">
-                  <span class="policy-icon"></span> Al menos una letra mayúscula
+                  <span class="policy-icon"></span> Al menos una letra mayúscula (A-Z)
                 </li>
                 <li class="password-policy-item" id="cp-pol-special">
-                  <span class="policy-icon"></span> Al menos un carácter especial
+                  <span class="policy-icon"></span> Al menos un carácter especial (!, @, #, $, etc.)
                 </li>
               </ul>
             </div>
@@ -214,51 +182,14 @@
         }
       }
 
-      // Gestión de pestañas (Tabs)
-      const tabLoginBtn = document.getElementById('tab-login-btn');
-      const tabRegBtn = document.getElementById('tab-register-btn');
-      const paneLogin = document.getElementById('pane-login');
-      const paneReg = document.getElementById('pane-register');
-
-      tabLoginBtn.addEventListener('click', () => {
-        tabLoginBtn.classList.add('is-active');
-        tabLoginBtn.setAttribute('aria-selected', 'true');
-        tabRegBtn.classList.remove('is-active');
-        tabRegBtn.setAttribute('aria-selected', 'false');
-        paneLogin.classList.add('is-active');
-        paneReg.classList.remove('is-active');
-      });
-
-      tabRegBtn.addEventListener('click', () => {
-        tabRegBtn.classList.add('is-active');
-        tabRegBtn.setAttribute('aria-selected', 'true');
-        tabLoginBtn.classList.remove('is-active');
-        tabLoginBtn.setAttribute('aria-selected', 'false');
-        paneReg.classList.add('is-active');
-        paneLogin.classList.remove('is-active');
-      });
-
-      // Quick-fill para cuentas de demostración
+      // Quick-fill para las cuentas de prueba hardcodeadas
       document.querySelectorAll('.demo-pill').forEach(pill => {
         pill.addEventListener('click', () => {
           document.getElementById('login-identifier').value = pill.dataset.user;
           document.getElementById('login-password').value = pill.dataset.pass;
-          tabLoginBtn.click();
           document.getElementById('btn-submit-login').focus();
+          UI.showToast(`Credenciales cargadas para ${pill.dataset.user}`, 'info', 'Acceso Rápido', 2000);
         });
-      });
-
-      // Validador en vivo para el campo de contraseña de registro
-      const regPassInput = document.getElementById('reg-password');
-      const polLength = document.getElementById('pol-length');
-      const polUpper = document.getElementById('pol-upper');
-      const polSpecial = document.getElementById('pol-special');
-
-      regPassInput.addEventListener('input', () => {
-        const check = UI.checkPasswordPolicy(regPassInput.value);
-        polLength.classList.toggle('valid', check.hasMinLength && check.hasMaxBytes);
-        polUpper.classList.toggle('valid', check.hasUppercase);
-        polSpecial.classList.toggle('valid', check.hasSpecial);
       });
 
       // Validador en vivo para cambio obligatorio de contraseña
@@ -305,48 +236,8 @@
           UI.showToast(`¡Bienvenido, ${res.user.username}!`, 'success', 'Ingreso Exitoso');
           setTimeout(() => {
             window.location.href = CONFIG.ROUTES.APP;
-          }, 800);
+          }, 600);
         }
-      });
-
-      // Flujo de Registro (POST /api/auth/register)
-      const formRegister = document.getElementById('form-register');
-      const btnSubmitRegister = document.getElementById('btn-submit-register');
-
-      formRegister.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const username = document.getElementById('reg-username').value.trim();
-        const email = document.getElementById('reg-email').value.trim();
-        const password = document.getElementById('reg-password').value;
-
-        if (!username || !email || !password) {
-          UI.showToast('Todos los campos son obligatorios.', 'warning');
-          return;
-        }
-
-        const passCheck = UI.checkPasswordPolicy(password);
-        if (!passCheck.isValid) {
-          UI.showToast('La contraseña no cumple con los requisitos de seguridad solicitados.', 'warning', 'Contraseña Insegura');
-          return;
-        }
-
-        UI.setLoading(btnSubmitRegister, true, 'Registrando cuenta...');
-        const res = await AUTH.register(username, email, password);
-        UI.setLoading(btnSubmitRegister, false);
-
-        if (!res.ok) {
-          UI.showToast(res.error || 'No fue posible registrar la cuenta.', 'error', 'Error de Registro');
-          return;
-        }
-
-        UI.showToast('¡Cuenta creada exitosamente! Ya puedes iniciar sesión.', 'success', 'Registro Completado');
-        formRegister.reset();
-        regPassInput.dispatchEvent(new Event('input'));
-        
-        // Prellenar en login y cambiar a pestaña de login
-        document.getElementById('login-identifier').value = username;
-        document.getElementById('login-password').value = password;
-        tabLoginBtn.click();
       });
 
       // Flujo de Cambio Obligatorio de Contraseña (POST /api/auth/change-password)
