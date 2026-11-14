@@ -44,6 +44,9 @@ public class HttpN8nClient implements N8nClient {
     public HttpN8nClient(N8nProperties properties) {
         this.properties = properties;
         this.http = HttpClient.newBuilder()
+                // HTTP/1.1 fijo: por defecto el cliente pide actualizar a HTTP/2 (h2c) y n8n deja
+                // esa petición sin responder hasta agotar el tiempo límite.
+                .version(HttpClient.Version.HTTP_1_1)
                 .connectTimeout(properties.connectTimeout())
                 .followRedirects(HttpClient.Redirect.NEVER)
                 .build();
