@@ -1,0 +1,4 @@
+# Los scripts de shell deben conservar LF también en Windows; con CRLF bash no los ejecuta.
+*.sh text eol=lf
+backend/gradlew text eol=lf
+*.bat text eol=crlf
