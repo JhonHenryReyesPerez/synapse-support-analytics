@@ -261,7 +261,7 @@ Implementado y probado: seguridad, incidentes, categorías, base de conocimiento
 
 Pendiente o sin comprobar:
 
-- Prueba integrada del asistente y de la indexación contra los workflows reales de n8n (hoy, solo con un doble).
+- Prueba del asistente y de la indexación con modelos reales de OpenRouter (la prueba integrada con n8n y Qdrant usó un proveedor simulado).
 - Calibración del umbral de similitud con el modelo de embeddings real.
 - Migraciones sobre una copia de la base de desarrollo existente.
 - Capturas de Swagger con los endpoints nuevos.
