@@ -10,14 +10,17 @@ artículos verificados.
 | Componente | Tecnología | Estado en esta rama (`dev/JhonReyes`) |
 |---|---|---|
 | Backend | Java 21, Spring Boot, PostgreSQL | Implementado: ver [`backend/README.md`](backend/README.md) |
-| Frontend | HTML, CSS, JavaScript | A cargo de otro integrante; no está en esta rama |
-| Automatización | n8n, Qdrant, OpenRouter | A cargo de otro integrante (rama `dev/Json`); aquí está el contrato que deben cumplir |
-| Infraestructura | Docker Compose | A cargo de otro integrante (rama `dev/Json`) |
+| Frontend | HTML, CSS, JavaScript | A cargo de otro integrante; no está en el repositorio |
+| Automatización | n8n, Qdrant, OpenRouter | Flujos en [`n8n/`](n8n) y colección en [`qdrant/`](qdrant); probados con un proveedor de modelos simulado |
+| Infraestructura | Docker Compose | [`docker-compose.yml`](docker-compose.yml): PostgreSQL, Qdrant, n8n y backend |
 
 ## Estructura del repositorio
 
 ```text
 backend/     API REST de Spring Boot, migraciones, datos de demostración y pruebas
+n8n/         Flujos de indexación y de asistencia RAG, y script de arranque de n8n
+qdrant/      Configuración de la colección vectorial
+docker-compose.yml   Entorno completo
 docs/
   requerimientos/   Enunciado del proyecto
   backend/          Contratos, diagramas, informe de análisis y documento de pruebas
@@ -36,6 +39,47 @@ SPRING_PROFILES_ACTIVE=dev ./gradlew bootRun   # API en http://localhost:8051
 
 Swagger queda en `http://localhost:8051/swagger-ui.html`. Instalación, variables, datos de
 demostración y pruebas: [`backend/README.md`](backend/README.md).
+
+## Entorno completo con Docker Compose
+
+Levanta PostgreSQL, Qdrant, n8n y el backend. Los puertos se publican solo en `127.0.0.1`.
+
+```bash
+cp .env.example .env        # completar todos los secretos; sin ellos Compose no arranca
+docker compose up -d --build
+```
+
+| Servicio | Dirección |
+|---|---|
+| API y Swagger | `http://localhost:8051/swagger-ui.html` |
+| n8n | `http://localhost:5678` |
+| Qdrant | `http://localhost:6333/dashboard` |
+
+Al arrancar, Qdrant crea la colección `articulos_soporte` (1536 dimensiones, distancia coseno) y n8n
+importa y publica los dos flujos de `n8n/`. Los flujos del repositorio reemplazan en cada arranque a
+los guardados en n8n: los cambios hechos en su editor hay que exportarlos a `n8n/` para conservarlos.
+Los flujos no contienen secretos; leen la clave de OpenRouter y los tokens de las variables de entorno.
+
+Datos de demostración e indexación de la base de conocimiento:
+
+```bash
+# 1. Cargar los datos (13 usuarios, 31 artículos, 180 incidentes)
+docker compose exec -T db psql -U campusdesk -d campusdesk -v ON_ERROR_STOP=1 \
+  < backend/src/main/resources/db/seed/demo_data.sql
+
+# 2. Iniciar sesión como administrador de demostración y enviar los artículos elegibles a n8n
+TOKEN=$(curl -s -X POST http://localhost:8051/api/auth/login -H 'Content-Type: application/json' \
+  -d '{"username":"admin.demo","password":"Demo.2026"}' | sed 's/.*"token":"\([^"]*\)".*/\1/')
+curl -X POST http://localhost:8051/api/knowledge/articles/index/reconcile -H "Authorization: Bearer $TOKEN"
+```
+
+El modelo de embeddings (`EMBEDDING_MODEL`) debe producir vectores de 1536 dimensiones y ser el mismo
+para indexar y para consultar. Si se cambia, hay que recrear la colección y reindexar.
+
+Estado de la verificación: el entorno se probó de extremo a extremo con un proveedor de modelos
+simulado ([`docs/backend/PRUEBAS.md`](docs/backend/PRUEBAS.md) §8). **No se ha ejecutado con una
+clave real de OpenRouter**, así que los identificadores de modelo por defecto y el umbral de
+similitud están sin confirmar.
 
 ## Documentación
 

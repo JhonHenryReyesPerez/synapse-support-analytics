@@ -143,11 +143,45 @@ base PostgreSQL 17 vacía, sin n8n configurado:
 
 Fue una comprobación manual con `curl`, no una prueba automatizada. La base usada se eliminó al terminar.
 
-## 8. Limitaciones y lo que no se ha comprobado
+## 8. Prueba integrada con n8n y Qdrant
+
+Ejecutada el 13 de noviembre de 2026 con `docker-compose.yml`: PostgreSQL 17, Qdrant 1.20.1, n8n 2.47.7
+con los dos flujos de `n8n/` importados y publicados, y el backend construido con su `Dockerfile`.
+
+**El proveedor de modelos fue simulado.** No había clave de OpenRouter, así que `OPENROUTER_BASE_URL`
+apuntó a un servicio local que devuelve embeddings deterministas de 1536 dimensiones (bolsa de
+palabras) y una respuesta de generación armada con el primer artículo del contexto. Por eso esta
+prueba demuestra que backend, n8n y Qdrant cumplen el contrato entre sí, pero **no** la calidad de
+la recuperación ni la fidelidad del texto con modelos reales. Como esas similitudes no son las de un
+modelo real, el umbral se bajó a 0,30 solo para esta ejecución (`ASSIST_MIN_SCORE`).
+
+Datos: `db/seed/demo_data.sql`. Fue una comprobación manual con scripts; no forma parte de `./gradlew test`.
+
+| Paso | Resultado observado |
+|---|---|
+| Arranque | Qdrant crea la colección; n8n importa y publica los dos flujos; el backend aplica las 8 migraciones |
+| Indexación (`POST /api/knowledge/articles/index/reconcile`) | 28 artículos elegibles en `INDEXED` (modelo y dimensión 1536 registrados) y 28 puntos en Qdrant; repetirla no procesa ni duplica nada |
+| Indexar dos veces el mismo artículo por el webhook | 1 punto en Qdrant |
+| Webhook sin `X-Service-Token` | 401 |
+| 1. Incidente de conectividad (IP 169.254) | `ANSWERED` con 3 fuentes; la primera es «Equipo sin acceso a internet: dirección IP 169.254.x.x» |
+| 2. Error de ejecución (0xc000007b) | `ANSWERED` con 3 fuentes; la primera es «La aplicación no inicia: error 0xc000007b» |
+| 3. Caso sin cobertura (un dron) | `NO_RESULTS`, sin texto de solución |
+| 6. Desactivar el artículo más relevante y repetir la consulta 1 | Su punto se retira de Qdrant (27) y la respuesta nueva no lo cita |
+| 6. Artículo inactivo en PostgreSQL con su vector todavía en Qdrant | El flujo lo descarta tras consultar `/api/integration/knowledge/eligibility`; no aparece como fuente |
+| 7. Pregunta en blanco; incidente con descripción en blanco | 400 en ambos casos, sin llamada a n8n |
+| 8. Fallo del servicio de embeddings | 502 con `code=EMBEDDING_FAILED` y `queryId`; la consulta queda en `ERROR` |
+| 9. Historial del incidente | 200 con las consultas del incidente; otro usuario recibe 403 |
+| 10. Calificación | 200 y queda guardada; una puntuación de 6 responde 400 |
+
+Hallazgo de esta prueba: el backend agotaba el tiempo límite en todas las llamadas a n8n. El cliente
+HTTP de Java pedía actualizar la conexión a HTTP/2 y n8n dejaba la petición sin responder. Se fijó
+HTTP/1.1 en `HttpN8nClient`. Las pruebas con el doble no podían detectarlo.
+
+## 9. Limitaciones y lo que no se ha comprobado
 
 | Limitación | Consecuencia |
 |---|---|
-| El asistente y la indexación solo se han probado con un doble de n8n | Las pruebas 1, 2, 3, 6 y 8 no demuestran que la recuperación en Qdrant sea relevante ni que el modelo se limite al contexto. Falta la prueba integrada contra los workflows reales |
+| El asistente y la indexación no se han probado con modelos reales | La prueba integrada (§8) usó un proveedor simulado: no demuestra que la recuperación con el modelo de embeddings real sea relevante ni que el modelo de generación se limite al contexto. Falta repetirla con una clave de OpenRouter |
 | El umbral de similitud (0,70) no está calibrado | Es un valor inicial; debe ajustarse con el modelo de embeddings real y casos con y sin cobertura |
 | La fidelidad del texto generado no se evalúa automáticamente | Una lista de fuentes válida no prueba que el texto esté fundamentado: requiere revisión humana con respuestas reales |
 | Las migraciones solo se han ejecutado sobre bases vacías | No se han probado sobre una copia de la base de desarrollo existente (creada antes de adoptar Flyway) |
