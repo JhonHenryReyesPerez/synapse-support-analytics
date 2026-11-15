@@ -537,7 +537,7 @@ Registro de lo realizado en la rama `dev/JhonReyes`. Las secciones anteriores si
 
 ### 21.1 Listo y verificado
 
-Verificado con `./gradlew test` en H2 y con `backend/scripts/test-postgres.sh` en PostgreSQL 17 (migraciones reales de Flyway y Hibernate en modo `validate`), salvo donde se indica. Última ejecución (14 de noviembre de 2026): 106 pruebas y 0 fallos en ambos (en H2 se omiten las 6 de datos iniciales).
+Verificado con `./gradlew test` en H2 y con `backend/scripts/test-postgres.sh` en PostgreSQL 17 (migraciones reales de Flyway y Hibernate en modo `validate`), salvo donde se indica. Última ejecución (15 de noviembre de 2026): 107 pruebas y 0 fallos en ambos (en H2 se omiten las 6 de datos iniciales).
 
 | ID / etapa | Qué quedó implementado | Prueba principal |
 |---|---|---|
@@ -546,7 +546,7 @@ Verificado con `./gradlew test` en H2 y con `backend/scripts/test-postgres.sh` e
 | B03 | Cuenta con cambio de clave pendiente: solo `login`, `change-password` y `me`; el resto responde 403 `PASSWORD_CHANGE_REQUIRED` | `PasswordChangeRequiredTests` |
 | B04 | Token de 30 min; claim `cv` comparado con `credential_version`; el cambio o restablecimiento invalida tokens previos; `change-password` devuelve token nuevo; clave temporal aleatoria | `TokenInvalidationTests` |
 | B05 | `TicketAssignmentService` es el único caso de uso de asignación; `/transitions` y `/status` delegan en él; listado de técnicos derivado del rol con carga calculada desde tickets | `TicketAssignmentTests` (incluye concurrencia) |
-| Migraciones | Flyway: `V1` línea base … `V8`; `ddl-auto=validate`; `baseline-on-migrate` para bases ya existentes | Suite completa en PostgreSQL |
+| Migraciones | Flyway: `V1` línea base … `V9`; `ddl-auto=validate`; `baseline-on-migrate` para bases ya existentes | Suite completa en PostgreSQL |
 | B06 | `modules/category` (entidad, CRUD de ADMIN, activar/desactivar); `Ticket.category` ManyToOne; prioridad canónica BAJA/MEDIA/ALTA/CRITICA; alias anteriores solo como entrada | `CategoryTests` |
 | B07 | `fullName` y `area` opcionales en el usuario; `username` sigue siendo la clave primaria (sin ID técnico) | `UserAccountPolicyTests` |
 | B08 | `resolvedAt`, `closedAt`, `resolutionNote`; RESOLVE exige nota; fechas previas derivadas del historial; límites de título (150) y descripción (10.000) tras trim | `TicketResolutionTests` |
@@ -644,7 +644,7 @@ Reglas de negocio del enunciado (§11): las consultas inteligentes solo entran p
 |---|---|
 | Repositorio con historial progresivo | La rama `dev/JhonReyes` está publicada, con más de 20 commits por delante de `main`. No hay merge ni pull request hacia `main` todavía, y el enunciado los evalúa |
 | Backend Spring Boot | Hecho |
-| Script SQL de datos iniciales y migraciones | Hecho: `db/migration/V1`–`V8` y `db/seed/demo_data.sql` |
+| Script SQL de datos iniciales y migraciones | Hecho: `db/migration/V1`–`V9` y `db/seed/demo_data.sql` |
 | Diagramas entidad-relación y arquitectura | Hechos en Mermaid (`docs/backend/DIAGRAMAS.md`); no se ha comprobado cómo se muestran |
 | `.env.example` | Hecho para el backend; el del proyecto completo depende del Compose |
 | Evidencias de Swagger o Postman | Parcial: `docs/backend/openapi.json` exportado; faltan capturas de los endpoints nuevos |
@@ -717,7 +717,7 @@ Corregido:
 Abierto:
 
 1. `LoginAttemptLimiter`: con 10.000 identificadores en seguimiento, los nuevos no se cuentan y el límite deja de aplicarse a ellos.
-2. `TECHNICIAN` recibe `USER_READ` y puede listar todas las cuentas con `GET /api/user/all`; decidir si es intencional y, si no, retirarlo con una migración (el arranque solo añade permisos).
+2. Corregido el 15 de noviembre de 2026: `TECHNICIAN` ya no recibe `USER_READ` (`SecurityBootstrapService`) y la migración `V9` lo retira de las bases existentes; un técnico recibe 403 en `GET /api/user/all` y en `GET /api/user/{username}/permissions` (`technicianCannotReadOtherAccounts`).
 3. `UserAccountPolicy`: dos administradores que se degradan mutuamente a la vez pueden dejar el sistema sin administrador.
 4. La comprobación de rol sobre `UserEntity` está repetida en `CommentService`, `DashboardService`, `TicketAssignmentService` y `UserAccountPolicy`.
 5. `IUserRepository`, `IUserRoleRepository` y `UserRoleRepository` no aportan nada: una sola implementación y un reenvío.

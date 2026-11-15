@@ -168,6 +168,7 @@ solo lo valida (`ddl-auto=validate`).
 | `V6` | Artículos de conocimiento |
 | `V7` | Consultas al asistente, respuestas, pasos y fuentes |
 | `V8` | Calificaciones |
+| `V9` | Retira del técnico el permiso de lectura de cuentas |
 
 Una base creada antes de adoptar Flyway se toma como versión 1 (`baseline-on-migrate`) y recibe las
 migraciones posteriores. **Esto solo se ha probado sobre bases vacías**: antes de aplicarlo a una
@@ -226,8 +227,8 @@ cuando falla n8n (con `queryId` en el cuerpo).
 ## Pruebas
 
 ```bash
-./gradlew test                    # H2 en memoria: 106 pruebas, 6 omitidas
-bash scripts/test-postgres.sh     # PostgreSQL 17 en Docker con las migraciones reales: 106 pruebas
+./gradlew test                    # H2 en memoria: 107 pruebas, 6 omitidas
+bash scripts/test-postgres.sh     # PostgreSQL 17 en Docker con las migraciones reales: 107 pruebas
 ```
 
 Resultados, correspondencia con las diez pruebas obligatorias y limitaciones:
