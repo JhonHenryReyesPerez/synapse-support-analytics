@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Synapse Support Analytics — Plataforma</title>
+
+  <!-- Estilos del Sistema de Diseño Nativo -->
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/modules/app.css">
+  <link rel="stylesheet" href="css/modules/tickets.css">
+  <link rel="stylesheet" href="css/modules/assistant.css">
+  <link rel="stylesheet" href="css/modules/knowledge.css">
+  <link rel="stylesheet" href="css/modules/analytics.css">
+
+  <!-- Chart.js para Visualización Analítica (RF07) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body class="app-layout">
+
+  <!-- Barra Lateral de Navegación (Sidebar) -->
+  <aside class="app-sidebar" role="navigation" aria-label="Navegación principal">
+    <div class="sidebar-brand">
+      <div class="sidebar-brand-icon" aria-hidden="true">⚡</div>
+      <div class="sidebar-brand-text">
+        <h2>Synapse</h2>
+        <span>Support Analytics</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-title">Módulos</div>
+      
+      <button type="button" class="nav-item is-active" data-view="view-dashboard">
+        <span class="nav-icon" aria-hidden="true">📊</span>
+        <span>Dashboard Analítico</span>
+      </button>
+
+      <button type="button" class="nav-item" data-view="view-tickets">
+        <span class="nav-icon" aria-hidden="true">🎫</span>
+        <span>Incidentes (Tickets)</span>
+      </button>
+
+      <button type="button" class="nav-item" data-view="view-knowledge">
+        <span class="nav-icon" aria-hidden="true">📚</span>
+        <span>Base Conocimiento</span>
+      </button>
+
+      <div class="nav-section-title admin-only">Sistema</div>
+      <button type="button" class="nav-item admin-only" data-view="view-admin">
+        <span class="nav-icon" aria-hidden="true">⚙️</span>
+        <span>Administración</span>
+      </button>
+    </nav>
+
+    <!-- Perfil del Usuario Activo -->
+    <div class="sidebar-user">
+      <div class="user-info">
+        <div class="user-avatar" id="sidebar-user-avatar">U</div>
+        <div class="user-meta">
+          <div class="user-name" id="sidebar-user-name">Usuario</div>
+          <span class="user-role-badge" id="sidebar-user-role">USER</span>
+        </div>
+      </div>
+      <button type="button" class="btn-logout" id="btn-app-logout" title="Cerrar sesión" aria-label="Cerrar sesión">
+        🚪
+      </button>
+    </div>
+  </aside>
+
+  <!-- Contenedor Principal de Vistas -->
+  <div class="app-main">
+    
+    <!-- Barra Superior (Header) -->
+    <header class="app-header">
+      <div class="header-title-area">
+        <h1 id="header-view-title">Dashboard Analítico</h1>
+      </div>
+      <div class="header-actions">
+        <button type="button" class="btn btn-primary btn-sm" id="btn-new-ticket">
+          + Nuevo Incidente
+        </button>
+      </div>
+    </header>
+
+    <!-- Contenido de las Vistas -->
+    <main class="app-content" role="main">
+
+      <!-- ====================================================================
+           1. VISTA: DASHBOARD ANALÍTICO (RF06 / RF07)
+           ==================================================================== -->
+      <section class="view-section is-active" id="view-dashboard">
+        
+        <!-- Filtros de la Cohorte Analítica -->
+        <div class="toolbar-card">
+          <div class="filter-group">
+            <label class="filter-label" for="analytics-filter-from">Fecha Desde</label>
+            <input type="date" id="analytics-filter-from" class="form-control">
+          </div>
+
+          <div class="filter-group">
+            <label class="filter-label" for="analytics-filter-to">Fecha Hasta</label>
+            <input type="date" id="analytics-filter-to" class="form-control">
+          </div>
+
+          <div class="filter-group grow">
+            <label class="filter-label" for="analytics-filter-category">Categoría</label>
+            <select id="analytics-filter-category" class="form-select" data-default-text="Todas las categorías">
+              <option value="">Todas las categorías</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label class="filter-label" for="analytics-filter-priority">Prioridad</label>
+            <select id="analytics-filter-priority" class="form-select">
+              <option value="">Todas</option>
+              <option value="BAJA">Baja</option>
+              <option value="MEDIA">Media</option>
+              <option value="ALTA">Alta</option>
+              <option value="CRITICA">Crítica</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label class="filter-label" for="analytics-filter-granularity">Granularidad</label>
+            <select id="analytics-filter-granularity" class="form-select">
+              <option value="DAY">Diaria</option>
+              <option value="WEEK">Semanal (Lunes)</option>
+            </select>
+          </div>
+
+          <div style="display: flex; gap: var(--spacing-2);">
+            <button type="button" class="btn btn-primary" id="btn-apply-analytics-filters">Filtrar</button>
+            <button type="button" class="btn btn-outline" id="btn-reset-analytics-filters">Limpiar</button>
+          </div>
+        </div>
+
+        <!-- Indicadores Clave de Desempeño (KPIs) -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-title">1. Total Incidentes</div>
+            <div class="kpi-value" id="kpi-total-incidents">0</div>
+            <div class="kpi-subtitle">Incidentes registrados en cohorte</div>
+          </div>
+
+          <div class="kpi-card kpi-success">
+            <div class="kpi-title">4. Tasa de Resolución</div>
+            <div class="kpi-value" id="kpi-resolution-rate">0.0%</div>
+            <div class="kpi-subtitle" id="kpi-resolved-count">0 resueltos o cerrados</div>
+          </div>
+
+          <div class="kpi-card kpi-warning">
+            <div class="kpi-title">5. Tiempo Prom. Resolución</div>
+            <div class="kpi-value" id="kpi-avg-resolution-time">—</div>
+            <div class="kpi-subtitle" id="kpi-resolution-sample">Horas transcurridas</div>
+          </div>
+
+          <div class="kpi-card kpi-purple">
+            <div class="kpi-title">6. Categoría Más Recurrente</div>
+            <div class="kpi-value" id="kpi-most-recurrent" style="font-size: var(--font-size-xl);">—</div>
+            <div class="kpi-subtitle">Mayor volumen de solicitudes</div>
+          </div>
+        </div>
+
+        <!-- Gráficos Interactivos -->
+        <div class="charts-grid">
+          <div class="chart-card">
+            <div class="chart-header">
+              <h2 class="chart-title">2. Incidentes por Categoría</h2>
+            </div>
+            <div class="chart-canvas-wrapper">
+              <canvas id="chart-category"></canvas>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-header">
+              <h2 class="chart-title">3. Tendencia Temporal de Incidentes</h2>
+            </div>
+            <div class="chart-canvas-wrapper">
+              <canvas id="chart-trend"></canvas>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-header">
+              <h2 class="chart-title">7. Distribución por Prioridad</h2>
+            </div>
+            <div class="chart-canvas-wrapper">
+              <canvas id="chart-priority"></canvas>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-header">
+              <h2 class="chart-title">Desglose de Tiempos por Categoría</h2>
+            </div>
+            <div style="overflow-y: auto; max-height: 280px;">
+              <table class="analytics-summary-table">
+                <thead>
+                  <tr>
+                    <th>Categoría</th>
+                    <th>Casos</th>
+                    <th>% Cohorte</th>
+                    <th>Tiempo Prom.</th>
+                  </tr>
+                </thead>
+                <tbody id="analytics-category-tbody">
+                  <tr><td colspan="4" style="text-align:center;">Cargando resumen...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ====================================================================
+           2. VISTA: INCIDENTES / TICKETS (RF01)
+           ==================================================================== -->
+      <section class="view-section" id="view-tickets">
+        
+        <!-- Barra de Filtros de Incidentes -->
+        <div class="toolbar-card">
+          <div class="filter-group">
+            <label class="filter-label" for="filter-ticket-status">Estado</label>
+            <select id="filter-ticket-status" class="form-select">
+              <option value="">Todos los estados</option>
+              <option value="OPEN">Abierto</option>
+              <option value="ASSIGNED">Asignado</option>
+              <option value="IN_PROGRESS">En Progreso</option>
+              <option value="RESOLVED">Resuelto</option>
+              <option value="CLOSED">Cerrado</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label class="filter-label" for="filter-ticket-priority">Prioridad</label>
+            <select id="filter-ticket-priority" class="form-select">
+              <option value="">Todas las prioridades</option>
+              <option value="BAJA">Baja</option>
+              <option value="MEDIA">Media</option>
+              <option value="ALTA">Alta</option>
+              <option value="CRITICA">Crítica</option>
+            </select>
+          </div>
+
+          <div class="filter-group grow">
+            <label class="filter-label" for="filter-ticket-category">Categoría</label>
+            <select id="filter-ticket-category" class="form-select" data-default-text="Todas las categorías">
+              <option value="">Todas las categorías</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Tabla de Incidentes -->
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 80px;">ID</th>
+                <th>Título del Incidente</th>
+                <th style="width: 130px;">Estado</th>
+                <th style="width: 110px;">Prioridad</th>
+                <th>Categoría</th>
+                <th>Solicitante</th>
+                <th>Fecha de Creación</th>
+              </tr>
+            </thead>
+            <tbody id="tickets-table-body">
+              <tr><td colspan="7" style="text-align:center; padding: 2rem;">Cargando incidentes...</td></tr>
+            </tbody>
+          </table>
+
+          <div class="pagination-bar">
+            <span class="pagination-info" id="tickets-page-info">Página 1 de 1</span>
+            <div class="pagination-controls">
+              <button type="button" class="btn btn-outline btn-sm" id="btn-page-prev">Anterior</button>
+              <button type="button" class="btn btn-outline btn-sm" id="btn-page-next">Siguiente</button>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ====================================================================
+           3. VISTA: BASE DE CONOCIMIENTO (RF02 / RF03)
+           ==================================================================== -->
+      <section class="view-section" id="view-knowledge">
+        
+        <div class="toolbar-card">
+          <div class="filter-group">
+            <label class="filter-label" for="kb-scope-select">Alcance de Artículos</label>
+            <select id="kb-scope-select" class="form-select">
+              <option value="PUBLISHED">Publicados (Activos y Verificados)</option>
+              <option value="MINE" class="tech-admin-only">Mis Artículos Redactados</option>
+              <option value="ALL" class="admin-only">Todos (Borradores y Publicados)</option>
+            </select>
+          </div>
+
+          <div style="margin-left: auto; display: flex; gap: var(--spacing-3);">
+            <button type="button" class="btn btn-outline admin-only" id="btn-reconcile-index" title="Sincroniza artículos pendientes o con error con Qdrant">
+              🔄 Sincronizar Vector Store (Qdrant)
+            </button>
+            <button type="button" class="btn btn-primary tech-admin-only" id="btn-new-article">
+              + Redactar Borrador
+            </button>
+          </div>
+        </div>
+
+        <div class="articles-grid" id="articles-grid">
+          <!-- Tarjetas de artículos inyectadas por JS -->
+        </div>
+
+      </section>
+
+      <!-- ====================================================================
+           4. VISTA: ADMINISTRACIÓN (ADMIN ONLY)
+           ==================================================================== -->
+      <section class="view-section admin-only" id="view-admin">
+        
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: var(--spacing-6);">
+          
+          <!-- Usuarios y Roles -->
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Cuentas de Usuario y Credenciales</h2>
+            </div>
+            <div class="table-responsive" style="border: none; box-shadow: none;">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Usuario</th>
+                    <th>Nombre Completo</th>
+                    <th>Correo</th>
+                    <th>Rol</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="users-table-body">
+                  <tr><td colspan="6" style="text-align:center;">Cargando usuarios...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Categorías Relacionales -->
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Categorías</h2>
+              <button type="button" class="btn btn-primary btn-sm" id="btn-new-category">+ Nueva</button>
+            </div>
+            <div class="table-responsive" style="border: none; box-shadow: none;">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Nombre</th>
+                    <th>Descripción</th>
+                    <th>Estado</th>
+                    <th>Acción</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-categories-tbody">
+                  <tr><td colspan="5" style="text-align:center;">Cargando categorías...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+
+      </section>
+
+    </main>
+
+  </div>
+
+  <!-- ====================================================================
+       MODALES DEL SISTEMA
+       ==================================================================== -->
+
+  <!-- Modal Detalle del Incidente + Asistente RAG (RF01, RF04, RF05, RF08) -->
+  <div class="modal-overlay" id="modal-ticket-detail" role="dialog" aria-modal="true" aria-labelledby="detail-ticket-title">
+    <div class="modal-container" style="max-width: 900px;">
+      <header class="modal-header">
+        <div>
+          <span id="detail-ticket-id" style="font-family:var(--font-family-mono); font-weight:bold; color:var(--color-accent);">#0</span>
+          <h2 class="modal-title" id="detail-ticket-title" style="display:inline; margin-left:0.5rem;">Detalle del Incidente</h2>
+        </div>
+        <button type="button" class="modal-close" onclick="UI.closeModal('modal-ticket-detail')">&times;</button>
+      </header>
+
+      <div class="modal-body">
+        <div class="ticket-detail-grid">
+          
+          <!-- Columna Izquierda: Información, Asistente RAG y Comentarios -->
+          <div class="detail-main">
+            
+            <!-- Resumen y Descripción -->
+            <div class="card" style="padding: var(--spacing-4);">
+              <div style="display: flex; gap: var(--spacing-2); margin-bottom: var(--spacing-3); flex-wrap: wrap;">
+                <span id="detail-ticket-status" class="badge">Abierto</span>
+                <span id="detail-ticket-priority" class="badge">Media</span>
+                <span class="badge" style="background:#f1f5f9; color:#475569;" id="detail-ticket-category">General</span>
+              </div>
+              <p id="detail-ticket-desc" style="white-space: pre-wrap; font-size: var(--font-size-sm); color: var(--text-main);"></p>
+
+              <!-- Nota de solución (si está resuelto) -->
+              <div id="detail-resolution-box" style="display:none; margin-top:1rem; padding:0.75rem; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:var(--radius-md);">
+                <div style="font-weight:var(--font-weight-semibold); color:#065f46; font-size:var(--font-size-xs); text-transform:uppercase;">
+                  Procedimiento de Resolución:
+                </div>
+                <div id="detail-resolution-note" style="font-size:var(--font-size-sm); color:#047857; margin-top:4px; white-space:pre-wrap;"></div>
+              </div>
+            </div>
+
+            <!-- Asistente RAG de Asistencia Inteligente (RF04 / RF05) -->
+            <div class="card assistant-card">
+              <div class="card-header" style="background: transparent;">
+                <div style="display:flex; align-items:center; gap:var(--spacing-2);">
+                  <span class="assistant-header-badge">⚡ Asistente RAG</span>
+                  <span style="font-size:var(--font-size-xs); color:var(--text-muted);">Embeddings + Qdrant</span>
+                </div>
+              </div>
+              <div class="card-body">
+                <p style="font-size:var(--font-size-xs); color:var(--text-muted); margin-bottom:var(--spacing-3);">
+                  Obtén orientación técnica fundamentada exclusivamente en artículos verificados de la base de conocimiento:
+                </p>
+                <div class="form-group" style="margin-bottom: var(--spacing-2);">
+                  <input type="text" id="assistant-custom-question" class="form-control" placeholder="Pregunta personalizada opcional (ej. ¿Cómo configuro la IP?)...">
+                </div>
+                <button type="button" class="btn btn-primary btn-sm" id="btn-ask-assistant" 
+                  onclick="ASSISTANT.ask(TICKETS.currentTicket.id, document.getElementById('assistant-custom-question').value)">
+                  ✨ Consultar Asistente Inteligente
+                </button>
+
+                <!-- Contenedor del resultado RAG -->
+                <div id="assistant-result-container"></div>
+              </div>
+            </div>
+
+            <!-- Comentarios del Incidente -->
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Comentarios y Trazabilidad</h3>
+              </div>
+              <div class="card-body">
+                <div class="comments-list" id="detail-comments-list">
+                  <!-- Comentarios inyectados por JS -->
+                </div>
+
+                <form id="form-add-comment" style="margin-top: var(--spacing-4);">
+                  <div class="form-group">
+                    <textarea id="comment-input" class="form-control" rows="2" placeholder="Escribe un comentario..." required></textarea>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <label class="tech-admin-only" style="font-size: var(--font-size-xs); color: var(--text-muted); display:flex; align-items:center; gap:4px;">
+                      <input type="checkbox" id="comment-internal"> Nota interna técnica (solo técnicos/admin)
+                    </label>
+                    <button type="submit" class="btn btn-outline btn-sm" id="btn-submit-comment" style="margin-left:auto;">
+                      Publicar Comentario
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Columna Derecha: Metadatos, Acciones de Estado e Historial -->
+          <div class="detail-side">
+            
+            <!-- Acciones de Estado según rol -->
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Acciones de Estado</h3>
+              </div>
+              <div class="card-body" id="detail-actions-container">
+                <!-- Botones inyectados por JS -->
+              </div>
+            </div>
+
+            <!-- Metadatos del Incidente -->
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Información del Ticket</h3>
+              </div>
+              <div class="card-body" style="font-size: var(--font-size-xs); display:flex; flex-direction:column; gap: var(--spacing-2);">
+                <div><strong>Solicitante:</strong> <span id="detail-ticket-applicant">—</span></div>
+                <div><strong>Técnico Asignado:</strong> <span id="detail-ticket-technician">Sin asignar</span></div>
+                <div><strong>Creado el:</strong> <span id="detail-ticket-created">—</span></div>
+              </div>
+            </div>
+
+            <!-- Historial de Consultas RAG Anteriores (RF08) -->
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Historial RAG</h3>
+              </div>
+              <div class="card-body" id="assistant-history-list" style="max-height: 200px; overflow-y: auto;">
+                <!-- Historial de consultas RAG -->
+              </div>
+            </div>
+
+            <!-- Línea de Tiempo de Cambios de Estado -->
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Historial de Estados</h3>
+              </div>
+              <div class="card-body">
+                <ul class="timeline" id="detail-history-timeline">
+                  <!-- Historial inyectado por JS -->
+                </ul>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Crear Nuevo Incidente (RF01) -->
+  <div class="modal-overlay" id="modal-create-ticket" role="dialog" aria-modal="true" aria-labelledby="modal-title-ticket">
+    <div class="modal-container">
+      <header class="modal-header">
+        <h2 class="modal-title" id="modal-title-ticket">Registrar Nuevo Incidente</h2>
+        <button type="button" class="modal-close" onclick="UI.closeModal('modal-create-ticket')">&times;</button>
+      </header>
+      <form id="form-create-ticket" novalidate>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label" for="create-ticket-title">Título del Incidente</label>
+            <input type="text" id="create-ticket-title" class="form-control" maxlength="150" placeholder="Breve resumen del problema" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="create-ticket-category">Categoría</label>
+            <select id="create-ticket-category" class="form-select" data-default-text="Seleccionar categoría..." required>
+              <option value="">Seleccionar categoría...</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="create-ticket-priority">Prioridad</label>
+            <select id="create-ticket-priority" class="form-select" required>
+              <option value="BAJA">Baja</option>
+              <option value="MEDIA" selected>Media</option>
+              <option value="ALTA">Alta</option>
+              <option value="CRITICA">Crítica</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="create-ticket-description">Descripción Detallada</label>
+            <textarea id="create-ticket-description" class="form-control" rows="4" maxlength="10000" placeholder="Describe los síntomas y el comportamiento de la falla..." required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" onclick="UI.closeModal('modal-create-ticket')">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-ticket">Registrar Incidente</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Redactar Artículo de Conocimiento (RF02) -->
+  <div class="modal-overlay" id="modal-create-article" role="dialog" aria-modal="true" aria-labelledby="modal-title-art">
+    <div class="modal-container" style="max-width: 650px;">
+      <header class="modal-header">
+        <h2 class="modal-title" id="modal-title-art">Nuevo Artículo de Conocimiento</h2>
+        <button type="button" class="modal-close" onclick="UI.closeModal('modal-create-article')">&times;</button>
+      </header>
+      <form id="form-create-article" novalidate>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label" for="article-title">Título del Artículo</label>
+            <input type="text" id="article-title" class="form-control" placeholder="Título descriptivo de la falla" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="article-problem">Problema</label>
+            <textarea id="article-problem" class="form-control" rows="2" placeholder="Descripción clara del problema" required></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="article-symptoms">Síntomas</label>
+            <textarea id="article-symptoms" class="form-control" rows="2" placeholder="Comportamientos o mensajes de error observados" required></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="article-cause">Causa Raíz</label>
+            <textarea id="article-cause" class="form-control" rows="2" placeholder="Origen o causa técnica de la falla" required></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="article-solution">Procedimiento de Solución</label>
+            <textarea id="article-solution" class="form-control" rows="4" placeholder="Pasos detallados para solucionar el problema..." required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" onclick="UI.closeModal('modal-create-article')">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-article">Guardar Borrador</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Crear Categoría (ADMIN) -->
+  <div class="modal-overlay" id="modal-create-category" role="dialog" aria-modal="true" aria-labelledby="modal-title-cat">
+    <div class="modal-container">
+      <header class="modal-header">
+        <h2 class="modal-title" id="modal-title-cat">Nueva Categoría</h2>
+        <button type="button" class="modal-close" onclick="UI.closeModal('modal-create-category')">&times;</button>
+      </header>
+      <form id="form-create-category" novalidate>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label" for="cat-name">Nombre de la Categoría</label>
+            <input type="text" id="cat-name" class="form-control" placeholder="ej. Telefonía IP" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="cat-description">Descripción</label>
+            <textarea id="cat-description" class="form-control" rows="2" placeholder="Breve descripción del alcance"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" onclick="UI.closeModal('modal-create-category')">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-category">Guardar Categoría</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Genérico / Dinámico (Asignaciones, Resoluciones, Vista de Artículo) -->
+  <div class="modal-overlay" id="modal-generic" role="dialog" aria-modal="true" aria-labelledby="modal-generic-title">
+    <div class="modal-container">
+      <header class="modal-header">
+        <h2 class="modal-title" id="modal-generic-title">Detalle</h2>
+        <button type="button" class="modal-close" onclick="UI.closeModal('modal-generic')">&times;</button>
+      </header>
+      <div class="modal-body" id="modal-generic-body">
+        <!-- Contenido dinámico -->
+      </div>
+      <div class="modal-footer" id="modal-generic-footer">
+        <button type="button" class="btn btn-outline" onclick="UI.closeModal('modal-generic')">Cerrar</button>
+        <button type="button" class="btn btn-primary" id="btn-generic-confirm">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts Nativos del Frontend -->
+  <script src="js/config.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/tickets.js"></script>
+  <script src="js/assistant.js"></script>
+  <script src="js/knowledge.js"></script>
+  <script src="js/analytics.js"></script>
+  <script src="js/admin.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

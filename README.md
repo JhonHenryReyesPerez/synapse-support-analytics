@@ -7,7 +7,7 @@ artículos verificados.
 
 ## Componentes
 
-| Componente | Tecnología | Estado en esta rama (`dev/JhonReyes`) |
+| Componente | Tecnología | Estado en esta rama (`dev/DiegoLeon`) |
 |---|---|---|
 | Backend | Java 21, Spring Boot, PostgreSQL | Implementado: ver [`backend/README.md`](backend/README.md) |
 | Frontend | HTML, CSS, JavaScript | A cargo de otro integrante; no está en el repositorio |
@@ -18,6 +18,7 @@ artículos verificados.
 
 ```text
 backend/     API REST de Spring Boot, migraciones, datos de demostración y pruebas
+frontend/    Interfaz de usuario web (HTML5, CSS3, JS ES6) con dashboard analítico y asistente RAG
 n8n/         Flujos de indexación y de asistencia RAG, y script de arranque de n8n
 qdrant/      Configuración de la colección vectorial
 docker-compose.yml   Entorno completo
