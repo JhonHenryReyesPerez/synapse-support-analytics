@@ -1,0 +1,190 @@
+/**
+ * Synapse Support Analytics - Estilos de Gestión de Incidentes (Tickets)
+ */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: var(--font-size-sm);
+}
+
+.data-table th {
+  background-color: var(--bg-surface-alt);
+  color: var(--text-muted);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: var(--spacing-3) var(--spacing-4);
+  border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: var(--spacing-4);
+  border-bottom: 1px solid var(--border-color-subtle);
+  color: var(--text-main);
+  vertical-align: middle;
+}
+
+.data-table tbody tr {
+  transition: background-color var(--transition-fast);
+}
+
+.data-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Paginación */
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-4) var(--spacing-6);
+  background-color: var(--bg-surface);
+  border-top: 1px solid var(--border-color);
+}
+
+.pagination-info {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.pagination-controls {
+  display: flex;
+  gap: var(--spacing-2);
+}
+
+/* Detalle de Incidente */
+.ticket-detail-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--spacing-6);
+}
+
+@media (max-width: 1024px) {
+  .ticket-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.detail-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-6);
+}
+
+.detail-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-6);
+}
+
+/* Línea de tiempo de estados */
+.timeline {
+  position: relative;
+  padding-left: var(--spacing-6);
+  list-style: none;
+}
+
+.timeline::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 8px;
+  width: 2px;
+  background-color: var(--border-color);
+}
+
+.timeline-item {
+  position: relative;
+  margin-bottom: var(--spacing-4);
+}
+.timeline-item:last-child {
+  margin-bottom: 0;
+}
+
+.timeline-dot {
+  position: absolute;
+  left: -20px;
+  top: 4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--color-accent);
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 2px var(--color-accent);
+}
+
+.timeline-content {
+  background-color: var(--bg-surface-alt);
+  border: 1px solid var(--border-color-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-3);
+  font-size: var(--font-size-xs);
+}
+
+.timeline-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-1);
+}
+
+.timeline-time {
+  color: var(--text-subtle);
+}
+
+/* Hilos de Comentarios */
+.comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  margin-bottom: var(--spacing-4);
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.comment-card {
+  padding: var(--spacing-3) var(--spacing-4);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+}
+
+.comment-card.is-internal {
+  background-color: #fefce8;
+  border-color: #fef08a;
+}
+
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-1);
+  font-size: var(--font-size-xs);
+}
+
+.comment-author {
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-main);
+}
+
+.comment-body {
+  font-size: var(--font-size-sm);
+  color: var(--text-main);
+  white-space: pre-wrap;
+}
