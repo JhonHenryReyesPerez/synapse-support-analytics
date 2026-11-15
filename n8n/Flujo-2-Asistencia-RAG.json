@@ -110,7 +110,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json.embeddingBody) }}",
         "options": {
-          "timeout": 30000
+          "timeout": 10000
         }
       },
       "id": "Embedding de Consulta",
@@ -173,7 +173,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json.searchBody) }}",
         "options": {
-          "timeout": 30000
+          "timeout": 5000
         }
       },
       "id": "Busqueda Semantica en Qdrant",
@@ -240,7 +240,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json.eligibilityBody) }}",
         "options": {
-          "timeout": 30000
+          "timeout": 5000
         }
       },
       "id": "Validar Elegibilidad Relacional",
@@ -307,7 +307,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json.chatBody) }}",
         "options": {
-          "timeout": 45000
+          "timeout": 35000
         }
       },
       "id": "Generar Respuesta OpenRouter",
