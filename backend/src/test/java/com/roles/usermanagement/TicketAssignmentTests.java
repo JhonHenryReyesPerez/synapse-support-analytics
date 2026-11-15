@@ -124,6 +124,43 @@ class TicketAssignmentTests extends ApiTestSupport {
     }
 
     @Test
+    void assignedTicketCannotBeEditedByItsApplicant() throws Exception {
+        String admin = adminToken();
+        String userToken = token(registerUser(), PASSWORD);
+        String technician = createTechnician();
+        long ticket = assignedTicket(userToken, technician, admin);
+
+        assertThat(request("PUT", "/api/tickets/" + ticket, EDIT_BODY, userToken).statusCode()).isEqualTo(409);
+
+        JsonNode stored = json(request("GET", "/api/tickets/" + ticket, null, admin));
+        assertThat(stored.get("status").asText()).isEqualTo("ASSIGNED");
+        assertThat(stored.get("technicianUsername").asText()).isEqualTo(technician);
+        assertThat(stored.get("title").asText()).isEqualTo("Sin conexión a la red");
+    }
+
+    /** Una edición simultánea no debe devolver a OPEN un ticket que el administrador acaba de asignar. */
+    @Test
+    void editRacingWithAssignmentNeverUndoesIt() throws Exception {
+        String admin = adminToken();
+        String userToken = token(registerUser(), PASSWORD);
+        String technician = createTechnician();
+
+        for (int round = 0; round < 8; round++) {
+            long ticket = createTicket(userToken);
+            CountDownLatch start = new CountDownLatch(1);
+            var edit = CompletableFuture.supplyAsync(() -> editWhenReleased(start, ticket, userToken));
+            var assign = CompletableFuture.supplyAsync(() -> assignWhenReleased(start, ticket, technician, admin));
+            start.countDown();
+
+            assertThat(assign.get()).isEqualTo(200);
+            assertThat(edit.get()).isIn(200, 409);
+            JsonNode stored = json(request("GET", "/api/tickets/" + ticket, null, admin));
+            assertThat(stored.get("status").asText()).isEqualTo("ASSIGNED");
+            assertThat(stored.get("technicianUsername").asText()).isEqualTo(technician);
+        }
+    }
+
+    @Test
     void technicianListingDerivesLoadFromActiveTickets() throws Exception {
         String admin = adminToken();
         String userToken = token(registerUser(), PASSWORD);
@@ -133,6 +170,18 @@ class TicketAssignmentTests extends ApiTestSupport {
         assignedTicket(userToken, technician, admin);
         assignedTicket(userToken, technician, admin);
         assertThat(loadOf(technician, admin)).isEqualTo(2);
+    }
+
+    private static final String EDIT_BODY = "{\"title\":\"Título editado\",\"description\":\"Descripción editada\","
+            + "\"category\":\"NETWORK\",\"priority\":\"HIGH\"}";
+
+    private int editWhenReleased(CountDownLatch start, long ticket, String userToken) {
+        try {
+            start.await();
+            return request("PUT", "/api/tickets/" + ticket, EDIT_BODY, userToken).statusCode();
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     private int assignWhenReleased(CountDownLatch start, long ticket, String technician, String admin) {

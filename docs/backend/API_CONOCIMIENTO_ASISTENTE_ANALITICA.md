@@ -92,7 +92,7 @@ Respuesta (`AssistanceQueryResponse`):
       "similarity": 0.93, "order": 1, "evidence": "Problema: …\n\nSíntomas: …\n\nCausa: …\n\nSolución: …", "current": true }
   ],
   "limitedEvidence": false,
-  "retrieval": { "maxResults": 5, "minScore": 0.7, "similarityMetric": "cosine", "embeddingModel": "…" },
+  "retrieval": { "maxResults": 5, "minScore": 0.55, "similarityMetric": "cosine", "embeddingModel": "…" },
   "generationModel": "…", "workflowVersion": "…",
   "attempts": 1, "retryOfQueryId": null, "rating": null,
   "createdAt": "2026-11-12T10:15:00", "completedAt": "2026-11-12T10:15:21"
