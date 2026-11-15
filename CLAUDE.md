@@ -537,7 +537,7 @@ Registro de lo realizado en la rama `dev/JhonReyes`. Las secciones anteriores si
 
 ### 21.1 Listo y verificado
 
-Verificado con `./gradlew test` en H2 y con `backend/scripts/test-postgres.sh` en PostgreSQL 17 (migraciones reales de Flyway y Hibernate en modo `validate`), salvo donde se indica. Última ejecución (13 de noviembre de 2026): 104 pruebas y 0 fallos en ambos (en H2 se omiten las 6 de datos iniciales).
+Verificado con `./gradlew test` en H2 y con `backend/scripts/test-postgres.sh` en PostgreSQL 17 (migraciones reales de Flyway y Hibernate en modo `validate`), salvo donde se indica. Última ejecución (14 de noviembre de 2026): 106 pruebas y 0 fallos en ambos (en H2 se omiten las 6 de datos iniciales).
 
 | ID / etapa | Qué quedó implementado | Prueba principal |
 |---|---|---|
@@ -701,3 +701,23 @@ Esa revisión se hizo por lectura. Después, a petición del responsable, se fus
 - Rendimiento y carga: no se midieron tiempos de las consultas analíticas ni concurrencia del asistente más allá de las pruebas de asignación concurrente.
 - Dependencias: no se analizaron vulnerabilidades conocidas de las bibliotecas.
 - Lectura línea a línea de los módulos anteriores a esta rama (`ticket`, `comment`, `statushistory`, `technician`): se revisaron mediante sus pruebas y por búsquedas dirigidas, no completos.
+
+### 22.7 Auditoría de calidad (14 de noviembre de 2026)
+
+Segunda revisión, hecha por la misma herramienta de IA, sobre el árbol de `dev/Json`: lectura de seguridad, cuentas, tickets, conocimiento, asistente, analítica, Compose y flujos de n8n. No sustituye la revisión humana.
+
+Corregido:
+
+| Hallazgo | Corrección |
+|---|---|
+| `TicketService.update` leía el ticket sin bloqueo: una edición simultánea con la asignación lo devolvía a `OPEN` sin técnico (reproducido en PostgreSQL) | Lectura con `findForUpdate`; pruebas `assignedTicketCannotBeEditedByItsApplicant` y `editRacingWithAssignmentNeverUndoesIt` |
+| `UserRepository.register` y `save` usaban `users.save()`, que con clave asignada hace `merge`: dos altas simultáneas del mismo usuario podían sobrescribir la primera cuenta | `em.persist`; el duplicado choca con la clave primaria y responde 409. Sin prueba propia de concurrencia |
+| Los nodos HTTP del flujo de asistencia sumaban 135 s y el backend espera 60 s (`N8N_READ_TIMEOUT`) | Tiempos límite de 10, 5, 5 y 35 s en asistencia y de 20 y 10 s en indexación. No ejecutado contra n8n con los valores nuevos |
+
+Abierto:
+
+1. `LoginAttemptLimiter`: con 10.000 identificadores en seguimiento, los nuevos no se cuentan y el límite deja de aplicarse a ellos.
+2. `TECHNICIAN` recibe `USER_READ` y puede listar todas las cuentas con `GET /api/user/all`; decidir si es intencional y, si no, retirarlo con una migración (el arranque solo añade permisos).
+3. `UserAccountPolicy`: dos administradores que se degradan mutuamente a la vez pueden dejar el sistema sin administrador.
+4. La comprobación de rol sobre `UserEntity` está repetida en `CommentService`, `DashboardService`, `TicketAssignmentService` y `UserAccountPolicy`.
+5. `IUserRepository`, `IUserRoleRepository` y `UserRoleRepository` no aportan nada: una sola implementación y un reenvío.

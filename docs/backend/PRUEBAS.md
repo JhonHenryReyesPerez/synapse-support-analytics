@@ -9,8 +9,8 @@ Fecha: 13 de noviembre de 2026. Rama `dev/JhonReyes`. Java 21 (Temurin 21.0.12),
 
 | Ejecución | Comando | Base de datos | Pruebas | Fallos | Omitidas |
 |---|---|---|---:|---:|---:|
-| Rápida | `./gradlew test` | H2 en memoria, esquema generado por Hibernate | 104 | 0 | 6 |
-| Completa | `backend/scripts/test-postgres.sh` | PostgreSQL 17.11 desechable, 8 migraciones de Flyway, Hibernate en `validate` | 104 | 0 | 0 |
+| Rápida | `./gradlew test` | H2 en memoria, esquema generado por Hibernate | 106 | 0 | 6 |
+| Completa | `backend/scripts/test-postgres.sh` | PostgreSQL 17.11 desechable, 8 migraciones de Flyway, Hibernate en `validate` | 106 | 0 | 0 |
 
 Las 6 omitidas en H2 son `DemoDataSeedTests`: cargan el script de datos iniciales, que es SQL de
 PostgreSQL, y solo se ejecutan en la ejecución completa.
@@ -23,7 +23,7 @@ PostgreSQL, y solo se ejecutan en la ejecución completa.
 | `DemoDataSeedTests` | 6 | Datos iniciales: mínimos, coherencia, analítica contra SQL (§16) |
 | `CategoryTests` | 5 | Categorías relacionales y prioridad canónica (B06) |
 | `KnowledgeIndexTests` | 5 | Sincronización del índice y contrato de servicio para n8n (RF03) |
-| `TicketAssignmentTests` | 5 | Asignación única, incluida la concurrencia (B05) |
+| `TicketAssignmentTests` | 7 | Asignación única, incluida la concurrencia (B05); un ticket asignado no se edita, tampoco si la edición coincide con la asignación |
 | `UserAccountPolicyTests` | 5 | Política de cuentas, último administrador, baja lógica (B07, B10, B12) |
 | `AnalyticsTests` | 4 | Siete indicadores contra cálculo manual y SQL (B09, RF06, RF07) |
 | `KnowledgeArticleTests` | 4 | Ciclo editorial de artículos (RF02) |
@@ -38,7 +38,7 @@ PostgreSQL, y solo se ejecutan en la ejecución completa.
 | `CommentVisibilityTests` | 1 | El solicitante no ve ni crea notas internas (§6.3) |
 | `OpenApiDocumentationTests` | 1 | El contrato de Swagger incluye los endpoints nuevos |
 | `TicketPaginationTests` | 1 | Paginación y orden estable (B11) |
-| **Total** | **104** | |
+| **Total** | **106** | |
 
 ## 2. Cómo reproducirlas
 
