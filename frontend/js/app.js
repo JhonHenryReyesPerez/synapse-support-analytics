@@ -62,6 +62,10 @@ function renderUserProfile(user) {
     document.querySelectorAll('.tech-admin-only').forEach(el => {
       el.style.display = 'none';
     });
+  } else {
+    // Solo el rol USER registra incidentes.
+    const btnNewTicket = document.getElementById('btn-new-ticket');
+    if (btnNewTicket) btnNewTicket.style.display = 'none';
   }
 }
 

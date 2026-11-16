@@ -219,6 +219,11 @@ const TICKETS = {
       return;
     }
 
+    // Al cambiar de incidente no debe quedar a la vista la respuesta del anterior.
+    if (!this.currentTicket || this.currentTicket.id !== res.data.id) {
+      document.getElementById('assistant-result-container').innerHTML = '';
+      document.getElementById('assistant-custom-question').value = '';
+    }
     this.currentTicket = res.data;
     this.renderDetailModal(this.currentTicket);
     UI.openModal('modal-ticket-detail');
@@ -282,8 +287,8 @@ const TICKETS = {
       container.appendChild(btn);
     }
 
-    // 2. Iniciar Atención (Técnico asignado o ADMIN)
-    if (status === 'ASSIGNED' && (role === 'TECHNICIAN' || role === 'ADMIN')) {
+    // 2. Iniciar Atención (solo el técnico asignado; el backend rechaza al ADMIN)
+    if (status === 'ASSIGNED' && role === 'TECHNICIAN') {
       const btn = document.createElement('button');
       btn.className = 'btn btn-primary btn-sm';
       btn.innerHTML = '▶ Iniciar Atención';
@@ -291,8 +296,8 @@ const TICKETS = {
       container.appendChild(btn);
     }
 
-    // 3. Resolver Incidente (Técnico asignado o ADMIN)
-    if (status === 'IN_PROGRESS' && (role === 'TECHNICIAN' || role === 'ADMIN')) {
+    // 3. Resolver Incidente (solo el técnico asignado)
+    if (status === 'IN_PROGRESS' && role === 'TECHNICIAN') {
       const btn = document.createElement('button');
       btn.className = 'btn btn-success btn-sm';
       btn.innerHTML = '✓ Resolver Incidente';
@@ -300,8 +305,8 @@ const TICKETS = {
       container.appendChild(btn);
     }
 
-    // 4. Confirmar Cierre (Solicitante o ADMIN)
-    if (status === 'RESOLVED' && (user.username === ticket.applicantUsername || role === 'ADMIN')) {
+    // 4. Confirmar Cierre (solo el solicitante)
+    if (status === 'RESOLVED' && user.username === ticket.applicantUsername) {
       const btn = document.createElement('button');
       btn.className = 'btn btn-secondary btn-sm';
       btn.innerHTML = '🔒 Confirmar Cierre';
@@ -321,7 +326,7 @@ const TICKETS = {
       return;
     }
 
-    UI.showToast(`Estado actualizado: ${res.data.statusLabel || res.data.status}`, 'success');
+    UI.showToast(`Estado actualizado: ${res.data.newStatus}`, 'success');
     await this.openTicketDetail(ticketId);
     await this.loadTickets();
   },
@@ -339,7 +344,7 @@ const TICKETS = {
       return;
     }
 
-    const selectHtml = techs.map(t => `<option value="${t.username}">${UI.escapeHtml(t.fullName || t.username)} (${t.specialty || 'General'})</option>`).join('');
+    const selectHtml = techs.map(t => `<option value="${UI.escapeHtml(t.username)}">${UI.escapeHtml(t.username)} (${UI.escapeHtml(t.specialty || 'General')})</option>`).join('');
     
     const justificationGroup = isReassign ? `
       <div class="form-group" style="margin-top: 1rem;">
@@ -361,6 +366,7 @@ const TICKETS = {
     document.getElementById('modal-generic-title').textContent = isReassign ? 'Reasignar Técnico' : 'Asignar Técnico';
 
     const btnConfirm = document.getElementById('btn-generic-confirm');
+    btnConfirm.style.display = ''; // ver un artículo lo oculta
     btnConfirm.onclick = async () => {
       const technicianUsername = document.getElementById('assign-tech-select').value;
       const justification = document.getElementById('assign-justification')?.value?.trim();
@@ -371,10 +377,10 @@ const TICKETS = {
       }
 
       UI.setLoading(btnConfirm, true, 'Asignando...');
-      const assignRes = await API.patch(`/tickets/${ticketId}/assign`, {
-        technicianUsername,
-        justification
-      });
+      // La primera asignación y la reasignación son endpoints distintos en el backend.
+      const assignRes = isReassign
+        ? await API.put(`/tickets/${ticketId}/reassign`, { technicianUsername, justification })
+        : await API.patch(`/tickets/${ticketId}/assign`, { technicianUsername });
       UI.setLoading(btnConfirm, false);
 
       if (!assignRes.ok) {
@@ -404,6 +410,7 @@ const TICKETS = {
     document.getElementById('modal-generic-title').textContent = 'Resolver Incidente';
 
     const btnConfirm = document.getElementById('btn-generic-confirm');
+    btnConfirm.style.display = '';
     btnConfirm.onclick = async () => {
       const resolutionNote = document.getElementById('resolve-note-input').value.trim();
       if (!resolutionNote) {
@@ -438,7 +445,7 @@ const TICKETS = {
     }
 
     list.innerHTML = comments.map(c => `
-      <div class="comment-card ${c.internal ? 'is-internal' : ''}">
+      <div class="comment-card ${c.visibility === 'INTERNAL' ? 'is-internal' : ''}">
         <div class="comment-header">
           <span class="comment-author">${UI.escapeHtml(c.authorUsername || 'Usuario')}</span>
           <span class="timeline-time">${UI.formatDate(c.createdAt)}</span>
@@ -460,7 +467,7 @@ const TICKETS = {
 
     const res = await API.post(`/tickets/${this.currentTicket.id}/comments`, {
       content,
-      internal: isInternal
+      visibility: isInternal ? 'INTERNAL' : 'PUBLIC'
     });
 
     UI.setLoading(btn, false);
@@ -491,11 +498,10 @@ const TICKETS = {
         <div class="timeline-dot"></div>
         <div class="timeline-content">
           <div class="timeline-header">
-            <strong>${UI.escapeHtml(h.toStatus || h.status || '')}</strong>
-            <span class="timeline-time">${UI.formatDate(h.changedAt || h.createdAt)}</span>
+            <strong>${UI.escapeHtml(h.newStatus || '')}</strong>
+            <span class="timeline-time">${UI.formatDate(h.changedAt)}</span>
           </div>
-          <div>Por: ${UI.escapeHtml(h.changedByUsername || 'Sistema')}</div>
-          ${h.justification ? `<div style="margin-top:4px; font-style:italic;">"${UI.escapeHtml(h.justification)}"</div>` : ''}
+          <div>Por: ${UI.escapeHtml(h.changedBy || 'Sistema')}</div>
         </div>
       </li>
     `).join('');

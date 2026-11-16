@@ -3,7 +3,8 @@
  */
 const KNOWLEDGE = {
   currentPage: 0,
-  pageSize: 12,
+  // shortcut: sin paginación, se pide el máximo del backend (100); añadir páginas si hay más artículos.
+  pageSize: 100,
   currentScope: 'PUBLISHED',
 
   async init() {
