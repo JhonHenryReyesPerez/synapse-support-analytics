@@ -537,7 +537,7 @@ Registro de lo realizado en la rama `dev/JhonReyes`. Las secciones anteriores si
 
 ### 21.1 Listo y verificado
 
-Verificado con `./gradlew test` en H2 y con `backend/scripts/test-postgres.sh` en PostgreSQL 17 (migraciones reales de Flyway y Hibernate en modo `validate`), salvo donde se indica. Última ejecución (15 de noviembre de 2026): 108 pruebas y 0 fallos en ambos (en H2 se omiten las 6 de datos iniciales).
+Verificado con `./gradlew test` en H2 y con `backend/scripts/test-postgres.sh` en PostgreSQL 17 (migraciones reales de Flyway y Hibernate en modo `validate`), salvo donde se indica. Última ejecución (16 de noviembre de 2026): 109 pruebas y 0 fallos en ambos (en H2 se omiten las 6 de datos iniciales).
 
 | ID / etapa | Qué quedó implementado | Prueba principal |
 |---|---|---|
@@ -750,3 +750,26 @@ Abierto:
 3. `LoginAttemptLimiter` ya purga las entradas vencidas antes de dejar de contar; con 10.000 identificadores vigentes a la vez los nuevos no se cuentan. Es el límite de memoria elegido, no un fallo.
 4. Los hallazgos 4 y 5 de §22.7 (comprobación de rol repetida e interfaces de un solo uso).
 5. Resuelto el 15 de noviembre de 2026: las correcciones se recorrieron en Edge sin ventana contra el entorno completo de `test` (`docs/backend/PRUEBAS.md` §11), con el proveedor de modelos simulado. Quedan sin recorrer la creación de artículos, categorías y usuarios, el restablecimiento de contraseñas y el cambio obligatorio de clave.
+
+### 22.9 Auditoría independiente con Codex (16 de noviembre de 2026)
+
+A petición del responsable, OpenAI Codex auditó el backend en modo de solo lectura, coordinado desde Claude Code con Orca. Claude Code hizo las correcciones y Codex las revisó; ninguna de las dos herramientas sustituye la revisión humana.
+
+Corregido (aceptado por Codex tras leer el diff):
+
+| Hallazgo | Corrección |
+|---|---|
+| El login comprobaba la clave y firmaba el token con la versión de credenciales leída después: un cambio de clave simultáneo dejaba un token válido obtenido con la clave anterior | `AuthController` firma con la versión del principal autenticado |
+| Al asignar, la cuenta del técnico se leía sin bloqueo: una baja o un cambio de rol simultáneos dejaban un incidente activo con un técnico no asignable | `TicketAssignmentService` lee al técnico con bloqueo compartido. El primer intento, con bloqueo exclusivo, interbloqueaba dos reasignaciones cruzadas; lo detectó Codex en la revisión |
+| Un borrado tardío en n8n podía eliminar el vector de un artículo ya reactivado y dejarlo `INDEXED` sin vector | `KnowledgeIndexService` deja `PENDING` también tras un `DELETE` obsoleto (`articleReactivatedDuringRemovalIsIndexedAgainByReconciliation`) |
+| El flujo de asistencia recortaba a `maxResults` antes de validar la elegibilidad: con los cinco mejores inservibles y el sexto vigente respondía `NO_RESULTS` | El flujo valida todos los candidatos recuperados y recorta después. Comprobado ejecutando los dos nodos en memoria, no dentro de n8n |
+| Un comentario podía guardarse en un incidente cerrado en ese instante o por un técnico recién reasignado | `CommentService.addComment` lee el incidente con bloqueo de escritura |
+
+Las correcciones de login, asignación y comentarios no tienen prueba propia de concurrencia: se validaron por lectura y con la suite completa.
+
+Abierto:
+
+1. `HttpN8nClient`: el tiempo límite cubre hasta las cabeceras; si n8n deja el cuerpo a medias, la lectura no tiene plazo. Sin reproducir.
+2. `KnowledgeIndexService.reconcile` toma siempre los primeros 50 artículos pendientes o con error: si esos 50 fallan siempre, los siguientes no se intentan. El conjunto actual tiene 31.
+3. La búsqueda pide a Qdrant como máximo `maxResults × 4` candidatos: si todos estuvieran desactivados, la respuesta sería `NO_RESULTS` aunque existiera uno vigente más abajo.
+4. Codex no revisó categorías, DTO y mappers completos, datos iniciales, dependencias ni frontend.

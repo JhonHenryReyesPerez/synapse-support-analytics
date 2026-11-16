@@ -142,8 +142,12 @@ public class TicketAssignmentService {
         if (technicianUsername == null || technicianUsername.isBlank()) {
             throw badRequest("El usuario del técnico es obligatorio");
         }
-        UserEntity technician = users.findById(technicianUsername.trim())
-                .orElseThrow(() -> badRequest("El técnico seleccionado no existe"));
+        // Bloqueo compartido: un cambio de rol o una baja simultánea del técnico espera a que termine la
+        // asignación, y dos reasignaciones cruzadas no se bloquean entre sí (uno exclusivo las interbloquearía).
+        UserEntity technician = entityManager.find(UserEntity.class, technicianUsername.trim(), LockModeType.PESSIMISTIC_READ);
+        if (technician == null) {
+            throw badRequest("El técnico seleccionado no existe");
+        }
         boolean isTechnician = technician.getRoles() != null && technician.getRoles().stream()
                 .map(UserRoleEntity::getRole)
                 .anyMatch("TECHNICIAN"::equals);

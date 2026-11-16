@@ -109,8 +109,9 @@ public class KnowledgeIndexService {
             if (request.action() == IndexRequest.Action.UPSERT) {
                 // El índice pudo recibir vectores de una versión que ya no es elegible: queda pendiente retirarlos.
                 article.setIndexedVersion(request.contentVersion());
-                article.setIndexStatus(IndexSyncStatus.PENDING);
             }
+            // También tras un DELETE tardío: pudo borrar el vector de un artículo que ya se reactivó.
+            article.setIndexStatus(IndexSyncStatus.PENDING);
             return Outcome.SKIPPED;
         }
         if (errorCode == null && request.action() == IndexRequest.Action.UPSERT
