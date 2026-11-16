@@ -7,9 +7,12 @@ Interfaz de usuario nativa (HTML5, CSS3, JavaScript ES6) para el sistema de aná
 - **Diseño Cómodo, Moderno y Profesional:**
   - Sistema de tokens y variables CSS (`variables.css`) con paleta ejecutiva *Slate / Navy*, estados de tickets y contrastes accesibles.
   - Componentes reutilizables: botones interactivos con estados de carga (`.btn.is-loading`), modales con *backdrop blur*, checklist dinámico de políticas de contraseñas y sistema de notificaciones *Toast*.
-- **Autenticación y Seguridad (JWT):**
-  - Pantalla de acceso (`index.html`) con navegación entre pestañas para *Iniciar Sesión* y *Crear Cuenta* (`POST /api/auth/register`).
-  - Accesos rápidos con credenciales del conjunto de datos de prueba (`admin.demo`, `tec.redes`, `laura.gomez` con contraseña `Demo.2026`).
+- **Autenticación y Seguridad (JWT Corporativo):**
+  - Pantalla de acceso corporativo (`index.html`): el auto-registro público está inhabilitado; las cuentas son creadas y gestionadas exclusivamente por Administradores de TI.
+  - Cuentas de prueba hardcodeadas para evaluación rápida (1-click autofill con contraseña `Demo.2026`):
+    - 👑 **Admin:** `admin.demo` (Administrador de sistema, control total y aprobación RAG).
+    - 🛠️ **Técnicos especialistas:** `tec.redes`, `tec.hardware`, `tec.software`, `tec.aplicaciones`.
+    - 👤 **Usuarios solicitantes:** `laura.gomez`, `carlos.ruiz`.
   - Detección y bloqueo con modal obligatorio cuando `mustChangePassword: true` (`POST /api/auth/change-password`).
   - Manejo de bloqueo temporal tras fallos repetidos (`429 Too Many Requests` con lectura de `Retry-After`).
   - Cierre y limpieza de sesión segura ante `401 Unauthorized`.
@@ -41,8 +44,9 @@ Interfaz de usuario nativa (HTML5, CSS3, JavaScript ES6) para el sistema de aná
     6. Categorías más recurrentes.
     7. Incidentes por prioridad (gráfico de barras).
     8. Tabla resumen de tiempos promedio por categoría.
-- **Módulo de Administración:**
-  - Gestión de usuarios y roles (`/api/user/all`).
+- **Módulo de Administración (Exclusivo ADMIN):**
+  - Creación de nuevas cuentas de colaboradores institucionales (`POST /api/user/add`) con asignación de rol (`USER`, `TECHNICIAN`, `ADMIN`), área, contraseña inicial y opción de cambio forzado en primer inicio.
+  - Gestión y listado general de usuarios y roles (`/api/user/all`).
   - Restablecimiento administrativo de contraseñas (`POST /api/user/{username}/reset-password`) con generación de clave temporal.
   - Creación y activación/desactivación de categorías relacionales (`/api/categories`).
 
