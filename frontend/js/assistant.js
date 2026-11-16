@@ -4,10 +4,38 @@
 const ASSISTANT = {
   currentTicketId: null,
   activeQueryId: null,
-  historyById: {},
+  historyById: {},      // consultas cargadas del incidente actual, por id
+  historyIds: [],       // orden en que se muestran (más recientes primero)
+  historyPage: 0,
+  historyTotalPages: 0,
+  askSeq: 0,
+  historySeq: 0,
+  historyLoading: false,
+
+  /** Fija el incidente activo; al cambiar, descarta respuesta, pregunta e historial del anterior. */
+  setTicket(ticketId) {
+    if (this.currentTicketId === ticketId) return;
+    this.currentTicketId = ticketId;
+    this.askSeq++;
+    this.historySeq++;
+    this.historyLoading = false;
+    this.activeQueryId = null;
+    this.historyById = {};
+    this.historyIds = [];
+    this.historyPage = 0;
+    this.historyTotalPages = 0;
+
+    const container = document.getElementById('assistant-result-container');
+    if (container) container.innerHTML = '';
+    const question = document.getElementById('assistant-custom-question');
+    if (question) question.value = '';
+    const historyList = document.getElementById('assistant-history-list');
+    if (historyList) historyList.innerHTML = '';
+    // Una consulta en curso del incidente anterior no debe bloquear el botón del nuevo.
+    UI.setLoading(document.getElementById('btn-ask-assistant'), false);
+  },
 
   async ask(ticketId, customQuestion = '') {
-    this.currentTicketId = ticketId;
     const container = document.getElementById('assistant-result-container');
     const btnSubmit = document.getElementById('btn-ask-assistant');
 
@@ -15,6 +43,9 @@ const ASSISTANT = {
       UI.showToast('No hay un incidente seleccionado para consultar.', 'warning');
       return;
     }
+
+    this.setTicket(ticketId);
+    const seq = ++this.askSeq;
 
     // Generar UUID v4 para idempotencia (requestId)
     const requestId = this.generateUuid();
@@ -42,6 +73,7 @@ const ASSISTANT = {
     UI.setLoading(btnSubmit, true, 'Consultando Asistente...');
 
     const res = await API.post(`/tickets/${ticketId}/assistance`, payload);
+    if (seq !== this.askSeq) return; // también descarta respuestas al volver de A a B y a A
     UI.setLoading(btnSubmit, false);
 
     if (!res.ok) {
@@ -53,16 +85,20 @@ const ASSISTANT = {
           </div>
         `;
       }
+      // Un fallo técnico deja la consulta registrada como ERROR: que aparezca en el historial.
+      if (res.data && res.data.queryId) await this.loadHistory(ticketId);
       return;
     }
 
+    this.historyById[res.data.id] = res.data;
     this.renderResponse(res.data);
     await this.loadHistory(ticketId);
   },
 
   renderResponse(query) {
     const container = document.getElementById('assistant-result-container');
-    if (!container) return;
+    if (!container || !query) return;
+    if (query.ticketId != null && query.ticketId !== this.currentTicketId) return; // consulta de otro incidente
 
     this.activeQueryId = query.id;
 
@@ -158,21 +194,30 @@ const ASSISTANT = {
     const existingScore = query.rating ? query.rating.score : 0;
     const existingComment = query.rating ? (query.rating.comment || '') : '';
     const isRated = existingScore > 0;
+    // El backend solo admite la calificación de quien hizo la consulta; los demás la ven en solo lectura.
+    const user = AUTH.getUser();
+    const canRate = Boolean(user) && user.username === query.requesterUsername;
+    if (!canRate && !isRated) return '';
 
     let starsHtml = '';
     for (let s = 1; s <= 5; s++) {
       starsHtml += `
-        <button type="button" class="star-btn ${s <= existingScore ? 'is-active' : ''}" 
-          onclick="ASSISTANT.handleRate(${query.id}, ${s})" title="${s} estrellas">
+        <button type="button" class="star-btn ${s <= existingScore ? 'is-active' : ''}"
+          ${canRate ? `onclick="ASSISTANT.handleRate(${query.id}, ${s})"` : 'disabled'}
+          title="${s} estrellas" aria-label="${s} de 5 estrellas">
           ★
         </button>
       `;
     }
 
+    const heading = canRate
+      ? '¿Te fue útil esta orientación técnica?'
+      : `Calificación de ${UI.escapeHtml(query.requesterUsername || 'quien hizo la consulta')}: ${existingScore}/5`;
+
     return `
       <div class="rating-section" id="rating-section-${query.id}">
         <div style="font-weight: var(--font-weight-semibold); font-size: var(--font-size-xs); color: var(--text-main);">
-          ¿Te fue útil esta orientación técnica? ${isRated ? '<span class="badge badge-resolved">Calificada</span>' : ''}
+          ${heading} ${isRated && canRate ? '<span class="badge badge-resolved">Calificada</span>' : ''}
         </div>
         <div class="rating-stars">
           ${starsHtml}
@@ -201,9 +246,13 @@ const ASSISTANT = {
     }
 
     UI.showToast(`Calificación de ${score}/5 guardada exitosamente.`, 'success');
-    if (this.currentTicketId) {
-      await this.loadHistory(this.currentTicketId);
-    }
+    // historyById solo guarda consultas del incidente abierto: si ya se cambió, no hay nada que refrescar.
+    // Se actualiza la consulta cargada en vez de volver a pedir la página 0, que descartaría las anteriores.
+    const query = this.historyById[queryId];
+    if (!query || query.ticketId !== this.currentTicketId) return;
+    query.rating = res.data;
+    this.renderHistory();
+    if (this.activeQueryId === queryId) this.renderResponse(query);
   },
 
   toggleEvidence(elementId) {
@@ -213,25 +262,64 @@ const ASSISTANT = {
     }
   },
 
-  async loadHistory(ticketId) {
+  /**
+   * Carga una página del historial (PageResponse del backend, 20 por página, más recientes primero).
+   * La página 0 reinicia la lista visible; las siguientes se añaden con «Cargar anteriores».
+   */
+  async loadHistory(ticketId, page = 0) {
     const historyList = document.getElementById('assistant-history-list');
-    if (!historyList) return;
+    if (!historyList || this.currentTicketId !== ticketId) return;
+    if (page > 0 && (this.historyLoading || page !== this.historyPage + 1)) return;
 
-    const res = await API.get(`/tickets/${ticketId}/assistance`);
+    const seq = ++this.historySeq;
+    this.historyLoading = true;
+    const moreButton = document.getElementById('btn-assistant-history-more');
+    if (page > 0) UI.setLoading(moreButton, true);
+
+    const res = await API.get(`/tickets/${ticketId}/assistance?page=${page}`);
+    if (seq !== this.historySeq) return;
+    this.historyLoading = false;
     if (!res.ok) {
-      historyList.innerHTML = `<span style="font-size: var(--font-size-xs); color: var(--text-subtle);">Sin consultas registradas.</span>`;
+      if (page > 0) UI.setLoading(moreButton, false);
+      const msg = res.error || 'No se pudo cargar el historial de consultas.';
+      if (page === 0) {
+        historyList.innerHTML = `<span style="font-size: var(--font-size-xs); color: var(--color-danger);">${UI.escapeHtml(msg)}</span>`;
+      } else {
+        UI.showToast(msg, 'error');
+      }
       return;
     }
 
-    const queries = res.data?.content || res.data || [];
-    if (!Array.isArray(queries) || queries.length === 0) {
+    const data = res.data || {};
+    const queries = Array.isArray(data.content) ? data.content : [];
+    if (page === 0) this.historyIds = [];
+    queries.forEach(q => {
+      this.historyById[q.id] = q;
+      // Una consulta nueva desplaza las páginas: la misma puede llegar dos veces.
+      if (!this.historyIds.includes(q.id)) this.historyIds.push(q.id);
+    });
+    this.historyPage = Number.isInteger(data.page) ? data.page : page;
+    this.historyTotalPages = data.totalPages || 0;
+    this.renderHistory();
+
+    if (page > 0) {
+      const more = document.getElementById('btn-assistant-history-more');
+      if (more) more.focus(); // el botón se redibuja; sin esto el foco se pierde
+    }
+  },
+
+  renderHistory() {
+    const historyList = document.getElementById('assistant-history-list');
+    if (!historyList) return;
+
+    if (this.historyIds.length === 0) {
       historyList.innerHTML = `<span style="font-size: var(--font-size-xs); color: var(--text-subtle);">Aún no se han realizado consultas RAG en este incidente.</span>`;
       return;
     }
 
     // El enlace solo lleva el id: meter la consulta en el onclick permitía ejecutar código desde la pregunta.
-    this.historyById = Object.fromEntries(queries.map(q => [q.id, q]));
-    historyList.innerHTML = queries.map(q => {
+    const itemsHtml = this.historyIds.map(id => {
+      const q = this.historyById[id];
       const statusClass = q.status === 'ANSWERED' ? 'badge-resolved' : (q.status === 'NO_RESULTS' ? 'badge-assigned' : 'badge-closed');
       const scoreBadge = q.rating ? `<span class="badge badge-priority-media">★ ${q.rating.score}/5</span>` : '';
 
@@ -242,13 +330,22 @@ const ASSISTANT = {
             ${scoreBadge}
             <span style="font-size: 0.7rem; color: var(--text-subtle);">${UI.formatDate(q.createdAt)}</span>
           </div>
-          <div style="font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); cursor: pointer; color: var(--color-accent);"
+          <button type="button" class="assistant-history-link"
             onclick="ASSISTANT.renderResponse(ASSISTANT.historyById[${q.id}])">
             "${UI.escapeHtml(q.question || 'Consulta general del incidente')}"
-          </div>
+          </button>
         </div>
       `;
     }).join('');
+
+    const moreHtml = this.historyPage + 1 < this.historyTotalPages ? `
+      <button type="button" class="btn btn-outline btn-sm btn-block" id="btn-assistant-history-more" style="margin-top: 0.5rem;"
+        onclick="ASSISTANT.loadHistory(${Number(this.currentTicketId)}, ${this.historyPage + 1})">
+        Cargar anteriores
+      </button>
+    ` : '';
+
+    historyList.innerHTML = itemsHtml + moreHtml;
   },
 
   generateUuid() {

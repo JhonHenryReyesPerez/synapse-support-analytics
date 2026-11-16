@@ -536,3 +536,16 @@
 .tab-pane.is-active {
   display: block;
 }
+
+/* Administración: usuarios y categorías lado a lado; una columna en pantallas estrechas */
+.admin-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--spacing-6);
+}
+
+@media (max-width: 1024px) {
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+}

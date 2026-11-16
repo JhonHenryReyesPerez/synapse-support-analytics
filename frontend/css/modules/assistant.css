@@ -186,3 +186,25 @@
   align-items: center;
   gap: var(--spacing-2);
 }
+
+/* Calificación en solo lectura (quien no hizo la consulta) */
+.star-btn:disabled {
+  cursor: default;
+  transform: none;
+}
+
+.star-btn:disabled:not(.is-active) {
+  color: #cbd5e1;
+}
+
+/* Consulta del historial: botón con aspecto de enlace, alcanzable con teclado */
+.assistant-history-link {
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-accent);
+  cursor: pointer;
+}
