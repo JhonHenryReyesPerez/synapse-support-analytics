@@ -6,8 +6,8 @@ WORKDIR /app
 COPY gradlew settings.gradle build.gradle ./
 COPY gradle ./gradle
 
-# Pre-descargar wrapper y dependencias de Gradle en una capa cacheada
-RUN chmod +x ./gradlew && ./gradlew dependencies --no-daemon --configuration compileClasspath --configuration runtimeClasspath || true
+# Normalizar fin de línea (evitar fallo de CRLF en Windows) y pre-descargar dependencias
+RUN sed -i 's/\r$//' ./gradlew && chmod +x ./gradlew && ./gradlew dependencies --no-daemon || true
 
 # Copiar código fuente y compilar el archivo JAR ejecutable
 COPY src ./src

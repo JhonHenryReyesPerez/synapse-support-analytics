@@ -112,10 +112,11 @@ Los flujos han sido diseñados utilizando nodos estándar de n8n para máxima po
 
 ## 3. Auditoría de Infraestructura y Rendimiento de Inicio
 
-Durante la auditoría técnica del sistema se identificaron y resolvieron **5 cuellos de botella críticos** que provocaban que los contenedores tardaran varios minutos en activarse o quedaran bloqueados:
+Durante la auditoría técnica del sistema se identificaron y resolvieron **6 cuellos de botella y problemas de compatibilidad críticos** que provocaban que los contenedores tardaran varios minutos en activarse, quedaran bloqueados o fallaran al compilarse en entornos de desarrollo:
 
 | Componente | Causa Raíz Detectada | Impacto Anterior | Solución y Optimización Implementada |
 |---|---|---|---|
+| **Compatibilidad Windows/Alpine** (`gradlew`) | En sistemas Windows, Git clona `gradlew` con saltos de línea CRLF (`\r\n`). Alpine Linux busca `/bin/sh\r` y arroja error 127 `not found`. | Falla total al compilar el backend en Docker (`docker compose up --build` abortaba inmediatamente). | Normalización automática en `backend/Dockerfile` (`sed -i 's/\r$//' ./gradlew`), configuración `.gitattributes` forzando `eol=lf`, y archivo convertido a LF. |
 | **Qdrant Init** (`setup_qdrant.sh`) | El script esperaba el texto `"all systems operational"` en `/readyz`, pero Qdrant responde `all shards are ready` (HTTP 200). | Bucle infinito de reintentos cada 2s; la colección y los índices nunca se creaban. | Verificación directa con código HTTP 200 (`curl -sf .../readyz`). Inicialización completada en **< 1 segundo**. |
 | **Backend Dockerfile** | Las dependencias de Gradle se descargaban en la misma capa del código fuente tras `COPY src`. | Cada cambio de código invalidaba la capa y volvía a descargar Gradle y 400 MB de librerías (4-6 min). | Separación de capas: se copian archivos Gradle primero y se pre-resuelven dependencias. Rebuild en **segundos**. |
 | **Spring Boot Config** | `application.properties` requería `DB_URL` obligatoria y puerto 8051, mientras Docker enviaba variables desglosadas (`DB_HOST`, `DB_PORT`) al 8080. | Fallos de arranque al iniciar y reinicios en bucle del contenedor `backend`. | Fallback automático en `application.properties` (`${DB_URL:jdbc:postgresql://${DB_HOST:...}}`) y puerto por defecto 8080. |
@@ -168,7 +169,9 @@ Aprovecha que ya tienes Java 21 instalado en tu máquina para compilar el JAR lo
 
 ```bash
 # 1. Compilar el JAR localmente (toma ~10-15 segundos con la caché de Gradle)
-cd backend && ./gradlew bootJar -x test && cd ..
+cd backend
+./gradlew bootJar -x test   # En Windows PowerShell también puedes usar: .\gradlew.bat bootJar -x test
+cd ..
 
 # 2. Levantar todos los contenedores al instante
 docker compose -f docker-compose.yml -f docker-compose.fast.yml up -d
@@ -289,7 +292,30 @@ curl -X POST http://localhost:8051/api/knowledge/articles/index/reconcile -H "Au
   ```
   Esto creará la colección con 1536 dimensiones y distancia Coseno junto a todos sus índices de payload (`category`, `categoria`, `estado`, `articleId`).
 
-### 6. Reinicio Limpio Total (Reset de Datos y Volúmenes)
+### 6. Error en Build Docker: `/bin/sh: ./gradlew: not found` (Código de Salida 127)
+- **Causa:** En sistemas operativos Windows, Git suele clonar o editar archivos con caracteres de retorno de carro CRLF (`\r\n`). Cuando Docker copia `gradlew` en una imagen Alpine Linux (`eclipse-temurin:21-jdk-alpine`), el intérprete busca el binario `/bin/sh\r`, el cual no existe en Linux, generando el error de proceso no encontrado con código de salida 127.
+- **Solución implementada y preventiva:**
+  1. **Saneamiento automático en el Dockerfile:** El `backend/Dockerfile` incluye la normalización previa a la ejecución de Gradle:
+     ```dockerfile
+     RUN sed -i 's/\r$//' ./gradlew && chmod +x ./gradlew && ./gradlew dependencies --no-daemon || true
+     ```
+  2. **Configuración de `.gitattributes`:** Se añadió un archivo `.gitattributes` en la raíz del repositorio para forzar que `gradlew` y los scripts bash (`*.sh`) se mantengan siempre en formato Unix (`LF`):
+     ```gitattributes
+     * text=auto eol=lf
+     *.sh text eol=lf
+     gradlew text eol=lf
+     ```
+  3. **Corrección rápida en PowerShell (si modificas `gradlew` localmente en Windows):**
+     ```powershell
+     (Get-Content -Path .\backend\gradlew -Raw).Replace("`r`n","`n") | Set-Content -Path .\backend\gradlew -NoNewline
+     ```
+     Luego puedes reconstruir la imagen del backend:
+     ```bash
+     docker compose build backend
+     docker compose up -d
+     ```
+
+### 7. Reinicio Limpio Total (Reset de Datos y Volúmenes)
 - Si deseas borrar toda la base relacional, la base vectorial y reiniciar todo desde cero:
   ```bash
   # 1. Detener y remover contenedores junto a volúmenes
