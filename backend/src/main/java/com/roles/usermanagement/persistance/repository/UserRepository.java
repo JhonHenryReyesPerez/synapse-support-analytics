@@ -33,6 +33,14 @@ public class UserRepository implements IUserRepository {
   private ResponseStatusException invalid(String message) {
     return new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
   }
+  /** El nombre acaba en HTML, URLs y registros: solo letras, números, punto, guion y guion bajo. */
+  private String validUsername(String username) {
+    String clean = username == null ? "" : username.trim();
+    if (!clean.matches("[A-Za-z0-9._-]{1,50}")) {
+      throw invalid("El usuario es obligatorio: hasta 50 caracteres entre letras, números, punto, guion y guion bajo");
+    }
+    return clean;
+  }
   private void requireValidPassword(String password) {
     PasswordPolicy.violation(password).ifPresent(message -> { throw invalid(message); });
   }
@@ -105,9 +113,7 @@ public class UserRepository implements IUserRepository {
   @Override
   @Transactional
   public UserDto save(UserDto dto) {
-    if(dto.getUsername()==null || dto.getUsername().isBlank() || dto.getUsername().length()>50)
-      throw invalid("El usuario es obligatorio y debe tener como máximo 50 caracteres");
-    String cleanUsername = dto.getUsername().trim();
+    String cleanUsername = validUsername(dto.getUsername());
     if(users.existsById(cleanUsername)) throw new ResponseStatusException(HttpStatus.CONFLICT,"El usuario ya existe");
     if(dto.getEmail()==null || dto.getEmail().isBlank()) throw invalid("El correo es obligatorio");
     String cleanEmail = dto.getEmail().trim().toLowerCase();
@@ -196,14 +202,11 @@ public class UserRepository implements IUserRepository {
 
   @Transactional
   public UserDto register(RegisterDto dto) {
-    if (dto.getUsername() == null || dto.getUsername().isBlank() || dto.getUsername().length() > 50) {
-      throw invalid("El nombre de usuario es obligatorio y debe tener como máximo 50 caracteres");
-    }
+    String cleanUsername = validUsername(dto.getUsername());
     if (dto.getEmail() == null || dto.getEmail().isBlank()) {
       throw invalid("El correo electrónico es obligatorio");
     }
     requireValidPassword(dto.getPassword());
-    String cleanUsername = dto.getUsername().trim();
     String cleanEmail = dto.getEmail().trim().toLowerCase();
 
     if (users.existsById(cleanUsername)) {

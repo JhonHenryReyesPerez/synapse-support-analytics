@@ -156,6 +156,15 @@ class UserAccountPolicyTests extends ApiTestSupport {
     }
 
     @Test
+    void usernameWithMarkupIsRejected() throws Exception {
+        String body = "{\"username\":\"\\\"><svg onload=alert(1)>\",\"email\":\"x_%s@test.local\",\"password\":\"" + PASSWORD + "\"}";
+        assertThat(request("POST", "/api/auth/register", String.format(body, System.nanoTime()), null).statusCode())
+                .isEqualTo(400);
+        assertThat(request("POST", "/api/user/add", String.format(body, System.nanoTime()), adminToken()).statusCode())
+                .isEqualTo(400);
+    }
+
+    @Test
     void technicianCannotReadOtherAccounts() throws Exception {
         String technician = createTechnician();
         String technicianToken = token(technician, PASSWORD);

@@ -55,9 +55,13 @@ public class UserAccountPolicy {
      * no se deja al sistema sin administrador activo ni a un técnico con tickets activos sin responsable.
      */
     public void requireCanLeaveRoleOrDeactivate(UserEntity target, String motive) {
-        if (hasRole(target, "ADMIN") && isActive(target) && users.countActiveByRole("ADMIN") <= 1) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "No se puede " + motive + ": es el único administrador activo del sistema");
+        if (hasRole(target, "ADMIN") && isActive(target)) {
+            // Con bloqueo: sin él, dos administradores que se degradan a la vez cuentan 2 y dejan 0.
+            users.lockActiveByRole("ADMIN");
+            if (users.countActiveByRole("ADMIN") <= 1) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "No se puede " + motive + ": es el único administrador activo del sistema");
+            }
         }
         if (hasRole(target, "TECHNICIAN")
                 && tickets.countByTechnicianUsernameAndStatusIn(target.getUsername(), ACTIVE_STATUSES) > 0) {
