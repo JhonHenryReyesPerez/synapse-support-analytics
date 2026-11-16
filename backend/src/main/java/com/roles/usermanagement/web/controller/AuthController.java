@@ -110,7 +110,9 @@ public class AuthController {
 
             UserEntity user = userCrudRepository.findById(authentication.getName())
                     .orElseThrow(() -> new org.springframework.security.authentication.BadCredentialsException("Cuenta no disponible"));
-            String token = jwtUtil.create(user.getUsername(), credentialVersion(user));
+            // La versión es la de la clave que se acaba de comprobar: si cambió entre tanto, el token nace vencido.
+            String token = jwtUtil.create(user.getUsername(),
+                    ((com.roles.usermanagement.domain.service.AccountUserDetails) authentication.getPrincipal()).getCredentialVersion());
             boolean mustChange = Boolean.TRUE.equals(user.getMustChangePassword());
             loginAttempts.recordSuccess(identifier);
 

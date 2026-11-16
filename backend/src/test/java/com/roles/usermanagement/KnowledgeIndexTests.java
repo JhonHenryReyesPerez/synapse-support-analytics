@@ -171,6 +171,32 @@ class KnowledgeIndexTests extends ApiTestSupport {
     }
 
     @Test
+    void articleReactivatedDuringRemovalIsIndexedAgainByReconciliation() throws Exception {
+        String admin = adminToken();
+        long id = publishArticle("Borrado tardío", "Reiniciar el servicio");
+        // Mientras n8n borra el vector, un administrador reactiva el artículo y este se indexa.
+        n8n.onIndex = request -> {
+            n8n.onIndex = FakeN8nClient::indexed;
+            try {
+                this.request("POST", "/api/knowledge/articles/" + id + "/activate", null, admin);
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+            return FakeN8nClient.indexed(request);
+        };
+
+        request("POST", "/api/knowledge/articles/" + id + "/deactivate", null, admin);
+
+        // El borrado llegó después del upsert: el vector pudo perderse, así que no puede quedar INDEXED.
+        JsonNode result = article(id, admin);
+        assertThat(result.get("active").asBoolean()).isTrue();
+        assertThat(result.get("indexStatus").asText()).isEqualTo("PENDING");
+        request("POST", "/api/knowledge/articles/index/reconcile", null, admin);
+        assertThat(article(id, admin).get("indexStatus").asText()).isEqualTo("INDEXED");
+        assertThat(callsFor(id).get(callsFor(id).size() - 1).action()).isEqualTo(IndexRequest.Action.UPSERT);
+    }
+
+    @Test
     void integrationContractRequiresServiceSecretAndReflectsRelationalTruth() throws Exception {
         String admin = adminToken();
         long eligible = publishArticle("Proxy mal configurado", "Restablecer el proxy del sistema");

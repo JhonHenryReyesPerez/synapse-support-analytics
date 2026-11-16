@@ -9,8 +9,8 @@ Fecha: 13 de noviembre de 2026. Rama `dev/JhonReyes`. Java 21 (Temurin 21.0.12),
 
 | Ejecución | Comando | Base de datos | Pruebas | Fallos | Omitidas |
 |---|---|---|---:|---:|---:|
-| Rápida | `./gradlew test` | H2 en memoria, esquema generado por Hibernate | 108 | 0 | 6 |
-| Completa | `backend/scripts/test-postgres.sh` | PostgreSQL 17.11 desechable, 9 migraciones de Flyway, Hibernate en `validate` | 108 | 0 | 0 |
+| Rápida | `./gradlew test` | H2 en memoria, esquema generado por Hibernate | 109 | 0 | 6 |
+| Completa | `backend/scripts/test-postgres.sh` | PostgreSQL 17.11 desechable, 9 migraciones de Flyway, Hibernate en `validate` | 109 | 0 | 0 |
 
 Las 6 omitidas en H2 son `DemoDataSeedTests`: cargan el script de datos iniciales, que es SQL de
 PostgreSQL, y solo se ejecutan en la ejecución completa.
@@ -22,7 +22,7 @@ PostgreSQL, y solo se ejecutan en la ejecución completa.
 | `AssistanceTests` | 12 | Asistente RAG: consulta, validación del flujo, fuentes, estados, historial (RF04, RF05, RF08) |
 | `DemoDataSeedTests` | 6 | Datos iniciales: mínimos, coherencia, analítica contra SQL (§16) |
 | `CategoryTests` | 5 | Categorías relacionales y prioridad canónica (B06) |
-| `KnowledgeIndexTests` | 5 | Sincronización del índice y contrato de servicio para n8n (RF03) |
+| `KnowledgeIndexTests` | 6 | Sincronización del índice y contrato de servicio para n8n (RF03) |
 | `TicketAssignmentTests` | 7 | Asignación única, incluida la concurrencia (B05); un ticket asignado no se edita, tampoco si la edición coincide con la asignación |
 | `UserAccountPolicyTests` | 7 | Política de cuentas, último administrador, baja lógica, técnico sin lectura de cuentas, nombre de usuario sin marcado (B07, B10, B12) |
 | `AnalyticsTests` | 4 | Siete indicadores contra cálculo manual y SQL (B09, RF06, RF07) |
@@ -38,7 +38,7 @@ PostgreSQL, y solo se ejecutan en la ejecución completa.
 | `CommentVisibilityTests` | 1 | El solicitante no ve ni crea notas internas (§6.3) |
 | `OpenApiDocumentationTests` | 1 | El contrato de Swagger incluye los endpoints nuevos |
 | `TicketPaginationTests` | 1 | Paginación y orden estable (B11) |
-| **Total** | **108** | |
+| **Total** | **109** | |
 
 ## 2. Cómo reproducirlas
 
@@ -87,6 +87,7 @@ la calidad de la recuperación semántica ni del texto generado.
 | Cambio de contenido invalida verificación e índice | `KnowledgeArticleTests`, `KnowledgeIndexTests` |
 | Fuente desactivada o modificada durante la generación invalida la respuesta | `AssistanceTests.sourceChangedDuringGenerationDiscardsTheResult` |
 | Artículo desactivado mientras n8n lo indexa | `KnowledgeIndexTests.articleChangedDuringIndexingIsNotMarkedAsIndexed` |
+| Artículo reactivado mientras n8n borra su vector | `KnowledgeIndexTests.articleReactivatedDuringRemovalIsIndexedAgainByReconciliation` |
 | Doble solicitud, `requestId` repetido y respuesta única por consulta | `AssistanceTests.doubleSubmissionDoesNotDuplicateQueriesOrResponses`, `AssistanceRatingTests.databaseRejectsOutOfRangeOrDuplicateRatings` |
 | Recuperación de `PENDING` tras una interrupción y resultado tardío | `AssistanceTests.abandonedPendingQueriesAreRecoveredAndLateResultsDoNotOverwriteThem` |
 | Indexación repetida sin cambiar la identidad; cambio de versión retira la anterior | `KnowledgeIndexTests` |
