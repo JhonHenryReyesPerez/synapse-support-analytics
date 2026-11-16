@@ -33,35 +33,102 @@ CLAUDE.md    Especificación de trabajo del backend y estado de implementación
 ## Inicio rápido del backend
 
 ```bash
-cd backend
-cp .env.example .env                           # completar base de datos y secretos
-SPRING_PROFILES_ACTIVE=dev ./gradlew bootRun   # API en http://localhost:8051
+cp .env.example .env
 ```
 
-Swagger queda en `http://localhost:8051/swagger-ui.html`. Instalación, variables, datos de
-demostración y pruebas: [`backend/README.md`](backend/README.md).
+Edita el archivo `.env` y coloca tu clave de OpenRouter:
+```properties
+# Reemplaza con tu API Key real de OpenRouter
+OPENROUTER_API_KEY=sk-or-v1-tu-clave-aqui
+```
 
-## Entorno completo con Docker Compose
+> [!NOTE]
+> Las contraseñas de PostgreSQL, los tokens de integración (`N8N_SERVICE_TOKEN`, `INTEGRATION_API_TOKEN`) y el secreto JWT ya vienen preconfigurados con valores seguros para el entorno de desarrollo local.
 
-Levanta PostgreSQL, Qdrant, n8n y el backend. Los puertos se publican solo en `127.0.0.1`.
+### Paso 2: Iniciar los Servicios
+
+#### Opción A: Despliegue Estándar (Automático)
+Ejecuta el siguiente comando en la raíz del proyecto para compilar y levantar todos los contenedores:
 
 ```bash
-cp .env.example .env        # completar todos los secretos; sin ellos Compose no arranca
-docker compose up -d --build
+docker compose up -d
 ```
 
-| Servicio | Dirección |
-|---|---|
-| API y Swagger | `http://localhost:8051/swagger-ui.html` |
-| n8n | `http://localhost:5678` |
-| Qdrant | `http://localhost:6333/dashboard` |
+#### Opción B: Despliegue Ultrarrápido (Recomendado para Desarrollo Local, < 3 segundos)
+Si deseas evitar la descarga y compilación de Gradle dentro de Docker en cada inicio, compila el archivo JAR una sola vez en tu host con Java 21 y levanta con `Dockerfile.fast`:
 
-Al arrancar, Qdrant crea la colección `articulos_soporte` (1536 dimensiones, distancia coseno) y n8n
-importa y publica los dos flujos de `n8n/`. Los flujos del repositorio reemplazan en cada arranque a
-los guardados en n8n: los cambios hechos en su editor hay que exportarlos a `n8n/` para conservarlos.
-Los flujos no contienen secretos; leen la clave de OpenRouter y los tokens de las variables de entorno.
+```bash
+# 1. Compilar el JAR localmente (toma ~10 segundos con caché de Gradle)
+cd backend && ./gradlew bootJar -x test && cd ..
 
-Datos de demostración e indexación de la base de conocimiento:
+# 2. Levantar los contenedores al instante
+docker compose -f docker-compose.yml -f docker-compose.fast.yml up -d
+```
+
+Verifica que todos los contenedores estén levantados y saludables:
+```bash
+docker compose ps
+```
+
+Deberías ver:
+- `synapse-db`: Up (healthy)
+- `synapse-qdrant`: Up (healthy)
+- `synapse-qdrant-init`: Exited (0) (tarea de inicialización completada exitosamente en < 1 segundo)
+- `synapse-n8n`: Up (healthy)
+- `synapse-backend`: Up (healthy)
+
+> [!TIP]
+> **Auditoría de Rendimiento de Inicio:**
+> - **Inicialización de Qdrant:** El script `setup_qdrant.sh` valida la disponibilidad mediante HTTP 200 directo (`/readyz`), resolviendo el bucle infinito anterior.
+> - **Caché de Capas:** El `Dockerfile` pre-resuelve dependencias antes de copiar `src`, evitando descargas redundantes.
+> - **Healthchecks con `start_period`:** Configurados a 2-3s para que Docker marque los servicios como listos en cuanto inicien sin esperas artificiales.
+> - **Optimizaciones de n8n:** Telemetría y notificaciones remotas desactivadas para arranque instantáneo sin llamadas bloqueantes a la nube.
+
+
+---
+
+## 4. Configuración e Importación de Flujos en n8n
+
+Una vez que el contenedor de n8n esté arriba:
+
+1. Abre tu navegador e ingresa a: **`http://localhost:5679`**
+2. Si es la primera vez, completa el formulario de registro de usuario inicial de n8n.
+3. **Configurar Credencial de OpenRouter:**
+   - Ve a **Credentials** $\rightarrow$ **Add Credential**.
+   - Selecciona **Header Auth**.
+   - Asigna el nombre: `OpenRouter Header Auth`.
+   - Name: `Authorization`
+   - Value: `Bearer TU_OPENROUTER_API_KEY` (o `Bearer sk-or-v1-...`).
+   - Guarda la credencial.
+4. **Importar Flujo 1 (Indexación):**
+   - Ve a **Workflows** $\rightarrow$ Menú de opciones (tres puntos) $\rightarrow$ **Import from File**.
+   - Selecciona el archivo: [`n8n/Flujo-1-Indexacion-Conocimiento.json`](file:///C:/Users/USER26/Desktop/Proyecto-de-IA-dos/n8n/Flujo-1-Indexacion-Conocimiento.json).
+   - En el nodo `OpenRouter Embeddings`, asegúrate de vincular tu credencial `OpenRouter Header Auth`.
+   - Activa el flujo con el interruptor **Active** (arriba a la derecha) y guarda.
+5. **Importar Flujo 2 (Asistencia RAG):**
+   - Menú de opciones $\rightarrow$ **Import from File**.
+   - Selecciona el archivo: [`n8n/Flujo-2-Asistencia-RAG.json`](file:///C:/Users/USER26/Desktop/Proyecto-de-IA-dos/n8n/Flujo-2-Asistencia-RAG.json).
+   - En los nodos `OpenRouter Embeddings` y `OpenRouter Gemini Chat`, vincula tu credencial `OpenRouter Header Auth`.
+   - Activa el flujo con el interruptor **Active** y guarda.
+
+---
+
+## 5. Carga de Datos Iniciales (Seed Data)
+
+El proyecto incluye un script SQL de datos iniciales en [`database/seed_data.sql`](file:///C:/Users/USER26/Desktop/Proyecto-de-IA-dos/database/seed_data.sql) que contiene:
+- **10 Usuarios del Sistema:**
+  - `admin` (Administrador general)
+  - `jhon_tech`, `yeison_tech`, `carlos_tech`, `maria_tech`, `david_tech` (Técnicos)
+  - `ana_user`, `pedro_user`, `laura_user`, `sergio_user` (Usuarios solicitantes)
+  - *Todas las contraseñas iniciales son:* `Password123!`
+- **25 Artículos de Base de Conocimiento:**
+  - Cubren Hardware, Software, Conectividad, Cuentas, Servidores, etc.
+  - Tienen hashes SHA-256 reales, versiones editoriales y estado `verified=true`, `active=true`.
+- **150 Incidentes Históricos:**
+  - Con ciclo de vida completo (`NEW`, `ASSIGNED`, `IN_PROGRESS`, `RESOLVED`, `CLOSED`), fechas históricas coherentes, resoluciones técnicas y categorías normalizadas.
+
+### Aplicar el Script en PostgreSQL
+Ejecuta el siguiente comando para cargar los datos en el contenedor de base de datos:
 
 ```bash
 # 1. Cargar los datos (13 usuarios, 31 artículos, 180 incidentes)

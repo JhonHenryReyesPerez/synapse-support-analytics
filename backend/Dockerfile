@@ -2,14 +2,12 @@
 FROM eclipse-temurin:21-jdk-alpine AS builder
 WORKDIR /app
 
-# Copiar archivos de configuración de Gradle
-COPY gradlew .
+# Copiar archivos de configuración de Gradle para aprovechar caché de capas
+COPY gradlew settings.gradle build.gradle ./
 COPY gradle ./gradle
-COPY build.gradle .
-COPY settings.gradle .
 
-# Descargar dependencias en caché
-RUN chmod +x ./gradlew && ./gradlew dependencies --no-daemon || true
+# Pre-descargar wrapper y dependencias de Gradle en una capa cacheada
+RUN chmod +x ./gradlew && ./gradlew dependencies --no-daemon --configuration compileClasspath --configuration runtimeClasspath || true
 
 # Copiar código fuente y compilar el archivo JAR ejecutable
 COPY src ./src
@@ -28,4 +26,4 @@ COPY --from=builder /app/build/libs/*.jar app.jar
 
 EXPOSE 8051
 
-ENTRYPOINT ["java", "-Djava.security.egd=file:/dev/./urandom", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-Djava.security.egd=file:/dev/./urandom", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]

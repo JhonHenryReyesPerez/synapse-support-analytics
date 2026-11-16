@@ -18,10 +18,11 @@ services:
     networks:
       - incidentes_net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-campusdesk} -d ${DB_NAME:-campusdesk}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-incidentes_db}"]
+      interval: 2s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
 
   qdrant:
     image: qdrant/qdrant:v1.20.1
@@ -34,10 +35,11 @@ services:
     networks:
       - incidentes_net
     healthcheck:
-      test: ["CMD-SHELL", "timeout 2 bash -c '</dev/tcp/localhost/6333' || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 2s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
 
   # Crea la colección si no existe y termina.
   qdrant-init:
@@ -61,23 +63,20 @@ services:
     ports:
       - "127.0.0.1:${N8N_PORT:-5678}:5678"
     environment:
-      N8N_HOST: n8n
-      N8N_PORT: 5678
-      N8N_PROTOCOL: http
-      WEBHOOK_URL: http://localhost:${N8N_PORT:-5678}/
-      GENERIC_TIMEZONE: America/Bogota
-      # Los flujos leen su configuración de variables de entorno ($env); no llevan secretos en el JSON.
-      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
-      N8N_SERVICE_TOKEN: ${N8N_SERVICE_TOKEN:?Definir N8N_SERVICE_TOKEN en .env}
-      INTEGRATION_API_TOKEN: ${INTEGRATION_API_TOKEN:?Definir INTEGRATION_API_TOKEN en .env}
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?Definir OPENROUTER_API_KEY en .env}
-      OPENROUTER_BASE_URL: ${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
-      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-openai/text-embedding-3-small}
-      GENERATION_MODEL: ${GENERATION_MODEL:-google/gemini-2.5-flash}
-      GENERATION_MAX_TOKENS: ${GENERATION_MAX_TOKENS:-1500}
-      QDRANT_URL: http://qdrant:6333
-      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-articulos_soporte}
-      BACKEND_URL: http://backend:8051
+      - N8N_HOST=n8n
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - NODE_ENV=production
+      - WEBHOOK_URL=http://localhost:${N8N_PORT:-5679}/
+      - GENERIC_TIMEZONE=America/Bogota
+      - N8N_DEFAULT_BINARY_DATA_MODE=filesystem
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_VERSION_NOTIFICATIONS_ENABLED=false
+      - N8N_TEMPLATES_ENABLED=false
+      - N8N_HIRING_BANNER_ENABLED=false
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - N8N_SERVICE_TOKEN=${N8N_SERVICE_TOKEN:-campusdesk-super-secret-service-token-2026}
+      - INTEGRATION_API_TOKEN=${INTEGRATION_API_TOKEN:-campusdesk-super-secret-integration-token-2026}
     volumes:
       - n8n_data:/home/node/.n8n
       - ./n8n:/workflows:ro
@@ -86,13 +85,12 @@ services:
     depends_on:
       qdrant:
         condition: service_healthy
-    # Importa y publica los dos flujos en cada arranque; después inicia n8n.
-    entrypoint: ["/bin/sh", "/workflows/start-n8n.sh"]
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:5678/healthz || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 30
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:5678/healthz || exit 1"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
 
   backend:
     build:
@@ -103,31 +101,35 @@ services:
     ports:
       - "127.0.0.1:${SERVER_PORT:-8051}:8051"
     environment:
-      SERVER_PORT: 8051
-      DB_URL: jdbc:postgresql://db:5432/${DB_NAME:-campusdesk}
-      DB_USERNAME: ${DB_USERNAME:-campusdesk}
-      DB_PASSWORD: ${DB_PASSWORD:?Definir DB_PASSWORD en .env}
-      JWT_SECRET: ${JWT_SECRET:?Definir JWT_SECRET en .env}
-      JWT_ISSUER: ${JWT_ISSUER:-campusdesk-api}
-      JWT_EXPIRATION: ${JWT_EXPIRATION:-30m}
-      APP_TIME_ZONE: America/Bogota
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
-      BOOTSTRAP_ADMIN_ENABLED: ${BOOTSTRAP_ADMIN_ENABLED:-false}
-      ADMIN_USERNAME: ${ADMIN_USERNAME:-superadmin}
-      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
-      N8N_BASE_URL: http://n8n:5678
-      N8N_SERVICE_TOKEN: ${N8N_SERVICE_TOKEN:?Definir N8N_SERVICE_TOKEN en .env}
-      INTEGRATION_API_TOKEN: ${INTEGRATION_API_TOKEN:?Definir INTEGRATION_API_TOKEN en .env}
-      ASSIST_MAX_RESULTS: ${ASSIST_MAX_RESULTS:-5}
-      ASSIST_MIN_SCORE: ${ASSIST_MIN_SCORE:-0.55}
+      - SERVER_PORT=8080
+      - SPRING_PROFILES_ACTIVE=prod
+      - DB_URL=jdbc:postgresql://db:5432/${DB_NAME:-incidentes_db}
+      - DB_USERNAME=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres123}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-incidentes_db}
+      - DB_USER=${DB_USER:-postgres}
+      - JWT_SECRET=${JWT_SECRET:-campusdesk-super-secret-jwt-key-minimum-32-chars-2026}
+      - JWT_EXPIRATION=${JWT_EXPIRATION:-30m}
+      - JWT_ISSUER=campusdesk-api
+      - N8N_BASE_URL=http://n8n:5678
+      - N8N_SERVICE_TOKEN=${N8N_SERVICE_TOKEN:-campusdesk-super-secret-service-token-2026}
+      - INTEGRATION_API_TOKEN=${INTEGRATION_API_TOKEN:-campusdesk-super-secret-integration-token-2026}
+      - APP_TIME_ZONE=America/Bogota
     depends_on:
       db:
         condition: service_healthy
-      n8n:
-        condition: service_healthy
       qdrant-init:
         condition: service_completed_successfully
+      n8n:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/v3/api-docs || exit 1"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
     networks:
       - incidentes_net
 

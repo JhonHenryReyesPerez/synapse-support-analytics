@@ -1,0 +1,7 @@
+# Docker Compose Override para inicio ultrarrápido usando JAR precompilado
+# Uso: docker compose -f docker-compose.yml -f docker-compose.fast.yml up -d
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.fast

@@ -4,19 +4,12 @@ set -e
 
 QDRANT_HOST="${QDRANT_HOST:-qdrant}"
 QDRANT_PORT="${QDRANT_PORT:-6333}"
-COLLECTION_NAME="${QDRANT_COLLECTION:-articulos_soporte}"
-BASE_URL="http://${QDRANT_HOST}:${QDRANT_PORT}"
+COLLECTION_NAME="articulos_soporte"
 
-echo "Esperando a Qdrant en ${BASE_URL}..."
-ATTEMPTS=0
-# /readyz responde 200 cuando el servicio acepta peticiones; no se depende del texto de la respuesta.
-until [ "$(curl -s -o /dev/null -w '%{http_code}' "${BASE_URL}/readyz")" = "200" ]; do
-  ATTEMPTS=$((ATTEMPTS + 1))
-  if [ "$ATTEMPTS" -ge 60 ]; then
-    echo "Qdrant no respondió tras 120 segundos." >&2
-    exit 1
-  fi
-  sleep 2
+echo "Esperando a que Qdrant esté disponible en http://${QDRANT_HOST}:${QDRANT_PORT}..."
+until curl -sf "http://${QDRANT_HOST}:${QDRANT_PORT}/readyz" >/dev/null 2>&1 || curl -sf "http://${QDRANT_HOST}:${QDRANT_PORT}/healthz" >/dev/null 2>&1; do
+  echo "Qdrant no está listo aún. Reintentando en 1 segundo..."
+  sleep 1
 done
 
 STATUS_CODE=$(curl -s -o /dev/null -w '%{http_code}' "${BASE_URL}/collections/${COLLECTION_NAME}")

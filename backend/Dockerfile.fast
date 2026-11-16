@@ -1,0 +1,14 @@
+# Imagen ultrarrápida usando el JAR pre-compilado en el host
+# Se ejecuta en < 2 segundos (sin recompilar dentro de Docker)
+# Requiere haber ejecutado previamente: ./gradlew bootJar -x test
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+
+RUN addgroup -S spring && adduser -S spring -G spring
+USER spring:spring
+
+COPY build/libs/*.jar app.jar
+
+EXPOSE 8080
+
+ENTRYPOINT ["java", "-Djava.security.egd=file:/dev/./urandom", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]
