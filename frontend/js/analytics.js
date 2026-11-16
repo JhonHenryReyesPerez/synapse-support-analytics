@@ -14,6 +14,7 @@ const ANALYTICS = {
   },
 
   bindEvents() {
+    document.addEventListener('themechange', () => this.applyTheme());
     const btnApply = document.getElementById('btn-apply-analytics-filters');
     if (btnApply) {
       btnApply.addEventListener('click', () => {
@@ -108,6 +109,25 @@ const ANALYTICS = {
       (data.resolutionTime?.byCategory || []).map(c => [c.categoryId, c.averageHours]));
     this.renderCategoryBreakdownTable(
       (data.byCategory || []).map(c => ({ ...c, averageHours: avgByCategory[c.categoryId] })));
+    this.applyTheme();
+  },
+
+  applyTheme() {
+    const styles = getComputedStyle(document.documentElement);
+    const text = styles.getPropertyValue('--text-muted').trim();
+    const border = styles.getPropertyValue('--border-color-subtle').trim();
+    const surface = styles.getPropertyValue('--bg-surface').trim();
+    Object.entries(this.charts).forEach(([name, chart]) => {
+      if (!chart) return;
+      if (chart.options.plugins?.legend?.labels) chart.options.plugins.legend.labels.color = text;
+      Object.values(chart.options.scales || {}).forEach(scale => {
+        scale.ticks.color = text;
+        scale.grid.color = border;
+        scale.border.color = border;
+      });
+      if (name === 'category') chart.data.datasets[0].borderColor = surface;
+      chart.update('none');
+    });
   },
 
   renderCategoryChart(byCategory) {

@@ -114,7 +114,7 @@ const KNOWLEDGE = {
             <div class="article-badges">
               ${statusBadge}
               ${indexBadge}
-              <span class="badge" style="background:#f1f5f9; color:#475569;">v${art.contentVersion || 1}</span>
+              <span class="badge" style="background:var(--status-closed-bg); color:var(--status-closed-text);">v${art.contentVersion || 1}</span>
             </div>
             <h3 class="article-card-title">${UI.escapeHtml(art.title)}</h3>
           </header>
@@ -162,7 +162,7 @@ const KNOWLEDGE = {
         </div>
         <div>
           <h4 style="font-size:var(--font-size-xs); color:var(--text-muted); text-transform:uppercase;">Procedimiento de Solución:</h4>
-          <div style="background:#f8fafc; border:1px solid var(--border-color); border-radius:var(--radius-md); padding:1rem; white-space:pre-wrap; font-size:var(--font-size-sm);">
+          <div style="background:var(--bg-surface-alt); border:1px solid var(--border-color); border-radius:var(--radius-md); padding:1rem; white-space:pre-wrap; font-size:var(--font-size-sm);">
             ${UI.escapeHtml(art.solution)}
           </div>
         </div>

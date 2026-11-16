@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="js/theme.js"></script>
   <title>Synapse Support Analytics — Plataforma</title>
 
   <!-- Estilos del Sistema de Diseño Nativo -->
@@ -79,6 +80,7 @@
         <h1 id="header-view-title">Dashboard Analítico</h1>
       </div>
       <div class="header-actions">
+        <button type="button" class="btn btn-outline btn-sm" data-theme-toggle aria-pressed="false">Modo oscuro</button>
         <button type="button" class="btn btn-primary btn-sm" id="btn-new-ticket">
           + Nuevo Incidente
         </button>
@@ -406,16 +408,16 @@
               <div style="display: flex; gap: var(--spacing-2); margin-bottom: var(--spacing-3); flex-wrap: wrap;">
                 <span id="detail-ticket-status" class="badge">Abierto</span>
                 <span id="detail-ticket-priority" class="badge">Media</span>
-                <span class="badge" style="background:#f1f5f9; color:#475569;" id="detail-ticket-category">General</span>
+                <span class="badge" style="background:var(--status-closed-bg); color:var(--status-closed-text);" id="detail-ticket-category">General</span>
               </div>
               <p id="detail-ticket-desc" style="white-space: pre-wrap; font-size: var(--font-size-sm); color: var(--text-main);"></p>
 
               <!-- Nota de solución (si está resuelto) -->
-              <div id="detail-resolution-box" style="display:none; margin-top:1rem; padding:0.75rem; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:var(--radius-md);">
-                <div style="font-weight:var(--font-weight-semibold); color:#065f46; font-size:var(--font-size-xs); text-transform:uppercase;">
+              <div id="detail-resolution-box" style="display:none; margin-top:1rem; padding:0.75rem; background:var(--color-success-bg); border:1px solid var(--color-success-border); border-radius:var(--radius-md);">
+                <div style="font-weight:var(--font-weight-semibold); color:var(--status-resolved-text); font-size:var(--font-size-xs); text-transform:uppercase;">
                   Procedimiento de Resolución:
                 </div>
-                <div id="detail-resolution-note" style="font-size:var(--font-size-sm); color:#047857; margin-top:4px; white-space:pre-wrap;"></div>
+                <div id="detail-resolution-note" style="font-size:var(--font-size-sm); color:var(--status-resolved-text); margin-top:4px; white-space:pre-wrap;"></div>
               </div>
             </div>
 

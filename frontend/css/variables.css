@@ -2,6 +2,8 @@
  * Synapse Support Analytics - Variables y Sistema de Diseño CSS
  */
 :root {
+  color-scheme: light;
+  --text-link: #2563eb;
   /* Paleta Primaria (Navy / Slate Ejecutivo) */
   --color-primary: #0f172a;
   --color-primary-hover: #1e293b;
@@ -116,4 +118,43 @@
   --z-modal-backdrop: 1050;
   --z-modal: 1060;
   --z-toast: 1080;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg-body: #0b1120;
+  --bg-surface: #172033;
+  --bg-surface-alt: #1e293b;
+  --bg-surface-elevated: #243249;
+  --text-main: #f1f5f9;
+  --text-muted: #b4c1d3;
+  --text-subtle: #9aaac0;
+  --text-link: #93c5fd;
+  --border-color: #40516b;
+  --border-color-subtle: #2d3d55;
+  --border-focus: #60a5fa;
+  --color-primary-subtle: #1e293b;
+  --color-accent-subtle: #172e50;
+  --color-success-bg: #103c30;
+  --color-success-border: #286950;
+  --color-warning-bg: #423014;
+  --color-warning-border: #806026;
+  --color-danger-bg: #441f2b;
+  --color-danger-border: #864054;
+  --color-info-bg: #15364a;
+  --color-info-border: #2c647d;
+  --status-open-text: #93c5fd;
+  --status-open-bg: #172e50;
+  --status-assigned-text: #d4bfff;
+  --status-assigned-bg: #352854;
+  --status-in-progress-text: #fcd978;
+  --status-in-progress-bg: #423014;
+  --status-resolved-text: #7ee2b8;
+  --status-resolved-bg: #103c30;
+  --status-closed-text: #cbd5e1;
+  --status-closed-bg: #29364a;
+  --priority-baja: #7ee2b8;
+  --priority-media: #93c5fd;
+  --priority-alta: #fcd978;
+  --priority-critica: #fda4af;
 }

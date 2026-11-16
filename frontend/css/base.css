@@ -24,13 +24,13 @@ body {
 }
 
 a {
-  color: var(--color-accent);
+  color: var(--text-link);
   text-decoration: none;
   transition: color var(--transition-fast);
 }
 
 a:hover {
-  color: var(--color-accent-hover);
+  color: var(--text-link);
   text-decoration: underline;
 }
 

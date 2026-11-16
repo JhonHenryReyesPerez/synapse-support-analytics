@@ -41,7 +41,7 @@
 }
 
 .data-table tbody tr:hover {
-  background-color: #f8fafc;
+  background-color: var(--bg-surface-alt);
 }
 
 .data-table tbody tr:last-child td {
@@ -126,7 +126,7 @@
   height: 10px;
   border-radius: 50%;
   background-color: var(--color-accent);
-  border: 2px solid #ffffff;
+  border: 2px solid var(--bg-surface);
   box-shadow: 0 0 0 2px var(--color-accent);
 }
 
@@ -166,8 +166,8 @@
 }
 
 .comment-card.is-internal {
-  background-color: #fefce8;
-  border-color: #fef08a;
+  background-color: var(--color-warning-bg);
+  border-color: var(--color-warning-border);
 }
 
 .comment-header {
