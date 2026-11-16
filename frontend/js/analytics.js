@@ -93,7 +93,7 @@ const ANALYTICS = {
     if (recurEl) {
       const recurrents = data.mostRecurrentCategories || [];
       if (recurrents.length > 0) {
-        recurEl.textContent = recurrents.map(c => c.name).join(', ');
+        recurEl.textContent = recurrents.map(c => c.category).join(', ');
       } else {
         recurEl.textContent = '—';
       }
@@ -103,7 +103,11 @@ const ANALYTICS = {
     this.renderCategoryChart(data.byCategory || []);
     this.renderTrendChart(data.trend?.points || [], data.trend?.granularity || 'Día');
     this.renderPriorityChart(data.byPriority || []);
-    this.renderCategoryBreakdownTable(data.resolutionTime?.byCategory || data.byCategory || []);
+    // Casos y porcentaje salen de byCategory; el promedio, de resolutionTime.byCategory (solo resueltos).
+    const avgByCategory = Object.fromEntries(
+      (data.resolutionTime?.byCategory || []).map(c => [c.categoryId, c.averageHours]));
+    this.renderCategoryBreakdownTable(
+      (data.byCategory || []).map(c => ({ ...c, averageHours: avgByCategory[c.categoryId] })));
   },
 
   renderCategoryChart(byCategory) {
@@ -258,7 +262,7 @@ const ANALYTICS = {
 
     tbody.innerHTML = catData.map(c => {
       const catName = c.category || c.name || `Categoría #${c.categoryId || c.id}`;
-      const count = c.count || c.sampleSize || 0;
+      const count = c.count || 0;
       const pct = c.percentage != null ? `${c.percentage.toFixed(1)}%` : '—';
       const avgH = c.averageHours != null ? `${c.averageHours.toFixed(1)} h` : '—';
 

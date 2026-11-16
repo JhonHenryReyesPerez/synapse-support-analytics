@@ -65,18 +65,6 @@ const AUTH = {
   },
 
   /**
-   * Registra una nueva cuenta pública con rol USER por defecto.
-   * Endpoint: POST /api/auth/register
-   */
-  async register(username, email, password) {
-    return await API.post('/auth/register', {
-      username: username.trim(),
-      email: email.trim(),
-      password: password
-    });
-  },
-
-  /**
    * Actualiza la contraseña actual por una nueva que cumpla con la política.
    * Endpoint: POST /api/auth/change-password
    * Nota crítica: Spring Boot invalida todos los tokens previos y devuelve uno nuevo en la respuesta.

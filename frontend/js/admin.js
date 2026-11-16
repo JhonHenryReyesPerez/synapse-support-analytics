@@ -85,7 +85,8 @@ const ADMIN = {
       if (roleStr === 'ADMIN') roleBadgeClass = 'background:#fef3c7; color:#92400e; font-weight:bold;';
       if (roleStr === 'TECHNICIAN') roleBadgeClass = 'background:#ede9fe; color:#5b21b6; font-weight:bold;';
 
-      const isLocked = u.locked ? '<span class="badge badge-priority-critica">Bloqueado</span>' : '<span class="badge badge-resolved">Activo</span>';
+      const isLocked = u.disabled ? '<span class="badge badge-inactive">Deshabilitado</span>'
+        : (u.locked ? '<span class="badge badge-priority-critica">Bloqueado</span>' : '<span class="badge badge-resolved">Activo</span>');
       const mustChange = u.mustChangePassword ? '<span class="badge badge-priority-alta">Cambio pendiente</span>' : '';
 
       return `
@@ -99,7 +100,7 @@ const ADMIN = {
           <td><span class="badge" style="${roleBadgeClass}">${UI.escapeHtml(roleStr)}</span> ${mustChange}</td>
           <td>${isLocked}</td>
           <td>
-            <button class="btn btn-outline btn-sm" onclick="ADMIN.promptResetPassword('${u.username}')" title="Restablecer contraseña con clave temporal">
+            <button class="btn btn-outline btn-sm" data-username="${UI.escapeHtml(u.username)}" onclick="ADMIN.promptResetPassword(this.dataset.username)" title="Restablecer contraseña con clave temporal">
               🔑 Restablecer
             </button>
           </td>
@@ -168,7 +169,7 @@ const ADMIN = {
       return;
     }
 
-    const tempPass = res.data?.temporaryPassword || res.data?.message || 'Temporal123!';
+    const tempPass = res.data.temporaryPassword;
     alert(`Contraseña restablecida exitosamente para "${username}".\n\nClave temporal generada: ${tempPass}\n\nEl usuario deberá cambiarla obligatoriamente en su próximo ingreso.`);
     await this.loadUsers();
   },

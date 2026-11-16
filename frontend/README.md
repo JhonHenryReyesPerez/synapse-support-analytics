@@ -8,7 +8,7 @@ Interfaz de usuario nativa (HTML5, CSS3, JavaScript ES6) para el sistema de aná
   - Sistema de tokens y variables CSS (`variables.css`) con paleta ejecutiva *Slate / Navy*, estados de tickets y contrastes accesibles.
   - Componentes reutilizables: botones interactivos con estados de carga (`.btn.is-loading`), modales con *backdrop blur*, checklist dinámico de políticas de contraseñas y sistema de notificaciones *Toast*.
 - **Autenticación y Seguridad (JWT Corporativo):**
-  - Pantalla de acceso corporativo (`index.html`): el auto-registro público está inhabilitado; las cuentas son creadas y gestionadas exclusivamente por Administradores de TI.
+  - Pantalla de acceso corporativo (`index.html`): sin formulario de registro; las cuentas se crean desde el módulo de administración. La API conserva `POST /api/auth/register` (crea solo cuentas `USER`).
   - Cuentas de prueba hardcodeadas para evaluación rápida (1-click autofill con contraseña `Demo.2026`):
     - 👑 **Admin:** `admin.demo` (Administrador de sistema, control total y aprobación RAG).
     - 🛠️ **Técnicos especialistas:** `tec.redes`, `tec.hardware`, `tec.software`, `tec.aplicaciones`.
@@ -54,7 +54,7 @@ Interfaz de usuario nativa (HTML5, CSS3, JavaScript ES6) para el sistema de aná
 
 ```text
 frontend/
-├── index.html                   # Pantalla de Login, Registro y Cambio Obligatorio
+├── index.html                   # Pantalla de Login y Cambio Obligatorio
 ├── app.html                     # Plataforma principal SPA multi-módulo
 ├── README.md                    # Documentación del Frontend
 ├── css/
@@ -72,7 +72,7 @@ frontend/
     ├── config.js                # URL base de API (http://localhost:8051/api) y rutas
     ├── ui.js                    # Toasts, modales, spinners, fechas y validador de claves
     ├── api.js                   # Fetch client centralizado con interceptores y Bearer JWT
-    ├── auth.js                  # Servicio de login, registro, cambio de contraseña y sesión
+    ├── auth.js                  # Servicio de login, cambio de contraseña y sesión
     ├── tickets.js               # Lógica de incidentes, filtros, transiciones y notas
     ├── assistant.js             # Integración del Asistente RAG y calificaciones
     ├── knowledge.js             # Base de conocimiento y ciclo editorial/vectorial

@@ -4,6 +4,7 @@
 const ASSISTANT = {
   currentTicketId: null,
   activeQueryId: null,
+  historyById: {},
 
   async ask(ticketId, customQuestion = '') {
     this.currentTicketId = ticketId;
@@ -65,8 +66,8 @@ const ASSISTANT = {
 
     this.activeQueryId = query.id;
 
-    // Caso 1: Sin resultados semánticos relevantes (NO_RESULTS)
-    if (query.status === 'NO_RESULTS') {
+    // Caso 1: sin respuesta (NO_RESULTS, ERROR o PENDING): solo el mensaje del backend, sin calificación
+    if (query.status !== 'ANSWERED') {
       container.innerHTML = `
         <div class="alert-no-results">
           <div style="font-weight: var(--font-weight-semibold); margin-bottom: 0.25rem;">
@@ -186,7 +187,8 @@ const ASSISTANT = {
   },
 
   async handleRate(queryId, score) {
-    const comment = prompt('Comentario opcional sobre la utilidad de la respuesta:') || '';
+    const comment = prompt('Comentario opcional sobre la utilidad de la respuesta:');
+    if (comment === null) return; // Cancelar no califica
 
     const res = await API.put(`/assistance/queries/${queryId}/rating`, {
       score: parseInt(score, 10),
@@ -227,6 +229,8 @@ const ASSISTANT = {
       return;
     }
 
+    // El enlace solo lleva el id: meter la consulta en el onclick permitía ejecutar código desde la pregunta.
+    this.historyById = Object.fromEntries(queries.map(q => [q.id, q]));
     historyList.innerHTML = queries.map(q => {
       const statusClass = q.status === 'ANSWERED' ? 'badge-resolved' : (q.status === 'NO_RESULTS' ? 'badge-assigned' : 'badge-closed');
       const scoreBadge = q.rating ? `<span class="badge badge-priority-media">★ ${q.rating.score}/5</span>` : '';
@@ -239,7 +243,7 @@ const ASSISTANT = {
             <span style="font-size: 0.7rem; color: var(--text-subtle);">${UI.formatDate(q.createdAt)}</span>
           </div>
           <div style="font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); cursor: pointer; color: var(--color-accent);"
-            onclick="ASSISTANT.renderResponse(${JSON.stringify(q).replace(/"/g, '&quot;')})">
+            onclick="ASSISTANT.renderResponse(ASSISTANT.historyById[${q.id}])">
             "${UI.escapeHtml(q.question || 'Consulta general del incidente')}"
           </div>
         </div>
