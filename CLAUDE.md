@@ -749,4 +749,4 @@ Abierto:
 2. Chart.js se carga desde un CDN: sin conexión los gráficos quedan en blanco sin aviso.
 3. `LoginAttemptLimiter` ya purga las entradas vencidas antes de dejar de contar; con 10.000 identificadores vigentes a la vez los nuevos no se cuentan. Es el límite de memoria elegido, no un fallo.
 4. Los hallazgos 4 y 5 de §22.7 (comprobación de rol repetida e interfaces de un solo uso).
-5. Ninguna de estas correcciones se probó en un navegador.
+5. Resuelto el 15 de noviembre de 2026: las correcciones se recorrieron en Edge sin ventana contra el entorno completo de `test` (`docs/backend/PRUEBAS.md` §11), con el proveedor de modelos simulado. Quedan sin recorrer la creación de artículos, categorías y usuarios, el restablecimiento de contraseñas y el cambio obligatorio de clave.
