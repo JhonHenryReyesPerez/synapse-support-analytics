@@ -10,7 +10,7 @@ artículos verificados.
 | Componente | Tecnología | Estado en esta rama (`dev/DiegoLeon`) |
 |---|---|---|
 | Backend | Java 21, Spring Boot, PostgreSQL | Implementado: ver [`backend/README.md`](backend/README.md) |
-| Frontend | HTML, CSS, JavaScript | A cargo de otro integrante; no está en el repositorio |
+| Frontend | HTML, CSS, JavaScript | Implementado: ver [`frontend/README.md`](frontend/README.md) |
 | Automatización | n8n, Qdrant, OpenRouter | Flujos en [`n8n/`](n8n) y colección en [`qdrant/`](qdrant); probados con modelos reales de OpenRouter |
 | Infraestructura | Docker Compose | [`docker-compose.yml`](docker-compose.yml): PostgreSQL, Qdrant, n8n y backend |
 

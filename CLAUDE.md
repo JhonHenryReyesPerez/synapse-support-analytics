@@ -537,7 +537,7 @@ Registro de lo realizado en la rama `dev/JhonReyes`. Las secciones anteriores si
 
 ### 21.1 Listo y verificado
 
-Verificado con `./gradlew test` en H2 y con `backend/scripts/test-postgres.sh` en PostgreSQL 17 (migraciones reales de Flyway y Hibernate en modo `validate`), salvo donde se indica. Última ejecución (15 de noviembre de 2026): 107 pruebas y 0 fallos en ambos (en H2 se omiten las 6 de datos iniciales).
+Verificado con `./gradlew test` en H2 y con `backend/scripts/test-postgres.sh` en PostgreSQL 17 (migraciones reales de Flyway y Hibernate en modo `validate`), salvo donde se indica. Última ejecución (15 de noviembre de 2026): 108 pruebas y 0 fallos en ambos (en H2 se omiten las 6 de datos iniciales).
 
 | ID / etapa | Qué quedó implementado | Prueba principal |
 |---|---|---|
@@ -653,7 +653,7 @@ Reglas de negocio del enunciado (§11): las consultas inteligentes solo entran p
 | Informe de análisis de datos | Hecho sobre datos sintéticos: `docs/backend/INFORME_ANALISIS.md` |
 | `AI_USAGE.md` | Al día; toda la columna de revisión humana sigue en «Pendiente» |
 | Workflows JSON de n8n y Docker Compose | Hechos en `n8n/` y `docker-compose.yml`; probados con modelos reales de OpenRouter |
-| Frontend y presentación | De otros integrantes o del equipo; no están en el repositorio |
+| Frontend y presentación | Frontend de otro integrante en `frontend/` (auditado en §22.8); la presentación no está en el repositorio |
 
 ### 22.3 Hallazgos corregidos en esta auditoría
 
@@ -718,6 +718,35 @@ Abierto:
 
 1. `LoginAttemptLimiter`: con 10.000 identificadores en seguimiento, los nuevos no se cuentan y el límite deja de aplicarse a ellos.
 2. Corregido el 15 de noviembre de 2026: `TECHNICIAN` ya no recibe `USER_READ` (`SecurityBootstrapService`) y la migración `V9` lo retira de las bases existentes; un técnico recibe 403 en `GET /api/user/all` y en `GET /api/user/{username}/permissions` (`technicianCannotReadOtherAccounts`).
-3. `UserAccountPolicy`: dos administradores que se degradan mutuamente a la vez pueden dejar el sistema sin administrador.
+3. Corregido el 15 de noviembre de 2026: `UserAccountPolicy` bloquea las cuentas de administrador activas antes de contarlas (`lockActiveByRole`). Sin prueba propia de concurrencia: provocarla exige degradar a `superadmin`, del que dependen las demás pruebas.
 4. La comprobación de rol sobre `UserEntity` está repetida en `CommentService`, `DashboardService`, `TicketAssignmentService` y `UserAccountPolicy`.
 5. `IUserRepository`, `IUserRoleRepository` y `UserRoleRepository` no aportan nada: una sola implementación y un reenvío.
+
+### 22.8 Auditoría del frontend (15 de noviembre de 2026)
+
+Revisión por lectura de `frontend/` (rama `test`, commit `d70ef9a`) frente a los DTO del backend, hecha por la misma herramienta de IA. El frontend es de otro integrante; las correcciones se hicieron en `dev/DiegoLeon` a petición del responsable del backend y debe revisarlas su autor. No se ejecutó en un navegador.
+
+Corregido:
+
+| Hallazgo | Corrección |
+|---|---|
+| El nombre de usuario se insertaba sin escapar en la tabla de usuarios y en el selector de técnicos; el backend admitía cualquier carácter y el registro es público | `UI.escapeHtml` escapa también comillas; el botón usa `data-username`; el backend solo admite letras, números, punto, guion y guion bajo (`usernameWithMarkupIsRejected`) |
+| El historial del asistente metía la consulta como JSON en un `onclick`: una pregunta con `&quot;` ejecutaba código al abrirla | El enlace lleva solo el id (`ASSISTANT.historyById`) |
+| La casilla «nota interna» enviaba `internal`, que el backend ignora: el comentario quedaba `PUBLIC` | Se envía y se lee `visibility` |
+| Reasignar llamaba a `PATCH /assign` (409) | `PUT /reassign` con justificación |
+| Historial de estados, categoría más recurrente y mensaje de transición leían campos que no existen | `newStatus`, `changedBy`, `category` |
+| La tabla por categoría mostraba resueltos como casos y nunca el porcentaje | Casos y porcentaje de `byCategory`, promedio de `resolutionTime.byCategory` |
+| Solo se veían 12 artículos | Se piden 100 (máximo del backend), sin paginación |
+| Ver un artículo ocultaba para siempre el botón «Confirmar» del modal compartido | Se restablece al asignar y al resolver |
+| La respuesta del asistente de un incidente seguía visible al abrir otro; una consulta `ERROR` se mostraba como respuesta vacía calificable | Se limpia el panel; sin respuesta solo se muestra el mensaje |
+| Botones de iniciar, resolver, cerrar y «nuevo incidente» visibles para roles que el backend rechaza | Visibles solo para el rol que puede usarlos |
+| Cuentas deshabilitadas mostradas como activas; cancelar el comentario guardaba la calificación | Corregidos |
+| Código sin uso: `AUTH.register`, `CONFIG.RAG_METRICS` (decía 0,70), clave de respaldo `Temporal123!`, `DashboardCacheMetric`, `MetricFilterRequest`, `MetricPeriod` | Eliminados; la tabla `dashboard_metrics_cache` se conserva vacía |
+
+Abierto:
+
+1. `POST /api/auth/register` sigue público aunque el frontend ya no tiene formulario de registro; el equipo debe decidir si se cierra (las pruebas lo usan para crear usuarios).
+2. Chart.js se carga desde un CDN: sin conexión los gráficos quedan en blanco sin aviso.
+3. `LoginAttemptLimiter` ya purga las entradas vencidas antes de dejar de contar; con 10.000 identificadores vigentes a la vez los nuevos no se cuentan. Es el límite de memoria elegido, no un fallo.
+4. Los hallazgos 4 y 5 de §22.7 (comprobación de rol repetida e interfaces de un solo uso).
+5. Ninguna de estas correcciones se probó en un navegador.

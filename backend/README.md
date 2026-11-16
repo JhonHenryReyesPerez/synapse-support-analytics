@@ -227,8 +227,8 @@ cuando falla n8n (con `queryId` en el cuerpo).
 ## Pruebas
 
 ```bash
-./gradlew test                    # H2 en memoria: 107 pruebas, 6 omitidas
-bash scripts/test-postgres.sh     # PostgreSQL 17 en Docker con las migraciones reales: 107 pruebas
+./gradlew test                    # H2 en memoria: 108 pruebas, 6 omitidas
+bash scripts/test-postgres.sh     # PostgreSQL 17 en Docker con las migraciones reales: 108 pruebas
 ```
 
 Resultados, correspondencia con las diez pruebas obligatorias y limitaciones:
