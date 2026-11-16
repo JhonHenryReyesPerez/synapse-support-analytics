@@ -122,7 +122,8 @@ public class UserRepository implements IUserRepository {
     user.setArea(optionalText(dto.getArea(), 100, "El área"));
     user.setRoles(new ArrayList<>());
     setPermissions(user,dto.getAdditionalPermissions());
-    user=users.save(user); setRole(user,role); em.flush(); return mapper.toUserDto(user);
+    // persist y no save: con clave asignada, save hace merge y actualizaría una cuenta creada en paralelo.
+    em.persist(user); setRole(user,role); em.flush(); return mapper.toUserDto(user);
   }
   @Transactional
   public UserDto update(UserDto dto) {
@@ -222,7 +223,8 @@ public class UserRepository implements IUserRepository {
     user.setFullName(optionalText(dto.getFullName(), 150, "El nombre"));
     user.setArea(optionalText(dto.getArea(), 100, "El área"));
     user.setRoles(new ArrayList<>());
-    user = users.save(user);
+    // persist y no save: con clave asignada, save hace merge y actualizaría una cuenta creada en paralelo.
+    em.persist(user);
 
     setRole(user, "USER");
     em.flush();
