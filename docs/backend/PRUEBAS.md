@@ -272,3 +272,55 @@ aquí). Hay que repetirla si cambia el modelo o crece la base de conocimiento.
 | Sin pruebas de carga | No se midió el comportamiento con muchas consultas simultáneas al asistente |
 | El control de intentos de login guarda su estado en memoria | Se reinicia con la aplicación y no se comparte entre instancias; cuenta por identificador enviado, así que usuario y correo de una misma cuenta llevan contadores separados |
 | Revisión humana | El código de estas etapas fue generado con asistencia de IA y su revisión por el responsable está pendiente (ver `AI_USAGE.md`) |
+
+## 11. Recorrido completo desde la rama `test` (15 de noviembre de 2026)
+
+Ejecutado sobre el commit `6edef24` de `test` con `docker-compose.yml`: PostgreSQL 17, Qdrant 1.20.1,
+n8n 2.47.7 y el backend construido con su `Dockerfile` (9 migraciones aplicadas sobre una base vacía),
+más `db/seed/demo_data.sql`. El frontend se sirvió con `python -m http.server 5500`.
+
+**El proveedor de modelos fue simulado**, no OpenRouter: un servicio local que devuelve vectores por
+bolsa de palabras y una respuesta armada con el primer artículo del contexto. Por eso el umbral usado
+fue 0,35 y las similitudes no son comparables con las del §8. Esta ejecución comprueba la integración
+(backend, n8n, Qdrant, PostgreSQL y frontend), no la calidad de las respuestas.
+
+Fue una comprobación con scripts fuera del repositorio; no forma parte de `./gradlew test`.
+
+### 11.1 Diez pruebas obligatorias contra la API
+
+| Prueba | Resultado observado |
+|---|---|
+| Indexación | 28 artículos en `INDEXED` y 28 puntos en Qdrant; repetirla no procesa nada |
+| 1. Incidente de conectividad | `ANSWERED`; primera fuente, artículo 1 «Equipo sin acceso a internet: dirección IP 169.254.x.x» |
+| 2. Error de ejecución | `ANSWERED`; primera fuente, artículo 8 «La aplicación no inicia: error 0xc000007b» |
+| 3. Caso sin cobertura | `NO_RESULTS`, sin texto de solución |
+| 4. Filtro por categoría | Conectividad: 56 incidentes en el listado y en la analítica, igual que `SELECT count(*)` en PostgreSQL |
+| 5. Evolución semanal | 25 semanas; cada conteo coincide con `date_trunc('week', created_at)` en PostgreSQL |
+| 6. Artículo desactivado | El artículo 1 deja de citarse en la consulta siguiente |
+| 7. Pregunta o descripción en blanco | 400 en ambos casos |
+| 8. Fallo de embeddings | 502 con `code=EMBEDDING_FAILED` y `queryId` |
+| 9. Historial de asistencias | 200 para el solicitante; 403 para otro usuario |
+| 10. Calificación | 200 y queda guardada; una puntuación de 6 responde 400 |
+
+Los otros indicadores (total, por categoría, tasa de resolución, tiempo promedio, categoría más
+recurrente y por prioridad) también coincidieron con SQL sobre el conjunto completo.
+
+### 11.2 Recorrido del frontend en un navegador
+
+Con Microsoft Edge sin ventana, manejado por script, iniciando sesión con las cuentas de demostración.
+44 comprobaciones, todas correctas, sin errores de consola ni respuestas HTTP inesperadas:
+
+| Rol | Qué se recorrió |
+|---|---|
+| Administrador | Dashboard (total, categoría más recurrente, tabla por categoría que suma el total, tres gráficos); 28 artículos visibles; tabla de usuarios; asignar y reasignar con justificación; el botón «Confirmar» sigue visible después de ver un artículo |
+| Solicitante | Crear un incidente desde el formulario; consultar al asistente y ver fuentes con similitud; calificar; reabrir una consulta desde el historial; una pregunta con `&quot;` no ejecuta código; comentario público; el panel del asistente se limpia al cambiar de incidente; confirmar el cierre |
+| Técnico | Iniciar atención; nota interna (marcada como interna y no visible para el solicitante); resolver con nota |
+
+Cada rol ve solo los botones que el backend le permite.
+
+### 11.3 Lo que este recorrido no demuestra
+
+- No usó modelos reales: la fidelidad de las respuestas sigue respaldada solo por el §8.
+- El recorrido del navegador cubre los caminos principales, no todas las pantallas: no se probó crear
+  artículos ni categorías, crear usuarios, restablecer contraseñas ni el cambio obligatorio de clave.
+- Un solo navegador (Edge) y un solo tamaño de ventana.
