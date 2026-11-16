@@ -81,9 +81,9 @@ const ADMIN = {
     tbody.innerHTML = users.map(u => {
       // Roles del usuario
       const roleStr = Array.isArray(u.roles) ? u.roles.map(r => r.role || r).join(', ') : (u.role || 'USER');
-      let roleBadgeClass = 'background:#e0e7ff; color:#3730a3;';
-      if (roleStr === 'ADMIN') roleBadgeClass = 'background:#fef3c7; color:#92400e; font-weight:bold;';
-      if (roleStr === 'TECHNICIAN') roleBadgeClass = 'background:#ede9fe; color:#5b21b6; font-weight:bold;';
+      let roleBadgeClass = 'background:var(--status-assigned-bg); color:var(--status-assigned-text);';
+      if (roleStr === 'ADMIN') roleBadgeClass = 'background:var(--status-in-progress-bg); color:var(--status-in-progress-text); font-weight:bold;';
+      if (roleStr === 'TECHNICIAN') roleBadgeClass = 'background:var(--status-assigned-bg); color:var(--status-assigned-text); font-weight:bold;';
 
       const isLocked = u.disabled ? '<span class="badge badge-inactive">Deshabilitado</span>'
         : (u.locked ? '<span class="badge badge-priority-critica">Bloqueado</span>' : '<span class="badge badge-resolved">Activo</span>');
@@ -101,7 +101,7 @@ const ADMIN = {
           <td>${isLocked}</td>
           <td>
             <button class="btn btn-outline btn-sm" data-username="${UI.escapeHtml(u.username)}" onclick="ADMIN.promptResetPassword(this.dataset.username)" title="Restablecer contraseña con clave temporal">
-              🔑 Restablecer
+              ${UI.icon('key')} Restablecer
             </button>
           </td>
         </tr>

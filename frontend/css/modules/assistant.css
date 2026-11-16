@@ -2,8 +2,8 @@
  * Synapse Support Analytics - Estilos del Asistente RAG y Calificaciones
  */
 .assistant-card {
-  border: 1px solid #c7d2fe;
-  background: linear-gradient(180deg, #f8faff 0%, #ffffff 100%);
+  border: 1px solid var(--border-color);
+  background: linear-gradient(180deg, var(--bg-surface-alt) 0%, var(--bg-surface) 100%);
 }
 
 .assistant-header-badge {
@@ -19,7 +19,7 @@
 }
 
 .assistant-response-box {
-  background-color: #ffffff;
+  background-color: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: var(--spacing-6);
@@ -37,7 +37,7 @@
 
 /* Pasos recomendados */
 .steps-list {
-  background-color: #f8fafc;
+  background-color: var(--bg-surface-alt);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: var(--spacing-4) var(--spacing-6);
@@ -63,15 +63,15 @@
 }
 
 .source-card {
-  background-color: #ffffff;
-  border: 1px solid #e0e7ff;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--status-assigned-bg);
   border-radius: var(--radius-md);
   padding: var(--spacing-4);
   transition: all var(--transition-fast);
 }
 
 .source-card:hover {
-  border-color: #a5b4fc;
+  border-color: var(--border-focus);
   box-shadow: var(--shadow-sm);
 }
 
@@ -86,7 +86,7 @@
 .source-title {
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
-  color: #1e1b4b;
+  color: var(--text-main);
 }
 
 .similarity-badge {
@@ -94,8 +94,8 @@
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  background-color: #ede9fe;
-  color: #5b21b6;
+  background-color: var(--status-assigned-bg);
+  color: var(--status-assigned-text);
   border-radius: var(--radius-full);
   font-family: var(--font-family-mono);
   font-size: 0.75rem;
@@ -106,7 +106,7 @@
 .source-evidence-toggle {
   background: transparent;
   border: none;
-  color: var(--color-accent);
+  color: var(--text-link);
   font-size: var(--font-size-xs);
   cursor: pointer;
   padding: 0;
@@ -115,7 +115,7 @@
 
 .source-evidence-box {
   display: none;
-  background-color: #f8fafc;
+  background-color: var(--bg-surface-alt);
   border-top: 1px dashed var(--border-color);
   padding: var(--spacing-3);
   margin-top: var(--spacing-2);
@@ -151,7 +151,7 @@
   background: transparent;
   border: none;
   font-size: 1.5rem;
-  color: #cbd5e1;
+  color: var(--border-color);
   cursor: pointer;
   transition: color var(--transition-fast), transform var(--transition-fast);
 }
@@ -160,24 +160,26 @@
   color: #f59e0b;
 }
 
+.star-btn.is-active .icon { fill: currentColor; }
+
 .star-btn:hover {
   transform: scale(1.15);
 }
 
 /* Alerta de Sin Resultados y Evidencia Limitada */
 .alert-no-results {
-  background-color: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #991b1b;
+  background-color: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  color: var(--priority-critica);
   border-radius: var(--radius-md);
   padding: var(--spacing-4);
   font-size: var(--font-size-sm);
 }
 
 .alert-limited-evidence {
-  background-color: #fffbeb;
-  border: 1px solid #fde68a;
-  color: #92400e;
+  background-color: var(--color-warning-bg);
+  border: 1px solid var(--color-warning-border);
+  color: var(--status-in-progress-text);
   border-radius: var(--radius-md);
   padding: var(--spacing-3) var(--spacing-4);
   font-size: var(--font-size-xs);
@@ -185,4 +187,26 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-2);
+}
+
+/* Calificación en solo lectura (quien no hizo la consulta) */
+.star-btn:disabled {
+  cursor: default;
+  transform: none;
+}
+
+.star-btn:disabled:not(.is-active) {
+  color: var(--border-color);
+}
+
+/* Consulta del historial: botón con aspecto de enlace, alcanzable con teclado */
+.assistant-history-link {
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-link);
+  cursor: pointer;
 }

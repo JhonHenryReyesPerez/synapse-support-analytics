@@ -24,13 +24,13 @@ body {
 }
 
 a {
-  color: var(--color-accent);
+  color: var(--text-link);
   text-decoration: none;
   transition: color var(--transition-fast);
 }
 
 a:hover {
-  color: var(--color-accent-hover);
+  color: var(--text-link);
   text-decoration: underline;
 }
 
@@ -63,6 +63,19 @@ button, input, select, textarea {
 }
 
 /* Enfoque accesible */
+.icon {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+  vertical-align: -0.15em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 :focus-visible {
   outline: 2px solid var(--border-focus);
   outline-offset: 2px;

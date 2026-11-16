@@ -102,3 +102,21 @@ El frontend consume la API REST de Spring Boot en `http://localhost:8051/api`. S
 localStorage.setItem('SYNAPSE_API_URL', 'http://127.0.0.1:8051/api');
 location.reload();
 ```
+
+## 5. Pruebas del frontend
+
+Desde la raíz del repositorio, con Node.js instalado y sin dependencias adicionales:
+
+```bash
+node --test frontend/tests/frontend.test.js frontend/tests/auth-session.test.cjs frontend/tests/theme.test.cjs
+```
+
+Las pruebas usan respuestas simuladas y cubren cambios de incidente durante peticiones,
+historial paginado, calificaciones, errores de resolución, sesión y teclado en modales.
+No requieren el backend ni llaman servicios de IA. El diseño adaptable se comprueba
+en navegador; los dobles de DOM de estas pruebas no verifican el layout.
+
+El botón «Modo oscuro» está disponible en el acceso y en la cabecera de la aplicación.
+Usa el tema del sistema al entrar por primera vez y guarda la elección manual en el navegador.
+
+Los iconos vectoriales se sirven desde `assets/icons.svg`, sin bibliotecas ni servicios externos.

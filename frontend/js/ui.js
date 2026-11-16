@@ -2,6 +2,9 @@
  * Synapse Support Analytics - Utilidades de Interfaz de Usuario (UI)
  */
 const UI = {
+  icon(name) {
+    return `<svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#${name}"></use></svg>`;
+  },
   /**
    * Muestra una notificación Toast flotante.
    * @param {string} message - Texto principal del toast
@@ -24,10 +27,10 @@ const UI = {
     toast.setAttribute('role', 'alert');
 
     const icons = {
-      success: '✓',
-      error: '✕',
-      warning: '⚠',
-      info: 'ℹ'
+      success: 'check',
+      error: 'close',
+      warning: 'warning',
+      info: 'info'
     };
 
     const defaultTitles = {
@@ -38,12 +41,12 @@ const UI = {
     };
 
     toast.innerHTML = `
-      <span class="toast-icon">${icons[type] || 'ℹ'}</span>
+      <span class="toast-icon">${this.icon(icons[type] || 'info')}</span>
       <div class="toast-content">
         <div class="toast-title">${this.escapeHtml(title || defaultTitles[type] || '')}</div>
         <div class="toast-message">${this.escapeHtml(message)}</div>
       </div>
-      <button class="toast-close" aria-label="Cerrar">&times;</button>
+      <button class="toast-close" aria-label="Cerrar">${this.icon('close')}</button>
     `;
 
     const closeBtn = toast.querySelector('.toast-close');
@@ -61,37 +64,102 @@ const UI = {
     }
   },
 
+  // Modales abiertos, el último es el superior: { id, opener }.
+  modalStack: [],
+  FOCUSABLE: 'a[href], button:not([disabled]), input:not([disabled]):not([type=hidden]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+  // Un único manejador para toda la pila; se registra con el primer modal y se retira con el último.
+  onModalKeyDown: (e) => UI.handleModalKey(e),
+
+  focusableIn(modal) {
+    return Array.from(modal.querySelectorAll(this.FOCUSABLE)).filter(el => el.getClientRects().length > 0);
+  },
+
+  focusFirst(modal) {
+    const items = this.focusableIn(modal);
+    const target = items.find(el => !el.classList.contains('modal-close')) || items[0];
+    if (target) target.focus();
+  },
+
   /**
-   * Abre un modal por su ID.
+   * Abre un modal por su ID. Recuerda qué tenía el foco para devolverlo al cerrar.
    */
   openModal(modalId) {
     const modal = document.getElementById(modalId);
     if (!modal) return;
+    // Ya abierto (p. ej. refresco del detalle): no apilar dos veces ni robar el foco.
+    if (this.modalStack.some(m => m.id === modalId)) return;
+
+    this.modalStack.push({ id: modalId, opener: document.activeElement });
     modal.classList.add('is-open');
     modal.setAttribute('aria-hidden', 'false');
-    
-    // Auto-foco al primer input si existe
-    const firstInput = modal.querySelector('input:not([type=hidden]), button:not(.modal-close)');
-    if (firstInput) firstInput.focus();
+    this.focusFirst(modal);
 
-    // Manejo de tecla Escape
-    const onKeyDown = (e) => {
-      if (e.key === 'Escape' && !modal.dataset.preventClose) {
-        this.closeModal(modalId);
-        document.removeEventListener('keydown', onKeyDown);
-      }
-    };
-    document.addEventListener('keydown', onKeyDown);
+    if (this.modalStack.length === 1) {
+      document.addEventListener('keydown', this.onModalKeyDown);
+    }
   },
 
   /**
-   * Cierra un modal por su ID.
+   * Cierra un modal por su ID y devuelve el foco a quien lo abrió.
    */
   closeModal(modalId) {
     const modal = document.getElementById(modalId);
     if (!modal) return;
     modal.classList.remove('is-open');
     modal.setAttribute('aria-hidden', 'true');
+
+    const index = this.modalStack.findIndex(m => m.id === modalId);
+    if (index === -1) return;
+    const wasTop = index === this.modalStack.length - 1;
+    const [entry] = this.modalStack.splice(index, 1);
+    if (this.modalStack.length === 0) {
+      document.removeEventListener('keydown', this.onModalKeyDown);
+    }
+    if (!wasTop) return; // el foco sigue en el modal superior
+
+    const top = this.modalStack[this.modalStack.length - 1];
+    const topModal = top ? document.getElementById(top.id) : null;
+    const opener = entry.opener;
+    if (opener && opener.isConnected && (!topModal || topModal.contains(opener))) {
+      opener.focus();
+    } else if (topModal) {
+      this.focusFirst(topModal); // quien abrió ya no existe (p. ej. botones de acción redibujados)
+    }
+  },
+
+  /**
+   * Escape y Tab actúan solo sobre el modal superior. Un modal obligatorio
+   * (data-prevent-close) no se cierra con Escape, pero sí retiene el foco.
+   */
+  handleModalKey(e) {
+    const top = this.modalStack[this.modalStack.length - 1];
+    const modal = top ? document.getElementById(top.id) : null;
+    if (!modal) return;
+
+    if (e.key === 'Escape') {
+      if (!modal.dataset.preventClose) this.closeModal(top.id);
+      return;
+    }
+    if (e.key !== 'Tab') return;
+
+    const items = this.focusableIn(modal);
+    if (items.length === 0) {
+      e.preventDefault();
+      return;
+    }
+    const first = items[0];
+    const last = items[items.length - 1];
+    const active = document.activeElement;
+    if (!modal.contains(active)) {
+      e.preventDefault();
+      first.focus();
+    } else if (e.shiftKey && active === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && active === last) {
+      e.preventDefault();
+      first.focus();
+    }
   },
 
   /**
@@ -100,7 +168,7 @@ const UI = {
   setLoading(buttonEl, isLoading, loadingText = 'Cargando...') {
     if (!buttonEl) return;
     if (isLoading) {
-      buttonEl.dataset.originalHtml = buttonEl.innerHTML;
+      if (!buttonEl.classList.contains('is-loading')) buttonEl.dataset.originalHtml = buttonEl.innerHTML;
       buttonEl.disabled = true;
       buttonEl.classList.add('is-loading');
       buttonEl.innerHTML = `<span class="spinner" aria-hidden="true"></span> ${this.escapeHtml(loadingText)}`;
