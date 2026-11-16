@@ -24,7 +24,7 @@
   <!-- Barra Lateral de Navegación (Sidebar) -->
   <aside class="app-sidebar" role="navigation" aria-label="Navegación principal">
     <div class="sidebar-brand">
-      <div class="sidebar-brand-icon" aria-hidden="true">⚡</div>
+      <div class="sidebar-brand-icon" aria-hidden="true"><svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#bolt"></use></svg></div>
       <div class="sidebar-brand-text">
         <h2>Synapse</h2>
         <span>Support Analytics</span>
@@ -35,23 +35,23 @@
       <div class="nav-section-title">Módulos</div>
       
       <button type="button" class="nav-item is-active" data-view="view-dashboard">
-        <span class="nav-icon" aria-hidden="true">📊</span>
+        <span class="nav-icon" aria-hidden="true"><svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#chart"></use></svg></span>
         <span>Dashboard Analítico</span>
       </button>
 
       <button type="button" class="nav-item" data-view="view-tickets">
-        <span class="nav-icon" aria-hidden="true">🎫</span>
+        <span class="nav-icon" aria-hidden="true"><svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#ticket"></use></svg></span>
         <span>Incidentes (Tickets)</span>
       </button>
 
       <button type="button" class="nav-item" data-view="view-knowledge">
-        <span class="nav-icon" aria-hidden="true">📚</span>
+        <span class="nav-icon" aria-hidden="true"><svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#book"></use></svg></span>
         <span>Base Conocimiento</span>
       </button>
 
       <div class="nav-section-title admin-only">Sistema</div>
       <button type="button" class="nav-item admin-only" data-view="view-admin">
-        <span class="nav-icon" aria-hidden="true">⚙️</span>
+        <span class="nav-icon" aria-hidden="true"><svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#settings"></use></svg></span>
         <span>Administración</span>
       </button>
     </nav>
@@ -66,7 +66,7 @@
         </div>
       </div>
       <button type="button" class="btn-logout" id="btn-app-logout" title="Cerrar sesión" aria-label="Cerrar sesión">
-        🚪
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#logout"></use></svg>
       </button>
     </div>
   </aside>
@@ -82,7 +82,7 @@
       <div class="header-actions">
         <button type="button" class="btn btn-outline btn-sm" data-theme-toggle aria-pressed="false">Modo oscuro</button>
         <button type="button" class="btn btn-primary btn-sm" id="btn-new-ticket">
-          + Nuevo Incidente
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#plus"></use></svg> Nuevo Incidente
         </button>
       </div>
     </header>
@@ -304,10 +304,10 @@
 
           <div style="margin-left: auto; display: flex; gap: var(--spacing-3);">
             <button type="button" class="btn btn-outline admin-only" id="btn-reconcile-index" title="Sincroniza artículos pendientes o con error con Qdrant">
-              🔄 Sincronizar Vector Store (Qdrant)
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#refresh"></use></svg> Sincronizar Vector Store (Qdrant)
             </button>
             <button type="button" class="btn btn-primary tech-admin-only" id="btn-new-article">
-              + Redactar Borrador
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#plus"></use></svg> Redactar Borrador
             </button>
           </div>
         </div>
@@ -329,7 +329,7 @@
           <div class="card">
             <div class="card-header">
               <h2 class="card-title">Cuentas de Usuario y Credenciales</h2>
-              <button type="button" class="btn btn-primary btn-sm" id="btn-new-user">+ Nuevo Usuario</button>
+              <button type="button" class="btn btn-primary btn-sm" id="btn-new-user"><svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#plus"></use></svg> Nuevo Usuario</button>
             </div>
             <div class="table-responsive" style="border: none; box-shadow: none;">
               <table class="data-table">
@@ -354,7 +354,7 @@
           <div class="card">
             <div class="card-header">
               <h2 class="card-title">Categorías</h2>
-              <button type="button" class="btn btn-primary btn-sm" id="btn-new-category">+ Nueva</button>
+              <button type="button" class="btn btn-primary btn-sm" id="btn-new-category"><svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#plus"></use></svg> Nueva</button>
             </div>
             <div class="table-responsive" style="border: none; box-shadow: none;">
               <table class="data-table">
@@ -394,7 +394,7 @@
           <span id="detail-ticket-id" style="font-family:var(--font-family-mono); font-weight:bold; color:var(--color-accent);">#0</span>
           <h2 class="modal-title" id="detail-ticket-title" style="display:inline; margin-left:0.5rem;">Detalle del Incidente</h2>
         </div>
-        <button type="button" class="modal-close" onclick="UI.closeModal('modal-ticket-detail')">&times;</button>
+        <button type="button" class="modal-close" aria-label="Cerrar" onclick="UI.closeModal('modal-ticket-detail')"><svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#close"></use></svg></button>
       </header>
 
       <div class="modal-body">
@@ -425,7 +425,7 @@
             <div class="card assistant-card">
               <div class="card-header" style="background: transparent;">
                 <div style="display:flex; align-items:center; gap:var(--spacing-2);">
-                  <span class="assistant-header-badge">⚡ Asistente RAG</span>
+                  <span class="assistant-header-badge"><svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#bolt"></use></svg> Asistente RAG</span>
                   <span style="font-size:var(--font-size-xs); color:var(--text-muted);">Embeddings + Qdrant</span>
                 </div>
               </div>
@@ -438,7 +438,7 @@
                 </div>
                 <button type="button" class="btn btn-primary btn-sm" id="btn-ask-assistant" 
                   onclick="ASSISTANT.ask(TICKETS.currentTicket.id, document.getElementById('assistant-custom-question').value)">
-                  ✨ Consultar Asistente Inteligente
+                  <svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#sparkles"></use></svg> Consultar Asistente Inteligente
                 </button>
 
                 <!-- Contenedor del resultado RAG -->
@@ -533,7 +533,7 @@
     <div class="modal-container">
       <header class="modal-header">
         <h2 class="modal-title" id="modal-title-ticket">Registrar Nuevo Incidente</h2>
-        <button type="button" class="modal-close" onclick="UI.closeModal('modal-create-ticket')">&times;</button>
+        <button type="button" class="modal-close" aria-label="Cerrar" onclick="UI.closeModal('modal-create-ticket')"><svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#close"></use></svg></button>
       </header>
       <form id="form-create-ticket" novalidate>
         <div class="modal-body">
@@ -577,7 +577,7 @@
     <div class="modal-container" style="max-width: 650px;">
       <header class="modal-header">
         <h2 class="modal-title" id="modal-title-art">Nuevo Artículo de Conocimiento</h2>
-        <button type="button" class="modal-close" onclick="UI.closeModal('modal-create-article')">&times;</button>
+        <button type="button" class="modal-close" aria-label="Cerrar" onclick="UI.closeModal('modal-create-article')"><svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#close"></use></svg></button>
       </header>
       <form id="form-create-article" novalidate>
         <div class="modal-body">
@@ -619,7 +619,7 @@
     <div class="modal-container" style="max-width: 580px;">
       <header class="modal-header">
         <h2 class="modal-title" id="modal-title-usr">Registrar Usuario Corporativo</h2>
-        <button type="button" class="modal-close" onclick="UI.closeModal('modal-create-user')">&times;</button>
+        <button type="button" class="modal-close" aria-label="Cerrar" onclick="UI.closeModal('modal-create-user')"><svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#close"></use></svg></button>
       </header>
       <form id="form-create-user" novalidate>
         <div class="modal-body">
@@ -659,13 +659,13 @@
             <input type="password" id="user-password" class="form-control" placeholder="Asigna una contraseña temporal válida" required>
             <ul class="password-policy-list" id="user-pass-policy">
               <li class="password-policy-item" id="usr-pol-length">
-                <span class="policy-icon"></span> Mínimo 6 caracteres (máx. 72 bytes)
+                <span class="policy-icon"><svg class="icon policy-pending" aria-hidden="true" focusable="false"><use href="assets/icons.svg#circle"></use></svg><svg class="icon policy-valid" aria-hidden="true" focusable="false"><use href="assets/icons.svg#check"></use></svg></span> Mínimo 6 caracteres (máx. 72 bytes)
               </li>
               <li class="password-policy-item" id="usr-pol-upper">
-                <span class="policy-icon"></span> Al menos una letra mayúscula (A-Z)
+                <span class="policy-icon"><svg class="icon policy-pending" aria-hidden="true" focusable="false"><use href="assets/icons.svg#circle"></use></svg><svg class="icon policy-valid" aria-hidden="true" focusable="false"><use href="assets/icons.svg#check"></use></svg></span> Al menos una letra mayúscula (A-Z)
               </li>
               <li class="password-policy-item" id="usr-pol-special">
-                <span class="policy-icon"></span> Al menos un carácter especial
+                <span class="policy-icon"><svg class="icon policy-pending" aria-hidden="true" focusable="false"><use href="assets/icons.svg#circle"></use></svg><svg class="icon policy-valid" aria-hidden="true" focusable="false"><use href="assets/icons.svg#check"></use></svg></span> Al menos un carácter especial
               </li>
             </ul>
           </div>
@@ -689,7 +689,7 @@
     <div class="modal-container">
       <header class="modal-header">
         <h2 class="modal-title" id="modal-title-cat">Nueva Categoría</h2>
-        <button type="button" class="modal-close" onclick="UI.closeModal('modal-create-category')">&times;</button>
+        <button type="button" class="modal-close" aria-label="Cerrar" onclick="UI.closeModal('modal-create-category')"><svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#close"></use></svg></button>
       </header>
       <form id="form-create-category" novalidate>
         <div class="modal-body">
@@ -715,7 +715,7 @@
     <div class="modal-container">
       <header class="modal-header">
         <h2 class="modal-title" id="modal-generic-title">Detalle</h2>
-        <button type="button" class="modal-close" onclick="UI.closeModal('modal-generic')">&times;</button>
+        <button type="button" class="modal-close" aria-label="Cerrar" onclick="UI.closeModal('modal-generic')"><svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#close"></use></svg></button>
       </header>
       <div class="modal-body" id="modal-generic-body">
         <!-- Contenido dinámico -->

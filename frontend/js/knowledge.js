@@ -77,7 +77,7 @@ const KNOWLEDGE = {
       // Estado de Verificación y Activación
       let statusBadge = '<span class="badge badge-draft">Borrador</span>';
       if (art.verified && art.active) {
-        statusBadge = '<span class="badge badge-verified">✓ Verificado y Activo</span>';
+        statusBadge = `<span class="badge badge-verified">${UI.icon('check')} Verificado y Activo</span>`;
       } else if (art.verified && !art.active) {
         statusBadge = '<span class="badge badge-inactive">Inactivo (Verificado)</span>';
       }

@@ -107,7 +107,7 @@ const ASSISTANT = {
       container.innerHTML = `
         <div class="alert-no-results">
           <div style="font-weight: var(--font-weight-semibold); margin-bottom: 0.25rem;">
-            🔍 ${UI.escapeHtml(query.statusLabel || 'Sin resultados')}
+            ${UI.icon('search')} ${UI.escapeHtml(query.statusLabel || 'Sin resultados')}
           </div>
           <p>${UI.escapeHtml(query.message || 'No se encontraron artículos suficientemente relevantes en la base de conocimiento para este incidente.')}</p>
         </div>
@@ -120,7 +120,7 @@ const ASSISTANT = {
     if (query.limitedEvidence) {
       limitedNotice = `
         <div class="alert-limited-evidence">
-          <span>⚠️</span>
+          <span>${UI.icon('warning')}</span>
           <span><strong>Evidencia limitada:</strong> Menos de tres artículos superaron el umbral de similitud configurado.</span>
         </div>
       `;
@@ -161,7 +161,7 @@ const ASSISTANT = {
                 </div>
                 ${src.evidence ? `
                   <button type="button" class="source-evidence-toggle" onclick="ASSISTANT.toggleEvidence('ev-${query.id}-${index}')">
-                    Ver fragmento de evidencia utilizada ▼
+                    Ver fragmento de evidencia utilizada ${UI.icon('chevron-down')}
                   </button>
                   <div id="ev-${query.id}-${index}" class="source-evidence-box">
                     ${UI.escapeHtml(src.evidence)}
@@ -205,7 +205,7 @@ const ASSISTANT = {
         <button type="button" class="star-btn ${s <= existingScore ? 'is-active' : ''}"
           ${canRate ? `onclick="ASSISTANT.handleRate(${query.id}, ${s})"` : 'disabled'}
           title="${s} estrellas" aria-label="${s} de 5 estrellas">
-          ★
+          ${UI.icon('star')}
         </button>
       `;
     }
@@ -321,7 +321,7 @@ const ASSISTANT = {
     const itemsHtml = this.historyIds.map(id => {
       const q = this.historyById[id];
       const statusClass = q.status === 'ANSWERED' ? 'badge-resolved' : (q.status === 'NO_RESULTS' ? 'badge-assigned' : 'badge-closed');
-      const scoreBadge = q.rating ? `<span class="badge badge-priority-media">★ ${q.rating.score}/5</span>` : '';
+      const scoreBadge = q.rating ? `<span class="badge badge-priority-media">${UI.icon('star')} ${q.rating.score}/5</span>` : '';
 
       return `
         <div style="padding: 0.5rem 0; border-bottom: 1px solid var(--border-color-subtle);">

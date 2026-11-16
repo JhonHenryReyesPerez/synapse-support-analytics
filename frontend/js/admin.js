@@ -101,7 +101,7 @@ const ADMIN = {
           <td>${isLocked}</td>
           <td>
             <button class="btn btn-outline btn-sm" data-username="${UI.escapeHtml(u.username)}" onclick="ADMIN.promptResetPassword(this.dataset.username)" title="Restablecer contraseña con clave temporal">
-              🔑 Restablecer
+              ${UI.icon('key')} Restablecer
             </button>
           </td>
         </tr>

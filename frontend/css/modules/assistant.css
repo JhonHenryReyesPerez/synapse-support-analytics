@@ -160,6 +160,8 @@
   color: #f59e0b;
 }
 
+.star-btn.is-active .icon { fill: currentColor; }
+
 .star-btn:hover {
   transform: scale(1.15);
 }

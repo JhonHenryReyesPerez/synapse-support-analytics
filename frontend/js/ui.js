@@ -2,6 +2,9 @@
  * Synapse Support Analytics - Utilidades de Interfaz de Usuario (UI)
  */
 const UI = {
+  icon(name) {
+    return `<svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#${name}"></use></svg>`;
+  },
   /**
    * Muestra una notificación Toast flotante.
    * @param {string} message - Texto principal del toast
@@ -24,10 +27,10 @@ const UI = {
     toast.setAttribute('role', 'alert');
 
     const icons = {
-      success: '✓',
-      error: '✕',
-      warning: '⚠',
-      info: 'ℹ'
+      success: 'check',
+      error: 'close',
+      warning: 'warning',
+      info: 'info'
     };
 
     const defaultTitles = {
@@ -38,12 +41,12 @@ const UI = {
     };
 
     toast.innerHTML = `
-      <span class="toast-icon">${icons[type] || 'ℹ'}</span>
+      <span class="toast-icon">${this.icon(icons[type] || 'info')}</span>
       <div class="toast-content">
         <div class="toast-title">${this.escapeHtml(title || defaultTitles[type] || '')}</div>
         <div class="toast-message">${this.escapeHtml(message)}</div>
       </div>
-      <button class="toast-close" aria-label="Cerrar">&times;</button>
+      <button class="toast-close" aria-label="Cerrar">${this.icon('close')}</button>
     `;
 
     const closeBtn = toast.querySelector('.toast-close');

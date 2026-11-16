@@ -118,3 +118,5 @@ en navegador; los dobles de DOM de estas pruebas no verifican el layout.
 
 El botón «Modo oscuro» está disponible en el acceso y en la cabecera de la aplicación.
 Usa el tema del sistema al entrar por primera vez y guarda la elección manual en el navegador.
+
+Los iconos vectoriales se sirven desde `assets/icons.svg`, sin bibliotecas ni servicios externos.

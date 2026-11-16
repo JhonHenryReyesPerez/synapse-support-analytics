@@ -290,7 +290,7 @@ const TICKETS = {
     if (role === 'ADMIN' && (status === 'OPEN' || status === 'ASSIGNED')) {
       const btn = document.createElement('button');
       btn.className = 'btn btn-outline btn-sm';
-      btn.innerHTML = '👤 Asignar Técnico';
+      btn.innerHTML = `${UI.icon('user')} Asignar Técnico`;
       btn.onclick = () => this.promptAssignTechnician(ticket.id, status === 'ASSIGNED');
       container.appendChild(btn);
     }
@@ -299,7 +299,7 @@ const TICKETS = {
     if (status === 'ASSIGNED' && role === 'TECHNICIAN') {
       const btn = document.createElement('button');
       btn.className = 'btn btn-primary btn-sm';
-      btn.innerHTML = '▶ Iniciar Atención';
+      btn.innerHTML = `${UI.icon('play')} Iniciar Atención`;
       btn.onclick = () => this.executeTransition(ticket.id, 'START_PROGRESS');
       container.appendChild(btn);
     }
@@ -308,7 +308,7 @@ const TICKETS = {
     if (status === 'IN_PROGRESS' && role === 'TECHNICIAN') {
       const btn = document.createElement('button');
       btn.className = 'btn btn-success btn-sm';
-      btn.innerHTML = '✓ Resolver Incidente';
+      btn.innerHTML = `${UI.icon('check')} Resolver Incidente`;
       btn.onclick = () => this.promptResolveTicket(ticket.id);
       container.appendChild(btn);
     }
@@ -317,7 +317,7 @@ const TICKETS = {
     if (status === 'RESOLVED' && user.username === ticket.applicantUsername) {
       const btn = document.createElement('button');
       btn.className = 'btn btn-secondary btn-sm';
-      btn.innerHTML = '🔒 Confirmar Cierre';
+      btn.innerHTML = `${UI.icon('lock')} Confirmar Cierre`;
       btn.onclick = () => this.executeTransition(ticket.id, 'CONFIRM_CLOSE');
       container.appendChild(btn);
     }

@@ -6,6 +6,24 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { loadFrontend, deferred } = require('./harness');
 
+test('los iconos de la interfaz apuntan a simbolos SVG locales y no quedan emojis', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const root = path.join(__dirname, '..');
+  const sprite = fs.readFileSync(path.join(root, 'assets/icons.svg'), 'utf8');
+  const symbols = new Set(Array.from(sprite.matchAll(/<symbol id="([^"]+)"/g), m => m[1]));
+  const files = ['index.html', 'app.html', ...fs.readdirSync(path.join(root, 'js')).map(f => `js/${f}`)];
+  for (const file of files) {
+    const source = fs.readFileSync(path.join(root, file), 'utf8');
+    assert.doesNotMatch(source, /\p{Extended_Pictographic}/u, file);
+    for (const match of source.matchAll(/icons\.svg#([\w-]+)|(?:UI|this)\.icon\('([\w-]+)'\)/g)) {
+      assert.ok(symbols.has(match[1] || match[2]), `${file}: ${match[0]}`);
+    }
+  }
+  const ctx = loadFrontend(['ui.js']);
+  assert.match(ctx.UI.icon('check'), /aria-hidden="true" focusable="false"/);
+});
+
 const ok = data => ({ ok: true, status: 200, data });
 const fail = (error, status = 409, data = null) => ({ ok: false, status, data, error });
 const ticket = id => ({ id, title: `Incidente ${id}`, description: 'd', status: 'IN_PROGRESS', priority: 'MEDIA' });
@@ -259,7 +277,8 @@ test('calificar actualiza la consulta del incidente abierto sin volver a pedir e
   await ctx.ASSISTANT.handleRate(7, 4);
 
   assert.equal(api.calls.filter(c => c.method === 'GET').length, requestsBefore);
-  assert.match(el('assistant-history-list').innerHTML, /★ 4\/5/);
+  assert.match(el('assistant-history-list').innerHTML, /icons\.svg#star/);
+  assert.match(el('assistant-history-list').innerHTML, /4\/5/);
   assert.match(el('assistant-result-container').innerHTML, /Calificada/);
 });
 

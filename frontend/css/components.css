@@ -201,16 +201,9 @@
 .password-policy-item.valid {
   color: var(--color-success);
 }
-.password-policy-item.valid .policy-icon::before {
-  content: "✓";
-  color: var(--color-success);
-  font-weight: bold;
-}
-.password-policy-item:not(.valid) .policy-icon::before {
-  content: "•";
-  color: var(--text-subtle);
-  font-weight: bold;
-}
+.policy-icon { display: inline-flex; }
+.password-policy-item.valid .policy-pending,
+.password-policy-item:not(.valid) .policy-valid { display: none; }
 
 /* ==========================================================================
    Badges / Etiquetas de Estado y Prioridad
