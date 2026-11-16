@@ -1,103 +1,66 @@
 package com.roles.usermanagement.modules.assistance.controller;
 
-import com.roles.usermanagement.modules.assistance.dto.AssistanceQueryResponse;
-import com.roles.usermanagement.modules.assistance.dto.AssistanceRequest;
-import com.roles.usermanagement.modules.assistance.dto.RatingRequest;
-import com.roles.usermanagement.modules.assistance.dto.RatingResponse;
-import com.roles.usermanagement.modules.assistance.service.AssistanceHistoryService;
+import com.roles.usermanagement.modules.assistance.dto.AiQueryDto;
+import com.roles.usermanagement.modules.assistance.dto.AskAssistanceRequest;
+import com.roles.usermanagement.modules.assistance.dto.RateResponseRequest;
+import com.roles.usermanagement.modules.assistance.dto.RatingDto;
 import com.roles.usermanagement.modules.assistance.service.AssistanceService;
 import com.roles.usermanagement.modules.assistance.service.RatingService;
-import com.roles.usermanagement.web.config.OpenApiConfig;
-import com.roles.usermanagement.web.dto.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-/**
- * Asistente RAG (RF04, RF05, RF08). El frontend solo habla con estos endpoints: nunca con n8n,
- * Qdrant ni el proveedor de modelos.
- */
 @RestController
-@Tag(name = "Asistente IA", description = "Consultas al asistente sobre un incidente, con respuesta respaldada por artículos verificados")
-@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH)
+@RequestMapping("/api")
+@RequiredArgsConstructor
+@Tag(name = "Asistencia RAG y Calificaciones", description = "Consultas inteligentes al asistente basadas en la base de conocimiento y retroalimentación")
+@SecurityRequirement(name = "Bearer Authentication")
 public class AssistanceController {
 
-    private final AssistanceService assistance;
-    private final AssistanceHistoryService history;
-    private final RatingService ratings;
+    private final AssistanceService assistanceService;
+    private final RatingService ratingService;
 
-    public AssistanceController(AssistanceService assistance, AssistanceHistoryService history, RatingService ratings) {
-        this.assistance = assistance;
-        this.history = history;
-        this.ratings = ratings;
+    @PostMapping("/tickets/{ticketId}/assistance")
+    @Operation(summary = "Solicitar asistencia inteligente RAG para un incidente")
+    public ResponseEntity<AiQueryDto> askAssistance(
+            @PathVariable Long ticketId,
+            @RequestBody(required = false) @Valid AskAssistanceRequest request,
+            Authentication auth
+    ) {
+        AiQueryDto dto = assistanceService.askAssistance(ticketId, request, auth.getName());
+        return ResponseEntity.status(HttpStatus.CREATED).body(dto);
     }
 
-    @PostMapping("/api/tickets/{ticketId}/assistance")
-    @Operation(summary = "Solicitar asistencia para un incidente",
-            description = "USER: sus incidentes. TECHNICIAN: los asignados. ADMIN: cualquiera. No admite incidentes cerrados. "
-                    + "La consulta se guarda antes de procesarse y la respuesta llega en la misma llamada. "
-                    + "status=ANSWERED incluye solución, pasos y fuentes con su similitud; status=NO_RESULTS indica que "
-                    + "ningún artículo verificado fue suficientemente relevante y no contiene solución.",
-            responses = {
-                    @ApiResponse(responseCode = "201", description = "Consulta creada con resultado ANSWERED o NO_RESULTS"),
-                    @ApiResponse(responseCode = "200", description = "Repetición con un requestId ya usado: se devuelve la consulta existente"),
-                    @ApiResponse(responseCode = "400", description = "Pregunta vacía o demasiado larga; el flujo inteligente no se invoca"),
-                    @ApiResponse(responseCode = "403", description = "Sin acceso al incidente"),
-                    @ApiResponse(responseCode = "404", description = "El incidente no existe"),
-                    @ApiResponse(responseCode = "409", description = "Incidente cerrado o consulta propia aún en proceso"),
-                    @ApiResponse(responseCode = "502", description = "El flujo respondió con un error o una respuesta inválida; el cuerpo trae queryId y code"),
-                    @ApiResponse(responseCode = "503", description = "El flujo no está disponible; el cuerpo trae queryId y code"),
-                    @ApiResponse(responseCode = "504", description = "El flujo no respondió a tiempo; el cuerpo trae queryId y code")
-            })
-    public ResponseEntity<AssistanceQueryResponse> ask(@PathVariable Long ticketId,
-                                                       @Valid @RequestBody(required = false) AssistanceRequest request,
-                                                       Authentication auth) {
-        AssistanceService.Result result = assistance.ask(ticketId, request, auth);
-        return ResponseEntity.status(result.created() ? HttpStatus.CREATED : HttpStatus.OK).body(result.query());
+    @GetMapping("/assistance/queries/{queryId}")
+    @Operation(summary = "Obtener el detalle y resultado de una consulta de asistencia")
+    public ResponseEntity<AiQueryDto> getQuery(
+            @PathVariable Long queryId,
+            Authentication auth
+    ) {
+        return ResponseEntity.ok(assistanceService.getQuery(queryId, auth.getName()));
     }
 
-    @GetMapping("/api/tickets/{ticketId}/assistance")
-    @Operation(summary = "Historial de asistencias de un incidente",
-            description = "Mismo acceso que el incidente; también disponible cuando está cerrado. "
-                    + "Orden: más recientes primero. page desde 0; size 20 por defecto y máximo 100.")
-    public PageResponse<AssistanceQueryResponse> list(@PathVariable Long ticketId,
-                                                      @RequestParam(required = false) Integer page,
-                                                      @RequestParam(required = false) Integer size,
-                                                      Authentication auth) {
-        return history.listByTicket(ticketId, page, size, auth);
+    @PostMapping("/assistance/responses/{responseId}/rate")
+    @Operation(summary = "Calificar la utilidad de una respuesta generada por IA (1 a 5 estrellas)")
+    public ResponseEntity<RatingDto> rateResponse(
+            @PathVariable Long responseId,
+            @Valid @RequestBody RateResponseRequest request,
+            Authentication auth
+    ) {
+        return ResponseEntity.ok(ratingService.rateResponse(responseId, request, auth.getName()));
     }
 
-    @GetMapping("/api/assistance/queries/{queryId}")
-    @Operation(summary = "Consultar una asistencia y su resultado",
-            description = "Sirve para recuperar el resultado de una consulta tras un error de red o mientras está pendiente.")
-    public AssistanceQueryResponse getById(@PathVariable Long queryId, Authentication auth) {
-        return history.getById(queryId, auth);
-    }
-
-    @PutMapping("/api/assistance/queries/{queryId}/rating")
-    @Operation(summary = "Calificar la utilidad de una respuesta (1 a 5)",
-            description = "Solo quien hizo la consulta, y solo si fue respondida. Una calificación por respuesta y usuario: "
-                    + "repetir la llamada la actualiza. Se admite aunque el incidente ya esté cerrado.",
-            responses = {
-                    @ApiResponse(responseCode = "200", description = "Calificación creada o actualizada"),
-                    @ApiResponse(responseCode = "400", description = "Puntuación ausente, no entera o fuera de 1 a 5"),
-                    @ApiResponse(responseCode = "403", description = "La consulta es de otro usuario o no hay acceso al incidente"),
-                    @ApiResponse(responseCode = "404", description = "La consulta no existe"),
-                    @ApiResponse(responseCode = "409", description = "La consulta no fue respondida")
-            })
-    public RatingResponse rate(@PathVariable Long queryId, @Valid @RequestBody RatingRequest request, Authentication auth) {
-        return ratings.rate(queryId, request, auth);
+    @GetMapping("/assistance/responses/{responseId}/rating")
+    @Operation(summary = "Obtener la calificación asignada a una respuesta de IA")
+    public ResponseEntity<RatingDto> getRating(
+            @PathVariable Long responseId
+    ) {
+        return ResponseEntity.ok(ratingService.getRating(responseId));
     }
 }

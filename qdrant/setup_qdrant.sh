@@ -1,5 +1,4 @@
 #!/bin/sh
-# Crea la colección de artículos en Qdrant si todavía no existe. Es idempotente.
 set -e
 
 QDRANT_HOST="${QDRANT_HOST:-qdrant}"
@@ -12,23 +11,38 @@ until curl -sf "http://${QDRANT_HOST}:${QDRANT_PORT}/readyz" >/dev/null 2>&1 || 
   sleep 1
 done
 
-STATUS_CODE=$(curl -s -o /dev/null -w '%{http_code}' "${BASE_URL}/collections/${COLLECTION_NAME}")
+echo "Qdrant está listo. Verificando colección '${COLLECTION_NAME}'..."
+STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://${QDRANT_HOST}:${QDRANT_PORT}/collections/${COLLECTION_NAME}")
 
-if [ "$STATUS_CODE" = "404" ]; then
-  echo "Creando la colección '${COLLECTION_NAME}'..."
-  curl -sf -X PUT "${BASE_URL}/collections/${COLLECTION_NAME}" \
+if [ "$STATUS_CODE" -eq 404 ]; then
+  echo "Creando colección '${COLLECTION_NAME}' (1536 dimensiones, distancia Coseno)..."
+  curl -s -X PUT "http://${QDRANT_HOST}:${QDRANT_PORT}/collections/${COLLECTION_NAME}" \
     -H "Content-Type: application/json" \
     -d @/qdrant/collection_config.json
   echo ""
-  # Índice del campo por el que el flujo de indexación borra los puntos de un artículo.
-  curl -sf -X PUT "${BASE_URL}/collections/${COLLECTION_NAME}/index" \
+  echo "Colección '${COLLECTION_NAME}' creada exitosamente."
+
+  echo "Configurando índices de payload en Qdrant..."
+  curl -s -X PUT "http://${QDRANT_HOST}:${QDRANT_PORT}/collections/${COLLECTION_NAME}/index" \
+    -H "Content-Type: application/json" \
+    -d '{"field_name": "category", "field_schema": "keyword"}'
+  echo ""
+  curl -s -X PUT "http://${QDRANT_HOST}:${QDRANT_PORT}/collections/${COLLECTION_NAME}/index" \
+    -H "Content-Type: application/json" \
+    -d '{"field_name": "categoria", "field_schema": "keyword"}'
+  echo ""
+  curl -s -X PUT "http://${QDRANT_HOST}:${QDRANT_PORT}/collections/${COLLECTION_NAME}/index" \
+    -H "Content-Type: application/json" \
+    -d '{"field_name": "estado", "field_schema": "keyword"}'
+  echo ""
+  curl -s -X PUT "http://${QDRANT_HOST}:${QDRANT_PORT}/collections/${COLLECTION_NAME}/index" \
     -H "Content-Type: application/json" \
     -d '{"field_name": "articleId", "field_schema": "integer"}'
   echo ""
-  echo "Colección creada."
-elif [ "$STATUS_CODE" = "200" ]; then
-  echo "La colección '${COLLECTION_NAME}' ya existe; no se modifica."
+  echo "Índices de payload creados exitosamente."
 else
-  echo "Respuesta inesperada de Qdrant al consultar la colección: HTTP ${STATUS_CODE}." >&2
-  exit 1
+  echo "La colección '${COLLECTION_NAME}' ya existe (HTTP $STATUS_CODE). No requiere inicialización."
 fi
+
+echo "Inicialización de Qdrant completada con éxito."
+exit 0

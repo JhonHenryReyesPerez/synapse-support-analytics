@@ -25,15 +25,5 @@ public interface UserCrudRepository extends CrudRepository<UserEntity, String> {
             """)
     long countActiveByRole(@org.springframework.data.repository.query.Param("role") String role);
 
-    /** Bloquea las cuentas activas del rol para que dos cambios simultáneos se evalúen uno tras otro. */
-    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
-    @org.springframework.data.jpa.repository.Query("""
-            select u from UserEntity u
-            where u.disabled = false and u.locked = false
-              and u.username in (select r.username from UserRoleEntity r where r.role = :role)
-            order by u.username
-            """)
-    java.util.List<UserEntity> lockActiveByRole(@org.springframework.data.repository.query.Param("role") String role);
-
     java.util.Optional<UserEntity> findByEmail(String email);
 }

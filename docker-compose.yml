@@ -1,20 +1,17 @@
-# Entorno completo: PostgreSQL, Qdrant, n8n y el backend.
-# Copiar .env.example a .env y completar los secretos: sin ellos el entorno no arranca.
-# Los puertos se publican solo en 127.0.0.1.
-
 services:
   db:
-    image: postgres:17-alpine
+    image: postgres:16-alpine
     container_name: synapse-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${DB_NAME:-campusdesk}
-      POSTGRES_USER: ${DB_USERNAME:-campusdesk}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:?Definir DB_PASSWORD en .env}
+      POSTGRES_DB: ${DB_NAME:-incidentes_db}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres123}
     ports:
-      - "127.0.0.1:${DB_PORT:-5432}:5432"
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./database/seed_data.sql:/seed_data.sql:ro
     networks:
       - incidentes_net
     healthcheck:
@@ -25,11 +22,12 @@ services:
       start_period: 3s
 
   qdrant:
-    image: qdrant/qdrant:v1.20.1
+    image: qdrant/qdrant:latest
     container_name: synapse-qdrant
     restart: unless-stopped
     ports:
-      - "127.0.0.1:${QDRANT_PORT:-6333}:6333"
+      - "${QDRANT_PORT:-6333}:6333"
+      - "6334:6334"
     volumes:
       - qdrant_data:/qdrant/storage
     networks:
@@ -41,27 +39,24 @@ services:
       retries: 5
       start_period: 3s
 
-  # Crea la colección si no existe y termina.
   qdrant-init:
-    image: curlimages/curl:8.11.1
+    image: curlimages/curl:latest
     container_name: synapse-qdrant-init
     depends_on:
       qdrant:
         condition: service_healthy
-    environment:
-      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-articulos_soporte}
     volumes:
-      - ./qdrant:/qdrant:ro
+      - ./qdrant:/qdrant
     networks:
       - incidentes_net
     entrypoint: ["/bin/sh", "/qdrant/setup_qdrant.sh"]
 
   n8n:
-    image: n8nio/n8n:2.47.7
+    image: n8nio/n8n:latest
     container_name: synapse-n8n
     restart: unless-stopped
     ports:
-      - "127.0.0.1:${N8N_PORT:-5678}:5678"
+      - "${N8N_PORT:-5679}:5678"
     environment:
       - N8N_HOST=n8n
       - N8N_PORT=5678
@@ -79,7 +74,7 @@ services:
       - INTEGRATION_API_TOKEN=${INTEGRATION_API_TOKEN:-campusdesk-super-secret-integration-token-2026}
     volumes:
       - n8n_data:/home/node/.n8n
-      - ./n8n:/workflows:ro
+      - ./n8n:/workflows
     networks:
       - incidentes_net
     depends_on:
@@ -99,7 +94,7 @@ services:
     container_name: synapse-backend
     restart: unless-stopped
     ports:
-      - "127.0.0.1:${SERVER_PORT:-8051}:8051"
+      - "${BACKEND_PORT:-8080}:8080"
     environment:
       - SERVER_PORT=8080
       - SPRING_PROFILES_ACTIVE=prod

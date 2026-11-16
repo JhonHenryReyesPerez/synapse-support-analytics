@@ -1,4 +1,4 @@
-# Synapse Support Analytics
+# Synapse Support Analytics (CampusDesk)
 
 Sistema inteligente de gestión, análisis de incidentes tecnológicos y asistencia técnica fundamentada mediante **Retrieval-Augmented Generation (RAG)**.
 
@@ -237,14 +237,27 @@ El proyecto incluye un script SQL de datos iniciales en [`database/seed_data.sql
 Ejecuta el siguiente comando para cargar los datos en el contenedor de base de datos:
 
 ```bash
-# 1. Cargar los datos (13 usuarios, 31 artículos, 180 incidentes)
-docker compose exec -T db psql -U campusdesk -d campusdesk -v ON_ERROR_STOP=1 \
-  < backend/src/main/resources/db/seed/demo_data.sql
+docker compose exec -T db psql -U postgres -d incidentes_db -f /seed_data.sql
+```
+*(El archivo `database/seed_data.sql` se monta automáticamente dentro del contenedor `db` en `/seed_data.sql`).*
 
-# 2. Iniciar sesión como administrador de demostración y enviar los artículos elegibles a n8n
-TOKEN=$(curl -s -X POST http://localhost:8051/api/auth/login -H 'Content-Type: application/json' \
-  -d '{"username":"admin.demo","password":"Demo.2026"}' | sed 's/.*"token":"\([^"]*\)".*/\1/')
-curl -X POST http://localhost:8051/api/knowledge/articles/index/reconcile -H "Authorization: Bearer $TOKEN"
+Alternativamente, desde tu máquina local usando `psql`:
+```bash
+psql -h localhost -p 5432 -U postgres -d incidentes_db -f database/seed_data.sql
+```
+
+### Sincronización Inicial de la Base Vectorial
+Para indexar los 25 artículos iniciales en Qdrant a través de n8n, ejecuta el siguiente comando contra el endpoint administrativo de Spring Boot:
+
+```bash
+# 1. Obtener Token de Administrador
+ADMIN_TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"Password123!"}' | grep -o '"token":"[^"]*' | cut -d'"' -f4)
+
+# 2. Disparar sincronización masiva de artículos verificados
+curl -s -X POST http://localhost:8080/api/knowledge/articles/reindex \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
 ```
 
 ---

@@ -1,5 +1,4 @@
 {
-  "id": "campusdeskIndex01",
   "name": "Flujo 1 - Indexacion de Conocimiento",
   "nodes": [
     {
@@ -9,64 +8,63 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "Webhook Indexacion",
+      "id": "webhook-index",
       "name": "Webhook Indexacion",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        0,
+        200,
         300
-      ],
-      "webhookId": "campusdesk-index"
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Contrato v1 (docs/backend/CONTRATO_N8N.md §2). El secreto solo llega por variable de entorno.\nconst expected = $env.N8N_SERVICE_TOKEN;\nconst input = $input.first().json;\nconst token = (input.headers || {})['x-service-token'];\nif (!expected || !token || token !== expected) {\n  return [{ json: { route: 'unauthorized' } }];\n}\n\nconst body = input.body || {};\nconst base = {\n  schemaVersion: 1,\n  articleId: body.articleId ?? null,\n  contentVersion: body.contentVersion ?? null,\n};\nconst fail = (errorCode) => [{ json: { route: 'respond', response: { ...base, status: 'ERROR', errorCode } } }];\n\nconst idsOk = Number.isInteger(body.articleId) && body.articleId > 0\n  && Number.isInteger(body.contentVersion) && body.contentVersion >= 1;\nif (body.schemaVersion !== 1 || !idsOk || !['UPSERT', 'DELETE'].includes(body.action)) {\n  return fail('INVALID_REQUEST');\n}\n\nif (body.action === 'DELETE') {\n  return [{ json: {\n    route: 'delete',\n    base,\n    deleteBody: { filter: { must: [{ key: 'articleId', match: { value: body.articleId } }] } },\n  } }];\n}\n\nconst text = (value) => (typeof value === 'string' ? value.trim() : '');\nif (!text(body.title) || !text(body.solution)) {\n  return fail('INVALID_REQUEST');\n}\n// Un punto por artículo: el texto completo se vectoriza como un único fragmento (índice 0).\nconst sections = [\n  ['Título', body.title], ['Problema', body.problem], ['Síntomas', body.symptoms],\n  ['Causa', body.cause], ['Solución', body.solution],\n].filter(([, value]) => text(value)).map(([label, value]) => `${label}: ${text(value)}`);\nconst embeddingModel = $env.EMBEDDING_MODEL || 'openai/text-embedding-3-small';\n\nreturn [{ json: {\n  route: 'upsert',\n  base,\n  title: text(body.title),\n  contentHash: body.contentHash ?? null,\n  embeddingModel,\n  embeddingBody: { model: embeddingModel, input: sections.join('\\n\\n') },\n} }];"
+        "jsCode": "const expectedToken = $env.N8N_SERVICE_TOKEN || 'campusdesk-super-secret-service-token-2026';\nconst headers = $input.first().json.headers || {};\nconst token = headers['x-service-token'] || headers['X-Service-Token'];\n\nif (!token || token !== expectedToken) {\n  return [{ json: { authorized: false, error: 'Unauthorized: Invalid or missing X-Service-Token' } }];\n}\n\nconst body = $input.first().json.body || {};\nreturn [{\n  json: {\n    authorized: true,\n    operation: body.operation,\n    articleId: body.articleId,\n    version: body.version,\n    title: body.title,\n    category: body.category,\n    content: body.content,\n    contentHash: body.contentHash,\n    tags: body.tags || []\n  }\n}];"
       },
-      "id": "Validar Token y Datos",
+      "id": "auth-check",
       "name": "Validar Token y Datos",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        220,
+        420,
         300
       ]
     },
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "boolean": [
             {
-              "value1": "={{ $json.route }}",
-              "value2": "unauthorized"
+              "value1": "={{ $json.authorized }}",
+              "value2": true
             }
           ]
         }
       },
-      "id": "No Autorizado?",
-      "name": "No Autorizado?",
+      "id": "if-authorized",
+      "name": "Esta Autorizado?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [
-        440,
+        640,
         300
       ]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "{\"status\":\"ERROR\",\"errorCode\":\"UNAUTHORIZED\"}",
+        "responseBody": "={\n  \"status\": \"ERROR\",\n  \"errorMessage\": \"{{ $json.error }}\"\n}",
         "options": {
           "responseCode": 401
         }
       },
-      "id": "Responder 401",
+      "id": "respond-unauthorized",
       "name": "Responder 401",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        660,
-        120
+        860,
+        480
       ]
     },
     {
@@ -74,45 +72,25 @@
         "conditions": {
           "string": [
             {
-              "value1": "={{ $json.route }}",
-              "value2": "respond"
+              "value1": "={{ $json.operation }}",
+              "value2": "DELETE"
             }
           ]
         }
       },
-      "id": "Solicitud Invalida?",
-      "name": "Solicitud Invalida?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [
-        660,
-        320
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "string": [
-            {
-              "value1": "={{ $json.route }}",
-              "value2": "delete"
-            }
-          ]
-        }
-      },
-      "id": "Es DELETE?",
+      "id": "if-operation-delete",
       "name": "Es DELETE?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [
-        880,
-        420
+        860,
+        220
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ ($env.QDRANT_URL || 'http://qdrant:6333') + '/collections/' + ($env.QDRANT_COLLECTION || 'articulos_soporte') + '/points/delete?wait=true' }}",
+        "url": "http://qdrant:6333/collections/articulos_soporte/points/delete",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -124,158 +102,105 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json.deleteBody) }}",
-        "options": {
-          "timeout": 10000
-        }
+        "jsonBody": "={\n  \"points\": [{{ $json.articleId }}]\n}",
+        "options": {}
       },
-      "id": "Eliminar de Qdrant",
+      "id": "qdrant-delete",
       "name": "Eliminar de Qdrant",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
         1100,
-        320
-      ],
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const data = $('Validar Token y Datos').first().json;\nconst ok = $input.first().json.status === 'ok';\nreturn [{ json: { response: ok\n  ? { ...data.base, status: 'REMOVED', errorCode: null }\n  : { ...data.base, status: 'ERROR', errorCode: 'VECTOR_DELETE_FAILED' } } }];"
-      },
-      "id": "Resultado DELETE",
-      "name": "Resultado DELETE",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1320,
-        320
-      ]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "={{ ($env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1') + '/embeddings' }}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            },
-            {
-              "name": "Authorization",
-              "value": "={{ 'Bearer ' + $env.OPENROUTER_API_KEY }}"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json.embeddingBody) }}",
-        "options": {
-          "timeout": 20000
-        }
-      },
-      "id": "Generar Embedding OpenRouter",
-      "name": "Generar Embedding OpenRouter",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1100,
-        540
-      ],
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const data = $('Validar Token y Datos').first().json;\nconst vector = $input.first().json?.data?.[0]?.embedding;\nif (!Array.isArray(vector) || vector.length === 0) {\n  return [{ json: { route: 'respond', response: { ...data.base, status: 'ERROR', errorCode: 'EMBEDDING_FAILED' } } }];\n}\n// Identidad determinista: el id del punto es el del artículo, así que reindexar reemplaza y no duplica.\nreturn [{ json: {\n  route: 'upsert',\n  dimension: vector.length,\n  upsertBody: { points: [{\n    id: data.base.articleId,\n    vector,\n    payload: {\n      articleId: data.base.articleId,\n      contentVersion: data.base.contentVersion,\n      contentHash: data.contentHash,\n      chunkIndex: 0,\n      title: data.title,\n      embeddingModel: data.embeddingModel,\n    },\n  }] },\n} }];"
-      },
-      "id": "Preparar Punto",
-      "name": "Preparar Punto",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1320,
-        540
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "string": [
-            {
-              "value1": "={{ $json.route }}",
-              "value2": "respond"
-            }
-          ]
-        }
-      },
-      "id": "Fallo el Embedding?",
-      "name": "Fallo el Embedding?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [
-        1540,
-        540
-      ]
-    },
-    {
-      "parameters": {
-        "method": "PUT",
-        "url": "={{ ($env.QDRANT_URL || 'http://qdrant:6333') + '/collections/' + ($env.QDRANT_COLLECTION || 'articulos_soporte') + '/points?wait=true' }}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json.upsertBody) }}",
-        "options": {
-          "timeout": 10000
-        }
-      },
-      "id": "Upsert Point en Qdrant",
-      "name": "Upsert Point en Qdrant",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1760,
-        640
-      ],
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const data = $('Validar Token y Datos').first().json;\nconst point = $('Preparar Punto').first().json;\nconst ok = $input.first().json.status === 'ok';\nreturn [{ json: { response: ok\n  ? { ...data.base, status: 'INDEXED', embeddingModel: data.embeddingModel,\n      embeddingDimension: point.dimension, chunkCount: 1, errorCode: null }\n  : { ...data.base, status: 'ERROR', errorCode: 'VECTOR_UPSERT_FAILED' } } }];"
-      },
-      "id": "Resultado UPSERT",
-      "name": "Resultado UPSERT",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1980,
-        640
+        120
       ]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json.response) }}",
+        "responseBody": "={\n  \"articleId\": {{ $('Validar Token y Datos').first().json.articleId }},\n  \"status\": \"DELETED\",\n  \"vectorId\": \"{{ $('Validar Token y Datos').first().json.articleId }}\"\n}",
         "options": {
           "responseCode": 200
         }
       },
-      "id": "Responder",
-      "name": "Responder",
+      "id": "respond-delete",
+      "name": "Responder DELETED",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        2200,
+        1340,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/embeddings",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"text-embedding-3-small\",\n  \"input\": {{ JSON.stringify($json.title + \"\\n\\n\" + $json.content) }}\n}",
+        "options": {}
+      },
+      "id": "openrouter-embedding",
+      "name": "Generar Embedding OpenRouter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "http://qdrant:6333/collections/articulos_soporte/points",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"points\": [\n    {\n      \"id\": {{ $('Validar Token y Datos').first().json.articleId }},\n      \"vector\": {{ JSON.stringify($json.data[0].embedding) }},\n      \"payload\": {\n        \"articleId\": {{ $('Validar Token y Datos').first().json.articleId }},\n        \"articulo_id\": {{ $('Validar Token y Datos').first().json.articleId }},\n        \"title\": {{ JSON.stringify($('Validar Token y Datos').first().json.title) }},\n        \"titulo\": {{ JSON.stringify($('Validar Token y Datos').first().json.title) }},\n        \"category\": {{ JSON.stringify($('Validar Token y Datos').first().json.category) }},\n        \"categoria\": {{ JSON.stringify($('Validar Token y Datos').first().json.category) }},\n        \"content\": {{ JSON.stringify($('Validar Token y Datos').first().json.content) }},\n        \"contenido\": {{ JSON.stringify($('Validar Token y Datos').first().json.content) }},\n        \"version\": {{ $('Validar Token y Datos').first().json.version }},\n        \"estado\": \"activo\",\n        \"active\": true,\n        \"contentHash\": {{ JSON.stringify($('Validar Token y Datos').first().json.contentHash) }}\n      }\n    }\n  ]\n}",
+        "options": {}
+      },
+      "id": "qdrant-upsert",
+      "name": "Upsert Point en Qdrant",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1340,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"articleId\": {{ $('Validar Token y Datos').first().json.articleId }},\n  \"status\": \"INDEXED\",\n  \"vectorId\": \"{{ $('Validar Token y Datos').first().json.articleId }}\"\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "respond-upsert",
+      "name": "Responder INDEXED",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1560,
         320
       ]
     }
@@ -296,43 +221,25 @@
       "main": [
         [
           {
-            "node": "No Autorizado?",
+            "node": "Esta Autorizado?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "No Autorizado?": {
+    "Esta Autorizado?": {
       "main": [
-        [
-          {
-            "node": "Responder 401",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Solicitud Invalida?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Solicitud Invalida?": {
-      "main": [
-        [
-          {
-            "node": "Responder",
-            "type": "main",
-            "index": 0
-          }
-        ],
         [
           {
             "node": "Es DELETE?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 401",
             "type": "main",
             "index": 0
           }
@@ -361,18 +268,7 @@
       "main": [
         [
           {
-            "node": "Resultado DELETE",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Resultado DELETE": {
-      "main": [
-        [
-          {
-            "node": "Responder",
+            "node": "Responder DELETED",
             "type": "main",
             "index": 0
           }
@@ -381,35 +277,6 @@
     },
     "Generar Embedding OpenRouter": {
       "main": [
-        [
-          {
-            "node": "Preparar Punto",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Preparar Punto": {
-      "main": [
-        [
-          {
-            "node": "Fallo el Embedding?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Fallo el Embedding?": {
-      "main": [
-        [
-          {
-            "node": "Responder",
-            "type": "main",
-            "index": 0
-          }
-        ],
         [
           {
             "node": "Upsert Point en Qdrant",
@@ -423,18 +290,7 @@
       "main": [
         [
           {
-            "node": "Resultado UPSERT",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Resultado UPSERT": {
-      "main": [
-        [
-          {
-            "node": "Responder",
+            "node": "Responder INDEXED",
             "type": "main",
             "index": 0
           }
@@ -442,9 +298,7 @@
       ]
     }
   },
-  "active": false,
   "settings": {
     "executionOrder": "v1"
-  },
-  "pinData": {}
+  }
 }

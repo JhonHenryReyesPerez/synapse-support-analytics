@@ -24,6 +24,6 @@ USER spring:spring
 # Copiar el JAR generado desde la etapa de compilación
 COPY --from=builder /app/build/libs/*.jar app.jar
 
-EXPOSE 8051
+EXPOSE 8080
 
 ENTRYPOINT ["java", "-Djava.security.egd=file:/dev/./urandom", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]

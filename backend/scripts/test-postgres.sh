@@ -16,10 +16,8 @@ until docker exec "$NAME" pg_isready -q -U postgres; do sleep 1; done
 
 # Base vacía en cada ejecución: prueba las migraciones desde cero.
 docker exec "$NAME" psql -U postgres -q -c "DROP DATABASE IF EXISTS campusdesk_test" -c "CREATE DATABASE campusdesk_test"
-# Base aparte para DemoDataSeedTests: carga db/seed/demo_data.sql sin mezclarse con las demás pruebas.
-docker exec "$NAME" psql -U postgres -q -c "DROP DATABASE IF EXISTS campusdesk_seed" -c "CREATE DATABASE campusdesk_seed"
 
-TEST_DB_URL="jdbc:postgresql://localhost:${PORT}/campusdesk_test" TEST_SEED_DB_URL="jdbc:postgresql://localhost:${PORT}/campusdesk_seed" \
+TEST_DB_URL="jdbc:postgresql://localhost:${PORT}/campusdesk_test" \
 TEST_DB_DRIVER=org.postgresql.Driver \
 TEST_DB_USERNAME=postgres \
 TEST_DB_PASSWORD=test \

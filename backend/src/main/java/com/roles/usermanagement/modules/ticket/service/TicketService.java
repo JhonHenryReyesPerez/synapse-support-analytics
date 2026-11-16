@@ -175,9 +175,8 @@ public class TicketService {
      */
     @Transactional
     public TicketResponse update(Long id, TicketUpdateRequest request, Authentication auth) {
-        // Con bloqueo de escritura: sin él, una asignación simultánea quedaría sobrescrita al guardar
-        // la edición (el UPDATE escribe todas las columnas, incluidos estado y técnico).
-        Ticket ticket = ticketRepository.findForUpdate(id)
+        // Find ticket; if not found, respond 404
+        Ticket ticket = ticketRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Ticket not found"));
 

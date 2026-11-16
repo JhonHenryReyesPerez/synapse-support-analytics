@@ -1,289 +1,421 @@
-# CampusDesk — Backend (API REST)
+# CAMPUSDESK - Plataforma de Soporte Tecnico y Mesa de Ayuda
 
-Backend en Java 21 y Spring Boot del sistema de análisis de incidentes tecnológicos y asistencia
-mediante IA. Centraliza los incidentes, administra una base de conocimiento verificada, calcula
-indicadores con SQL y expone un asistente RAG cuyas respuestas siempre citan artículos verificados.
+Backend robusto desarrollado en Java 21 y Spring Boot para la administracion integral de incidentes, mesa de ayuda, asignacion de personal tecnico y control de acceso institucional en entornos de campus universitario o corporativo.
 
-> Este README cubre el backend. El frontend, Docker Compose, Qdrant y los workflows de n8n son
-> responsabilidad de otros integrantes; aquí se documenta el contrato que deben cumplir.
+---
 
-## Integrantes del equipo
+## Ficha del Proyecto
 
-Sergio Aparicio · Jhon Reyes (responsable del backend) · Sebastian Ayala · Juan Diego Leon
+- **Nombre del Sistema:** CAMPUSDESK
+- **Modulo:** API REST Backend
+- **Estado:** En desarrollo activo
+- **Lenguaje Base:** Java 21 LTS
+- **Framework:** Spring Boot 4.1.1
+- **Base de Datos:** PostgreSQL
+- **Seguridad y Tokens:** Spring Security 6 con JWT (HMAC256)
+- **Documentacion Interactiva:** Swagger UI / OpenAPI 3
 
-## Contenido
+---
 
-- [Qué hace](#qué-hace)
-- [Arquitectura](#arquitectura)
-- [Requisitos](#requisitos)
-- [Configuración](#configuración)
-- [Ejecución](#ejecución)
-- [Base de datos y migraciones](#base-de-datos-y-migraciones)
-- [Datos de demostración](#datos-de-demostración)
-- [Endpoints](#endpoints)
-- [Pruebas](#pruebas)
-- [Decisiones técnicas](#decisiones-técnicas)
-- [Estado y pendientes](#estado-y-pendientes)
-- [Documentación](#documentación)
-- [Créditos](#créditos)
+## Creadores e Integrantes del Equipo
 
-## Qué hace
+Sistema desarrollado por:
 
-| Requisito | Implementación |
-|---|---|
-| RF01 Gestión de incidentes | Tickets con categoría, prioridad, cinco estados, asignación, historial y comentarios públicos e internos |
-| RF02 Base de conocimiento | Artículos con ciclo borrador → verificado → activo; solo los verificados y activos alimentan al asistente |
-| RF03 Indexación | Spring Boot envía cada artículo a n8n y registra el estado de sincronización del índice vectorial |
-| RF04 y RF05 Búsqueda y asistente RAG | La consulta se guarda, se envía a n8n y la respuesta se valida contra el contrato y contra PostgreSQL antes de persistirla |
-| RF06 y RF07 Analítica | Siete indicadores con filtros de fecha, categoría y prioridad, calculados con SQL |
-| RF08 Historial y evaluación | Historial de consultas por incidente y calificación de 1 a 5 |
+- **Sergio Aparicio**
+- **Jhon Reyes**
+- **Sebastian Ayala**
+- **Juan Diego Leon**
 
-Roles: `USER` registra y cierra sus incidentes; `TECHNICIAN` atiende los asignados y redacta
-borradores de artículos; `ADMIN` asigna, administra usuarios y categorías, y verifica y publica artículos.
+---
 
-## Arquitectura
+## Tabla de Contenido
+
+- [Presentacion de CAMPUSDESK](#presentacion-de-campusdesk)
+- [Funcionalidades Implementadas](#funcionalidades-implementadas)
+- [Modulos del Sistema](#modulos-del-sistema)
+- [Flujo de Seguridad y Ciclo de Vida de Contraseñas](#flujo-de-seguridad-y-ciclo-de-vida-de-contraseñas)
+- [Arquitectura de Software](#arquitectura-de-software)
+- [Tecnologias Utilizadas](#tecnologias-utilizadas)
+- [Catalogo de Endpoints REST](#catalogo-de-endpoints-rest)
+- [Configuracion y Variables de Entorno](#configuracion-y-variables-de-entorno)
+- [Requisitos Previos e Instalacion](#requisitos-previos-e-instalacion)
+- [Instrucciones de Ejecucion](#instrucciones-de-ejecucion)
+- [Estructura del Repositorio](#estructura-del-repositorio)
+- [Documentacion Interactiva (Swagger UI)](#documentacion-interactiva-swagger-ui)
+- [Creditos y Reconocimientos](#creditos-y-reconocimientos)
+
+---
+
+## Presentacion de CAMPUSDESK
+
+CAMPUSDESK surge como una respuesta a la necesidad de canalizar, priorizar y resolver incidencias tecnicas dentro de una institucion educativa o corporativa. El sistema permite conectar de forma fluida a tres actores principales:
+
+1. **Usuarios Solicitantes (Estudiantes, Docentes, Personal Administrativo):** Reportan requerimientos de hardware, software, red o infraestructura mediante tickets de servicio.
+2. **Personal Tecnico (Operadores de Soporte):** Reciben tickets asignados segun su especialidad y disponibilidad, registran avances, documentan soluciones y gestionan el cambio de estados.
+3. **Super Administradores y Coordinadores:** Supervisan la mesa de ayuda, crean y habilitan usuarios, asignan roles, administran permisos del sistema y auditan metricas de atencion.
+
+---
+
+## Funcionalidades Implementadas
+
+La version actual del backend de CAMPUSDESK cuenta con las siguientes capacidades implementadas y operativas:
+
+### 1. Mesa de Ayuda y Gestion de Tickets
+- Creacion y recepcion de solicitudes tecnicas con descripcion detallada, categorizacion y prioridad (Baja, Media, Alta, Critica).
+- Clasificacion de incidencias segun el tipo de servicio requerido.
+- Trazabilidad y consulta de tickets en curso e historicos.
+
+### 2. Gestion de Operadores Tecnicos y Asignaciones
+- Registro de perfiles tecnicos con definicion de especialidades.
+- Asignacion formal de tickets a operadores responsables.
+- Modulo preparado para evitar sobrecarga de trabajo y balancear la atencion de casos.
+
+### 3. Trazabilidad, Comentarios e Historial de Estados
+- Bitacora de comentarios publicos e internos asociados a cada ticket.
+- Registro historico e inmutable de cambios de estado para auditoria de tiempos de respuesta.
+- Ciclo de vida estricto para asegurar que un ticket no salte de estados de forma inconsistente.
+
+### 4. Ciclo de Vida de Contraseñas y Gestion de Usuarios
+- **Creacion Asistida por el Super Admin:** Los usuarios son dados de alta por el administrador con una contraseña temporal elegida por este.
+- **Forzado de Cambio en Primer Ingreso (`mustChangePassword`):** Toda cuenta nueva nace con la bandera activada. Al autenticarse, la respuesta de login notifica al cliente que debe forzar la pantalla de cambio de clave antes de ingresar al sistema.
+- **Cambio de Contraseña Autenticado (`/api/auth/change-password`):** El usuario ingresa su clave temporal y define su nueva clave definitiva (minimo 6 caracteres, diferente a la temporal). Al completarse, se apaga la bandera.
+- **Restablecimiento Administrativo de Claves (`/api/user/{username}/reset-password`):** Si un usuario pierde u olvida su contraseña, el Super Admin puede restablecerla asignando una nueva clave provisional y reactivando la obligatoriedad de cambio, sin requerir servidores de correo electronico externos.
+
+### 5. Control de Acceso Basado en Roles (RBAC) y Permisos Dinamicos
+- Cada usuario posee exactamente un rol principal (`ADMIN`, `CUSTOMER`, roles tecnicos personalizados).
+- Soporte para otorgar permisos individuales adicionales que complementan los heredados por el rol.
+- Evaluacion de seguridad dinamica: los permisos efectivos se recalculan en cada peticion contra PostgreSQL.
+
+---
+
+## Modulos del Sistema
+
+El codigo de CAMPUSDESK se estructura modularmente para desacoplar el dominio del negocio de la infraestructura:
 
 ```text
-Frontend (HTML, CSS, JS)
-        │  HTTPS + JWT
-        ▼
-Spring Boot ── JPA / Flyway ──► PostgreSQL   (fuente de verdad y analítica SQL)
-        │  X-Service-Token
-        ▼
-       n8n ──► Qdrant (índice vectorial)  ·  OpenRouter (embeddings y generación)
-        │  X-Integration-Token
-        └────► Spring Boot /api/integration/**   (validar artículos antes de usarlos)
+com.roles.usermanagement/
+│
+├── modules/                         # Dominio central de CAMPUSDESK
+│   ├── ticket/                      # Gestion central de incidencias y tickets
+│   ├── assignment/                  # Asignacion de tecnicos a tickets
+│   ├── technician/                  # Catalogo de operadores de soporte
+│   ├── comment/                     # Notas y comentarios por ticket
+│   ├── statushistory/               # Auditoria de transiciones de estado
+│   ├── lifecycle/                   # Maquina de estados del ticket
+│   └── dashboard/                   # Estadisticas y panel de control
+│
+├── domain/                          # Modelos, DTOs y servicios de negocio transversales
+├── persistance/                     # Entidades JPA, repositorios CRUD y mappers
+└── web/                             # Controladores REST, filtros JWT y configuracion de seguridad
 ```
 
-- El frontend solo habla con Spring Boot; nunca con n8n, Qdrant ni OpenRouter.
-- PostgreSQL decide si un artículo existe y puede usarse. Qdrant es un índice derivado.
-- Ninguna transacción de base de datos queda abierta durante una llamada a n8n.
+---
 
-Paquete raíz `com.roles.usermanagement`:
+## Flujo de Seguridad y Ciclo de Vida de Contraseñas
+
+A continuacion se describe el flujo paso a paso del ingreso y gestion de credenciales en CAMPUSDESK:
 
 ```text
-web/              Seguridad (JWT, CORS), controladores de autenticación y usuarios, errores
-domain/           Servicios y DTO de usuarios y seguridad
-persistance/      Entidades y repositorios de usuarios, roles y permisos
-integration/n8n/  Cliente HTTP de n8n, contrato v1 y filtro del secreto de integración
-modules/
-  ticket/ assignment/ lifecycle/ statushistory/ comment/ technician/   Incidentes
-  category/       Categorías
-  knowledge/      Artículos y sincronización del índice
-  assistance/     Consultas al asistente, respuestas, fuentes y calificaciones
-  dashboard/      Analítica
+PASO 1: SUPER ADMIN CREA EL USUARIO
+POST /api/user/add
+- El Super Admin envia: username, email, role y una password temporal.
+- El backend guarda al usuario con mustChangePassword = true.
+- El Super Admin entrega la contraseña temporal al usuario.
+
+                  │
+                  ▼
+
+PASO 2: PRIMER INGRESO DEL USUARIO
+POST /api/auth/login
+- El usuario ingresa con sus credenciales temporales.
+- El backend responde:
+  {
+    "token": "eyJhbGciOi...",
+    "username": "operador01",
+    "mustChangePassword": true
+  }
+- El frontend identifica mustChangePassword: true y bloquea el acceso al panel,
+  redirigiendo a la vista obligatoria de cambio de clave.
+
+                  │
+                  ▼
+
+PASO 3: CAMBIO OBLIGATORIO DE CONTRASEÑA
+POST /api/auth/change-password
+- Encabezado: Authorization: Bearer <token>
+- Cuerpo: { "currentPassword": "temporal...", "newPassword": "definitiva..." }
+- El servidor valida la clave actual, encripta la nueva con BCrypt y cambia
+  mustChangePassword a false.
+- A partir de este momento, el usuario accede normalmente al dashboard.
+
+                  │
+                  ▼
+
+PASO 4 (CASO DE OLVIDO): RESTABLECIMIENTO POR SUPER ADMIN
+POST /api/user/{username}/reset-password
+- El Super Admin asigna una nueva contraseña temporal.
+- La cuenta se desbloquea automaticamente y se reactiva mustChangePassword = true.
 ```
 
-Diagramas de arquitectura, secuencia y entidad-relación: [`docs/backend/DIAGRAMAS.md`](../docs/backend/DIAGRAMAS.md).
+---
 
-## Requisitos
+## Arquitectura de Software
 
-- JDK 21.
-- PostgreSQL 14 o superior (probado con 17).
-- Docker, solo para ejecutar las pruebas contra PostgreSQL con `scripts/test-postgres.sh`.
-- No hace falta instalar Gradle: se usa el wrapper (8.14.3).
+La aplicacion adopta una arquitectura multicapa desacoplada y sin estado (Stateless):
 
-## Configuración
+```text
+[ Cliente Web / Aplicacion Frontend / Swagger UI ]
+                        │
+                        ▼ (HTTP REST + Bearer Token)
+            ┌───────────────────────┐
+            │       JwtFilter       │ ── Valida firma HMAC256 y vigencia
+            └───────────┬───────────┘
+                        │
+                        ▼
+            ┌───────────────────────┐
+            │   Controladores REST  │ ── Endpoints de Auth, User, Tickets
+            └───────────┬───────────┘
+                        │
+                        ▼
+            ┌───────────────────────┐
+            │   Capa de Servicios   │ ── Reglas de negocio y validaciones
+            └───────────┬───────────┘
+                        │
+                        ▼
+            ┌───────────────────────┐
+            │ Capa de Persistencia  │ ── Spring Data JPA y Mappers
+            └───────────┬───────────┘
+                        │
+                        ▼
+            ┌───────────────────────┐
+            │ Base de Datos Postgres│ ── Tablas normalizadas
+            └───────────────────────┘
+```
 
-`src/main/resources/application.properties` **no contiene secretos**. Si falta una variable
-obligatoria, la aplicación no arranca. Para desarrollo local:
+---
+
+## Tecnologias Utilizadas
+
+- **Java 21 LTS:** Lenguaje principal con caracteristicas avanzadas de tipado y colecciones inmutables.
+- **Spring Boot 4.1.1:** Nucleo del servidor web, inversion de control e inyeccion de dependencias.
+- **Spring Security 6:** Filtros de autorizacion basados en expresiones de seguridad (`@PreAuthorize`).
+- **PostgreSQL:** Sistema de gestion de bases de datos relacional transaccional.
+- **Hibernate / Spring Data JPA:** Mapeo objeto-relacional con creacion de esquema automatica (`ddl-auto=update`).
+- **Auth0 Java JWT:** Firma y verificacion de tokens bajo el algoritmo simetrico HMAC256.
+- **BCrypt:** Codificacion de contraseñas con sal aleatoria (salt).
+- **MapStruct:** Mapeo eficiente de objetos entre entidades JPA y DTOs en tiempo de compilacion.
+- **Lombok:** Generacion automatica de metodos accesores y constructores.
+- **Gradle Wrapper 8.14.3:** Automatizacion de compilacion, empaquetado y ejecucion.
+- **Springdoc OpenAPI 3:** Documentacion de la API en formato Swagger UI.
+
+---
+
+## Catalogo de Endpoints REST
+
+### 1. Autenticacion y Sesion (`/api/auth`)
+
+| Metodo | Ruta | Autorizacion | Descripcion |
+|---|---|---|---|
+| `POST` | `/api/auth/register` | Publico | Registro publico de usuarios. Asigna obligatoriamente el rol `USER` y valida correos duplicados. |
+| `POST` | `/api/auth/login` | Publico | Autentica con correo electronico o usuario y contraseña; retorna JWT y bandera `mustChangePassword`. |
+| `POST` | `/api/auth/change-password` | Autenticado | Actualiza la contraseña actual por una nueva y desactiva el cambio obligatorio. |
+| `GET` | `/api/auth/me` | Autenticado | Devuelve el rol actual, permisos individuales y el consolidado de permisos efectivos. |
+
+### 2. Gestion de Usuarios (`/api/user`)
+
+| Metodo | Ruta | Autorizacion Requerida | Descripcion |
+|---|---|---|---|
+| `GET` | `/api/user/all` | `USER_READ` | Lista todos los usuarios registrados. |
+| `POST` | `/api/user/add` | `USER_CREATE` | Registra una cuenta nueva con `mustChangePassword = true` por defecto. |
+| `PUT` | `/api/user/update` | `USER_UPDATE` | Actualiza correo, bloqueo o estado de habilitacion de un usuario. |
+| `DELETE` | `/api/user/delete/{name}` | `USER_DELETE` | Elimina definitivamente la cuenta de un usuario. |
+| `POST` | `/api/user/{username}/reset-password` | `USER_UPDATE` o `ADMIN` | Asigna clave temporal y obliga al usuario al cambio de contraseña en su siguiente acceso. |
+| `POST` | `/api/user/assignRole` | `ROLE_ASSIGN` | Reemplaza el rol unico asignado al usuario. |
+| `POST` | `/api/user/assignPermission` | `PERMISSION_ASSIGN` | Agrega un permiso individual especifico a un usuario. |
+| `DELETE` | `/api/user/{username}/permissions/{perm}` | `PERMISSION_ASSIGN` | Revoca un permiso individual otorgado a la cuenta. |
+| `GET` | `/api/user/{username}/permissions` | `USER_READ` | Consulta los permisos individuales, heredados y efectivos del usuario. |
+| `GET` | `/api/user/permissions` | `PERMISSION_ASSIGN` | Retorna la lista de todas las autoridades existentes. |
+
+### 3. Catalogos de Seguridad (`/api`)
+
+| Metodo | Ruta | Autorizacion Requerida | Descripcion |
+|---|---|---|---|
+| `GET` | `/api/roles` | `ROLE_MANAGE` | Lista los roles registrados y sus permisos asociados. |
+| `POST` | `/api/roles` | `ROLE_MANAGE` | Registra un nuevo rol asignando su conjunto de permisos. |
+| `GET` | `/api/permissions` | `PERMISSION_MANAGE` | Consulta todas las autoridades base y dinamicas. |
+| `POST` | `/api/permissions` | `PERMISSION_MANAGE` | Da de alta una nueva autoridad en el catalogo. |
+| `PUT` | `/api/roles/{role}/permissions/{perm}` | `ROLE_MANAGE` y `PERMISSION_MANAGE` | Vincula un permiso existente a un rol. |
+| `DELETE` | `/api/roles/{role}/permissions/{perm}` | `ROLE_MANAGE` y `PERMISSION_MANAGE` | Desvincula un permiso de un rol determinado. |
+
+---
+
+## Configuracion y Variables de Entorno
+
+La configuracion comun esta en `src/main/resources/application.properties` y **no contiene secretos**: si falta una variable obligatoria la aplicacion no arranca. Para desarrollo local copia `.env.example` como `.env` (excluido de Git) y activa el perfil `dev`:
 
 ```bash
-cd backend
-cp .env.example .env      # editar los valores; .env está excluido de Git
-```
-
-| Variable | Descripción | Obligatoria / valor por defecto |
-|---|---|---|
-| `DB_URL` | URL JDBC de PostgreSQL | Obligatoria |
-| `DB_USERNAME`, `DB_PASSWORD` | Credenciales de la base | Obligatorias |
-| `JWT_SECRET` | Clave HMAC256, mínimo 32 caracteres (`openssl rand -hex 32`) | Obligatoria |
-| `JWT_ISSUER` | Emisor del token | `campusdesk-api` |
-| `JWT_EXPIRATION` | Vida del token (`30m`, `8h`) | `30m` |
-| `LOGIN_MAX_ATTEMPTS` | Logins fallidos seguidos de un mismo identificador antes del bloqueo temporal (responde 429) | `5` |
-| `LOGIN_ATTEMPT_WINDOW`, `LOGIN_LOCK_DURATION` | Ventana en la que se cuentan los fallos y duración del bloqueo | `15m`, `15m` |
-| `SERVER_PORT` | Puerto HTTP | `8051` |
-| `CORS_ALLOWED_ORIGINS` | Orígenes del frontend, separados por comas | Ninguno (en `dev`: `localhost:5500` y `5501`) |
-| `APP_TIME_ZONE` | Zona de negocio para fechas y agrupaciones | `America/Bogota` |
-| `BOOTSTRAP_ADMIN_ENABLED` | Crear el administrador inicial si no existe | `false` (`true` en `dev`) |
-| `ADMIN_USERNAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Datos del administrador inicial | Obligatorios si el bootstrap está activo |
-| `N8N_BASE_URL` | URL de n8n. Vacía: integración deshabilitada y el asistente responde 503 | Vacía |
-| `N8N_SERVICE_TOKEN` | Secreto que Spring Boot envía a n8n (`X-Service-Token`), mínimo 32 caracteres | Obligatoria si hay `N8N_BASE_URL` |
-| `INTEGRATION_API_TOKEN` | Secreto que n8n envía a `/api/integration/**` (`X-Integration-Token`), mínimo 32 caracteres | Vacía: esos endpoints quedan cerrados |
-| `N8N_INDEX_PATH`, `N8N_ASSIST_PATH` | Rutas de los webhooks | `/webhook/campusdesk-index`, `/webhook/campusdesk-assist` |
-| `N8N_CONNECT_TIMEOUT`, `N8N_READ_TIMEOUT` | Tiempos límite hacia n8n | `5s`, `60s` |
-| `N8N_MAX_RESPONSE_BYTES` | Tamaño máximo de una respuesta de n8n | `1048576` |
-| `ASSIST_MAX_RESULTS` | Artículos a recuperar (3 a 5) | `5` |
-| `ASSIST_MIN_SCORE` | Umbral mínimo de similitud coseno (0 a 1) | `0.55` (calibrado con `openai/text-embedding-3-small`; ver `docs/backend/PRUEBAS.md` §9) |
-| `ASSIST_PENDING_TIMEOUT` | Edad a partir de la cual una consulta sin resultado se cierra como error | `5m` |
-
-Las credenciales de Qdrant y de OpenRouter no se configuran aquí: pertenecen a n8n.
-
-## Ejecución
-
-Crear la base de datos una vez:
-
-```sql
-CREATE DATABASE "campusDESK";
-```
-
-Arrancar con el perfil de desarrollo (lee `backend/.env`):
-
-```bash
-cd backend
+cp .env.example .env        # editar valores
 SPRING_PROFILES_ACTIVE=dev ./gradlew bootRun
 ```
 
+| Variable | Descripcion | Obligatoria / valor por defecto |
+|---|---|---|
+| `DB_URL` | URL JDBC de PostgreSQL | Obligatoria |
+| `DB_USERNAME` | Usuario de base de datos | Obligatoria |
+| `DB_PASSWORD` | Contraseña de base de datos | Obligatoria |
+| `JWT_SECRET` | Clave HMAC256, minimo 32 caracteres (`openssl rand -hex 32`) | Obligatoria |
+| `JWT_ISSUER` | Emisor del token JWT | `campusdesk-api` |
+| `JWT_EXPIRATION` | Vida del token (`30m`, `8h`) | `30m` |
+| `BOOTSTRAP_ADMIN_ENABLED` | Crear administrador inicial | `false` (`true` en perfil `dev`) |
+| `ADMIN_USERNAME` | Usuario del administrador inicial | `superadmin` |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Correo y clave del administrador inicial | Obligatorias si el bootstrap esta activo |
+| `SERVER_PORT` | Puerto HTTP | `8051` |
+
+---|---|---|
+| `DB_URL` | URL JDBC de conexion a PostgreSQL | `jdbc:postgresql://localhost:5432/sistema_gestion_usuarios` |
+| `DB_USERNAME` | Usuario de base de datos | `admin` |
+| `DB_PASSWORD` | Contraseña de base de datos | `admin123` |
+| `JWT_SECRET` | Clave secreta para firma HMAC256 | `User_M4n4gement` |
+| `JWT_ISSUER` | Emisor registrado del token JWT | `User_R0les_M4n4gement` |
+| `JWT_EXPIRATION` | Tiempo de vida del token (`30m`, `8h`) | `30m` |
+| `ADMIN_USERNAME` | Usuario administrador del bootstrap | `superadmin` |
+| `ADMIN_EMAIL` | Correo del administrador del bootstrap | `superadmin@localhost` |
+| `ADMIN_PASSWORD` | Contraseña inicial del administrador | `SuperAdmin123!` |
+| `BOOTSTRAP_ADMIN_ENABLED` | Control de creacion de cuenta inicial | `true` |
+
+---
+
+## Requisitos Previos e Instalacion
+
+### Requisitos Minimos
+- JDK 21 (configurado en la variable de entorno `JAVA_HOME`).
+- Servidor PostgreSQL 14 o superior en ejecucion.
+- Git instalado.
+- Terminal compatible con PowerShell (Windows) o Bash (Linux / macOS).
+
+### 1. Clonar el Proyecto
+```bash
+git clone <URL_DEL_REPOSITORIO>
+cd CAMPUSDESK/backend
+```
+
+### 2. Crear la Base de Datos
+Desde tu cliente PostgreSQL (`psql` o pgAdmin), crea la base de datos requerida:
+
+```sql
+CREATE DATABASE sistema_gestion_usuarios;
+```
+
+---
+
+## Instrucciones de Ejecucion
+
+### Ejecucion con Gradle Wrapper en Windows (PowerShell)
+
+Define las variables de conexion correspondientes a tu instalacion de PostgreSQL:
+
 ```powershell
-cd backend
-$env:SPRING_PROFILES_ACTIVE = "dev"
+$env:DB_URL = "jdbc:postgresql://localhost:5432/sistema_gestion_usuarios"
+$env:DB_USERNAME = "postgres"
+$env:DB_PASSWORD = "tu_password_de_postgres"
+
 .\gradlew.bat bootRun
 ```
 
-Al arrancar, Flyway crea o actualiza el esquema, se crean los roles y permisos, y en el perfil `dev`
-el administrador inicial. La API queda en `http://localhost:8051` y Swagger en
-`http://localhost:8051/swagger-ui.html`.
-
-Empaquetar:
+### Ejecucion en Linux o macOS (Bash)
 
 ```bash
-./gradlew clean test bootJar
+export DB_URL="jdbc:postgresql://localhost:5432/sistema_gestion_usuarios"
+export DB_USERNAME="postgres"
+export DB_PASSWORD="tu_password_de_postgres"
+
+./gradlew bootRun
+```
+
+La aplicacion quedara disponible en el puerto **8051**:
+```text
+http://localhost:8051
+```
+
+### Generacion del Archivo JAR Ejecutable
+
+```powershell
+.\gradlew.bat clean test bootJar
 java -jar build/libs/usermanagement-0.0.1-SNAPSHOT.jar
 ```
 
-Para autenticarse en Swagger: ejecutar `POST /api/auth/login`, copiar el campo `token` y pegarlo en **Authorize**.
+---
 
-## Base de datos y migraciones
+## Estructura del Repositorio
 
-El esquema lo gestionan las migraciones versionadas de `src/main/resources/db/migration`. Hibernate
-solo lo valida (`ddl-auto=validate`).
-
-| Versión | Contenido |
-|---|---|
-| `V1` | Línea base del esquema anterior a Flyway |
-| `V2` | Versión de credenciales del usuario (invalidación de tokens) |
-| `V3` | Categorías como entidad y prioridad canónica |
-| `V4` | Fechas de resolución y cierre, nota de solución |
-| `V5` | Nombre y área del usuario |
-| `V6` | Artículos de conocimiento |
-| `V7` | Consultas al asistente, respuestas, pasos y fuentes |
-| `V8` | Calificaciones |
-| `V9` | Retira del técnico el permiso de lectura de cuentas |
-
-Una base creada antes de adoptar Flyway se toma como versión 1 (`baseline-on-migrate`) y recibe las
-migraciones posteriores. **Esto solo se ha probado sobre bases vacías**: antes de aplicarlo a una
-base con datos, hacer una copia de seguridad y probar sobre la copia.
-
-## Datos de demostración
-
-`src/main/resources/db/seed/demo_data.sql` carga 13 usuarios, 31 artículos y 180 incidentes con su
-historial. Es determinista (cada carga produce los mismos registros) y **no se ejecuta al arrancar**:
-se carga de forma explícita después de arrancar la aplicación una vez.
-
-```bash
-psql -v ON_ERROR_STOP=1 -U <usuario> -d <base> -f backend/src/main/resources/db/seed/demo_data.sql
-# o, con PostgreSQL en Docker:
-docker exec -i <contenedor> psql -v ON_ERROR_STOP=1 -U <usuario> -d <base> < backend/src/main/resources/db/seed/demo_data.sql
+```text
+backend/
+│
+├── build.gradle                             # Configuracion de dependencias y plugins
+├── settings.gradle                          # Definicion del proyecto
+├── gradlew / gradlew.bat                    # Scripts ejecutables de Gradle Wrapper
+├── README.md                                # Documentacion tecnica principal
+│
+└── src/
+    ├── main/
+    │   ├── java/com/roles/usermanagement/
+    │   │   ├── UsermanagementApplication.java
+    │   │   │
+    │   │   ├── modules/                     # Modulos de soporte CAMPUSDESK
+    │   │   │   ├── ticket/                  # Incidencias y requerimientos
+    │   │   │   ├── assignment/              # Asignaciones tecnicas
+    │   │   │   ├── technician/              # Operadores tecnicos
+    │   │   │   ├── comment/                 # Comentarios en tickets
+    │   │   │   ├── statushistory/           # Historial cronologico de estados
+    │   │   │   ├── lifecycle/               # Maquina de estados del ticket
+    │   │   │   └── dashboard/               # Indicadores y metricas
+    │   │   │
+    │   │   ├── domain/                      # DTOs y logica de dominio transversal
+    │   │   ├── persistance/                 # Entidades, repositorios y mappers
+    │   │   └── web/                         # Controladores REST y filtros de seguridad
+    │   │
+    │   └── resources/
+    │       ├── application.properties       # Perfil activo (dev)
+    │       ├── application-dev.properties   # Parametros de base de datos y JWT
+    │       └── banner.txt                   # Banner de arranque CAMPUSDESK
+    │
+    └── test/                                # Pruebas unitarias e integracion
 ```
 
-| Usuario | Rol |
-|---|---|
-| `laura.gomez`, `carlos.ruiz`, `maria.perez`, `andres.castro`, `diana.mora`, `felipe.rojas`, `sofia.vargas`, `jorge.nino` | USER |
-| `tec.redes`, `tec.hardware`, `tec.software`, `tec.aplicaciones` | TECHNICIAN |
-| `admin.demo` | ADMIN |
+---
 
-Todos usan la contraseña `Demo.2026`. **Son cuentas de demostración con una contraseña pública: no
-cargar este script en un despliegue real.** El script se niega a ejecutarse dos veces sobre la misma base.
+## Documentacion Interactiva (Swagger UI)
 
-Los 28 artículos publicados quedan pendientes de indexar. Con n8n disponible, un administrador los
-envía con `POST /api/knowledge/articles/index/reconcile`.
+Una vez iniciado el servidor, puedes probar visualmente todas las rutas y metodos en:
 
-## Endpoints
+- **Swagger UI:**  
+  `http://localhost:8051/swagger-ui.html`
 
-La referencia completa es Swagger; la especificación está exportada en
-[`docs/backend/openapi.json`](../docs/backend/openapi.json). Resumen:
+- **Especificacion OpenAPI (JSON):**  
+  `http://localhost:8051/v3/api-docs`
 
-| Área | Rutas | Acceso |
-|---|---|---|
-| Autenticación | `POST /api/auth/login`, `POST /api/auth/register`, `POST /api/auth/change-password`, `GET /api/auth/me` | Login y registro públicos |
-| Usuarios | `/api/user/**` | Según el permiso de cada operación (`USER_READ`, `USER_CREATE`, `USER_UPDATE`, `USER_DELETE`, `ROLE_ASSIGN`, `PERMISSION_ASSIGN`) |
-| Roles y permisos | `/api/roles`, `/api/permissions` | ADMIN |
-| Categorías | `GET /api/categories`; `POST`, `PUT /{id}`, `PATCH /{id}/activate`, `PATCH /{id}/deactivate` | Lectura: todos. Cambios: ADMIN |
-| Incidentes | `POST /api/tickets`, `GET /api/tickets`, `GET` y `PUT /api/tickets/{id}` | Crear y editar: USER. Ver: según alcance |
-| Asignación | `PATCH /api/tickets/{id}/assign`, `PUT /api/tickets/{id}/reassign` | ADMIN |
-| Estados | `POST /api/tickets/{id}/transitions` | Según la máquina de estados |
-| Historial y comentarios | `GET /api/tickets/{id}/history`, `GET` y `POST /api/tickets/{id}/comments` | Quien puede ver el incidente |
-| Técnicos | `GET /api/technicians`, `GET /api/technicians/available` | ADMIN |
-| Conocimiento | `/api/knowledge/articles/**` | Lectura de publicados: todos. Redacción: TECHNICIAN y ADMIN. Verificar y publicar: ADMIN |
-| Asistente | `POST` y `GET /api/tickets/{id}/assistance`, `GET /api/assistance/queries/{id}` | Quien puede ver el incidente |
-| Calificación | `PUT /api/assistance/queries/{id}/rating` | Quien hizo la consulta |
-| Analítica | `GET /api/analytics/summary` | ADMIN global; USER y TECHNICIAN, su alcance |
-| Integración n8n | `POST /api/integration/knowledge/eligibility`, `GET /api/integration/knowledge/eligible` | Solo `X-Integration-Token` |
+### Procedimiento para Autenticarse en Swagger UI
 
-Códigos de respuesta: 201 creación, 200 consulta o actualización, 400 validación, 401 sin
-autenticación válida, 403 sin permiso, 404 inexistente, 409 conflicto de estado, y 502, 503 o 504
-cuando falla n8n (con `queryId` en el cuerpo).
+1. Ingresa a `http://localhost:8051/swagger-ui.html`.
+2. Ejecuta `POST /api/auth/login` con:
+   ```json
+   {
+     "username": "superadmin",
+     "password": "SuperAdmin123!"
+   }
+   ```
+3. Copia el token recibido en el campo `token` de la respuesta JSON.
+4. En la parte superior derecha de la pagina, haz clic en el boton **Authorize** (marcado con el icono de candado).
+5. Escribe o pega el token en el campo de texto y haz clic en **Authorize**.
+6. Todas las consultas subsecuentes desde Swagger enviaran el token en la cabecera `Authorization: Bearer <token>`.
 
-## Pruebas
+---
 
-```bash
-./gradlew test                    # H2 en memoria: 108 pruebas, 6 omitidas
-bash scripts/test-postgres.sh     # PostgreSQL 17 en Docker con las migraciones reales: 108 pruebas
-```
+## Creditos y Reconocimientos
 
-Resultados, correspondencia con las diez pruebas obligatorias y limitaciones:
-[`docs/backend/PRUEBAS.md`](../docs/backend/PRUEBAS.md).
+Este proyecto adopto como punto de partida la plantilla de codigo abierto **spring-security-user-role-management**, reutilizando sus fundamentos tecnicos para:
+- La configuracion base de Spring Security con filtros JWT stateless y algoritmo HMAC256.
+- El modelo relacional inicial de roles unicos y extension dinamica de permisos individuales en PostgreSQL.
+- El servicio de bootstrap para la inicializacion automatica de catalogos del sistema.
 
-## Decisiones técnicas
-
-| Decisión | Motivo |
-|---|---|
-| PostgreSQL, Gradle y la estructura de módulos existente | Aprovechar la base ya construida sin mantener dos persistencias |
-| Flyway con `ddl-auto=validate` | Cambios de esquema reproducibles y revisables |
-| `spring.jpa.open-in-view=false` | Cada transacción usa su propio contexto; con el valor por defecto se perdía una actualización concurrente durante la indexación |
-| Token de 30 minutos invalidado por versión de credenciales | Un cambio o restablecimiento de contraseña deja sin efecto los tokens anteriores, sin lista negra |
-| Cinco estados de incidente, sin reapertura ni cancelación | El enunciado exige al menos cuatro; se conserva la máquina de estados existente |
-| Solo `ADMIN` verifica y publica artículos; cambiar el contenido revoca la verificación | Solo conocimiento revisado puede ser fuente |
-| Consulta al asistente síncrona con persistencia previa | Sin infraestructura asíncrona adicional; la consulta siempre queda registrada y es consultable |
-| Fuentes validadas contra PostgreSQL al guardar | Un vector que sobra en Qdrant no convierte un artículo inactivo en fuente |
-| Una o dos fuentes válidas se aceptan como evidencia limitada | No se completa el mínimo con artículos por debajo del umbral |
-| Contrato v1 con similitud coseno | Una sola métrica con un rango y un umbral bien definidos |
-| Fechas locales en `America/Bogota` | Los registros existentes ya estaban en esa hora |
-| Analítica por fecha de creación; resuelto incluye `CLOSED`; horas transcurridas | Definiciones reproducibles con SQL |
-| Datos de demostración por script explícito | Ningún despliegue arranca con cuentas de demostración |
-
-Varias de estas decisiones son propuestas técnicas, no exigencias del enunciado, y están pendientes
-de ratificación por el equipo (`CLAUDE.md`, secciones 20 y 21.4).
-
-## Estado y pendientes
-
-Implementado y probado: seguridad, incidentes, categorías, base de conocimiento, sincronización del
-índice, asistente, historial, calificaciones, analítica y datos iniciales.
-
-Pendiente o sin comprobar:
-
-- Revisión humana de la fidelidad de las respuestas generadas: la prueba con modelos reales cubrió pocos casos (`docs/backend/PRUEBAS.md` §8).
-- Recalibrar el umbral con consultas reales de los usuarios: se calibró con 25 consultas redactadas para la prueba.
-- Migraciones sobre una copia de la base de desarrollo existente.
-- Capturas de Swagger con los endpoints nuevos.
-- Revisión humana del código generado con asistencia de IA (`AI_USAGE.md`).
-
-## Documentación
-
-| Documento | Contenido |
-|---|---|
-| [`docs/backend/API_CONOCIMIENTO_ASISTENTE_ANALITICA.md`](../docs/backend/API_CONOCIMIENTO_ASISTENTE_ANALITICA.md) | Contrato para el frontend |
-| [`docs/backend/CONTRATO_N8N.md`](../docs/backend/CONTRATO_N8N.md) | Contrato Spring Boot ↔ n8n |
-| [`docs/backend/DIAGRAMAS.md`](../docs/backend/DIAGRAMAS.md) | Arquitectura, flujos y entidad-relación |
-| [`docs/backend/ANALITICA_SQL.md`](../docs/backend/ANALITICA_SQL.md) | Definición y SQL de los indicadores |
-| [`docs/backend/INFORME_ANALISIS.md`](../docs/backend/INFORME_ANALISIS.md) | Informe de análisis de datos |
-| [`docs/backend/PRUEBAS.md`](../docs/backend/PRUEBAS.md) | Documento de pruebas |
-| [`docs/backend/openapi.json`](../docs/backend/openapi.json) | Especificación OpenAPI exportada |
-| [`AI_USAGE.md`](../AI_USAGE.md) | Registro de uso de IA |
-
-## Créditos
-
-El proyecto partió de la plantilla de código abierto **spring-security-user-role-management**, de la
-que se reutilizan la configuración base de Spring Security con JWT, el modelo de rol único con
-permisos individuales y el servicio de inicialización de catálogos. Sobre esa base el equipo
-desarrolló CampusDesk.
+Sobre dicha base, los creadores de este proyecto diseñaron, desarrollaron e integraron toda la logica de negocio de **CAMPUSDESK**: la gestion de tickets de soporte tecnico, operadores tecnicos, asignaciones, historial de estados, y la politica de seguridad para el ciclo de vida de contraseñas (contraseñas temporales, forzado de cambio en primer ingreso y restablecimiento administrativo).

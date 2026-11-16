@@ -14,12 +14,10 @@ public class OpenApiConfig {
     @Bean
     public OpenAPI userManagementOpenAPI() {
         return new OpenAPI()
-                .info(new Info().title("CampusDesk API")
+                .info(new Info().title("Gestión de usuarios y roles")
                         .version("1.0")
-                        .description("Incidentes tecnológicos, base de conocimiento, asistente RAG, calificaciones y analítica. "
-                                + "Cada operación requiere un JWT (Authorize) salvo el login y el registro. El asistente se consulta "
-                                + "siempre por esta API: el frontend no llama a n8n, Qdrant ni al proveedor de modelos. "
-                                + "Los endpoints /api/integration/** son un contrato de servicio para n8n y usan X-Integration-Token."))
+                        .description("API para administrar usuarios y asignar roles. "
+                                + "Cada operación requiere un JWT y su permiso específico. Los permisos efectivos son los del rol más los individuales."))
                 .components(new Components().addSecuritySchemes(BEARER_AUTH,
                         new SecurityScheme().type(SecurityScheme.Type.HTTP)
                                 .scheme("bearer").bearerFormat("JWT")

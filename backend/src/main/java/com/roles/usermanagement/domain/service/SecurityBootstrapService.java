@@ -68,7 +68,8 @@ public class SecurityBootstrapService {
                             || permName.equals(UserRoles.Authority.TICKET_STATUS_UPDATE.name())
                             || permName.equals(UserRoles.Authority.COMMENT_CREATE.name())
                             || permName.equals(UserRoles.Authority.COMMENT_READ.name())
-                            || permName.equals(UserRoles.Authority.HISTORY_READ.name());
+                            || permName.equals(UserRoles.Authority.HISTORY_READ.name())
+                            || permName.equals(UserRoles.Authority.USER_READ.name());
                 } else if (roleName == UserRoles.Role.USER) {
                     shouldAssign = permName.equals(UserRoles.Authority.TICKET_CREATE.name())
                             || permName.equals(UserRoles.Authority.TICKET_READ_OWN.name())

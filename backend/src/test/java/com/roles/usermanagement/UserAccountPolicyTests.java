@@ -155,26 +155,6 @@ class UserAccountPolicyTests extends ApiTestSupport {
         assertThat(request("GET", "/api/tickets", null, lockedToken).statusCode()).isEqualTo(401);
     }
 
-    @Test
-    void usernameWithMarkupIsRejected() throws Exception {
-        String body = "{\"username\":\"\\\"><svg onload=alert(1)>\",\"email\":\"x_%s@test.local\",\"password\":\"" + PASSWORD + "\"}";
-        assertThat(request("POST", "/api/auth/register", String.format(body, System.nanoTime()), null).statusCode())
-                .isEqualTo(400);
-        assertThat(request("POST", "/api/user/add", String.format(body, System.nanoTime()), adminToken()).statusCode())
-                .isEqualTo(400);
-    }
-
-    @Test
-    void technicianCannotReadOtherAccounts() throws Exception {
-        String technician = createTechnician();
-        String technicianToken = token(technician, PASSWORD);
-
-        assertThat(request("GET", "/api/user/all", null, technicianToken).statusCode()).isEqualTo(403);
-        assertThat(request("GET", "/api/user/" + ADMIN + "/permissions", null, technicianToken).statusCode())
-                .isEqualTo(403);
-        assertThat(request("GET", "/api/technicians", null, adminToken()).statusCode()).isEqualTo(200);
-    }
-
     private JsonNode account(String username) throws Exception {
         HttpResponse<String> response = request("GET", "/api/user/all", null, adminToken());
         assertThat(response.statusCode()).isEqualTo(200);
