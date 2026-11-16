@@ -1,7 +1,7 @@
 # Diagramas: arquitectura y modelo entidad-relación
 
 Los diagramas están en Mermaid: GitHub los dibuja al abrir este archivo. Describen el backend tal
-como está implementado (migraciones `V1` a `V8`). El frontend, Docker Compose, Qdrant y los
+como está implementado (migraciones `V1` a `V9`). El frontend, Docker Compose, Qdrant y los
 workflows de n8n pertenecen a otros integrantes y aparecen aquí solo como componentes externos.
 
 ## 1. Arquitectura
