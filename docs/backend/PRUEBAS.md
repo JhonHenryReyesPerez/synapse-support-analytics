@@ -325,3 +325,48 @@ Cada rol ve solo los botones que el backend le permite.
 - El recorrido del navegador cubre los caminos principales, no todas las pantallas: no se probó crear
   artículos ni categorías, crear usuarios, restablecer contraseñas ni el cambio obligatorio de clave.
 - Un solo navegador (Edge) y un solo tamaño de ventana.
+
+## 12. Ejecución con modelos reales después de las correcciones (16 de noviembre de 2026)
+
+Ejecutada sobre el commit `3cc3dbd` (las cinco correcciones de `CLAUDE.md` §22.9) con `docker-compose.yml`:
+backend construido con su `Dockerfile`, PostgreSQL 17, Qdrant 1.20.1, n8n 2.47.7 y `db/seed/demo_data.sql`.
+Modelos reales de OpenRouter: `openai/text-embedding-3-small` para embeddings y `google/gemini-2.5-flash`
+para generación, con `ASSIST_MIN_SCORE=0,55`.
+
+Fue una comprobación por la API con un script fuera del repositorio; no forma parte de `./gradlew test`
+y no usó el frontend.
+
+| Prueba | Resultado observado |
+|---|---|
+| Indexación | La reconciliación procesó 28 artículos: 28 indexados, 0 fallos; 28 puntos en Qdrant |
+| 1. Incidente de conectividad (sin internet, IP 169.254.10.20) | `ANSWERED` en unos 3 s. Fuentes: artículo 1 «Equipo sin acceso a internet: dirección IP 169.254.x.x» (0,759), artículo 2 «Sin navegación por fallo de resolución DNS» (0,601) y artículo 3 «Wi-Fi corporativo conectado pero sin internet» (0,589) |
+| 2. Error de ejecución 0xc000007b | `ANSWERED`. Fuentes: artículo 8 «La aplicación no inicia: error 0xc000007b» (0,793), artículo 10 (0,609) y artículo 9 (0,579) |
+| 3. Caso sin cobertura (giroscopio de un dron) | `NO_RESULTS`, sin texto de solución |
+| 6. Artículo 1 desactivado y la misma consulta de conectividad | `NO_RESULTS`; el artículo 1 no se citó |
+| 7. Pregunta o descripción en blanco | 400 en ambos casos |
+| 9. Historial de asistencias | 200 para el solicitante (dos consultas: `ANSWERED` y `NO_RESULTS`); 403 para otro usuario |
+| 10. Calificación | 5 guardada y devuelta por la consulta; una puntuación de 6 responde 400 |
+
+Sobre el contenido de las respuestas: la de conectividad propone revisar el cable y la luz de enlace,
+`ipconfig /release` y `/renew`, deshabilitar y habilitar el adaptador, probar otro cable o punto de red
+y escalar a redes por el servidor DHCP; la del error 0xc000007b propone reinstalar Microsoft Visual C++
+Redistributable x86 y x64, reiniciar, ejecutar como administrador y reinstalar la aplicación si persiste.
+Ambas coinciden con su artículo principal.
+
+En la prueba 6 los artículos 2 y 3 seguían por encima del umbral, pero el modelo los juzgó insuficientes:
+el prompt prohíbe responder con artículos de un tema cercano. El artículo 1 se reactivó e indexó de nuevo
+al terminar.
+
+### 12.1 Un error de embeddings no provocado
+
+La prueba 8 no se simuló en esta ejecución. Aun así, una consulta terminó con HTTP 502,
+`code=EMBEDDING_FAILED` y su `queryId` tras 10 s: OpenRouter tardó más que el límite de 10 s del nodo de
+embeddings. La misma llamada, repetida después, respondió bien. Es una sola observación y no se investigó
+más la causa; si se repite, conviene revisar ese límite.
+
+### 12.2 Lo que esta ejecución no demuestra
+
+- Pocos casos y una sola ejecución.
+- La fidelidad la juzgó la herramienta de IA leyendo las respuestas frente a los artículos, no una persona.
+- Las pruebas 4 y 5 no se repitieron; las cubre el §11.
+- No ejercita las correcciones de concurrencia del §22.9 de `CLAUDE.md`.
