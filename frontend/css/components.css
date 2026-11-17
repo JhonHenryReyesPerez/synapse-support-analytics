@@ -170,7 +170,9 @@
   display: none;
 }
 
-.form-group.has-error .form-control {
+.form-group.has-error .form-control,
+.form-control[aria-invalid="true"],
+.form-select[aria-invalid="true"] {
   border-color: var(--color-danger);
 }
 .form-group.has-error .form-error-msg {

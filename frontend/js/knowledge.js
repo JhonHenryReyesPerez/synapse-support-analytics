@@ -56,7 +56,10 @@ const KNOWLEDGE = {
 
     grid.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; padding: 3rem;"><span class="spinner"></span> Cargando artículos...</div>`;
 
+    // Una respuesta de un alcance o página anteriores no debe pintarse bajo el selector actual.
+    const seq = this.listSeq = (this.listSeq || 0) + 1;
     const res = await API.get(`/knowledge/articles?scope=${this.currentScope}&page=${this.currentPage}&size=${this.pageSize}`);
+    if (seq !== this.listSeq) return;
     if (!res.ok) {
       grid.innerHTML = `<div style="grid-column: 1 / -1; color: var(--color-danger); text-align: center;">${UI.escapeHtml(res.error || 'Error al consultar artículos')}</div>`;
       return;
@@ -139,7 +142,10 @@ const KNOWLEDGE = {
   },
 
   async viewArticle(id) {
+    const seq = this.viewSeq = (this.viewSeq || 0) + 1;
     const res = await API.get(`/knowledge/articles/${id}`);
+    // Se descarta si se pidió otro artículo después o si el modal compartido ya lo ocupa otra acción.
+    if (seq !== this.viewSeq || UI.modalStack.some(m => m.id === 'modal-generic')) return;
     if (!res.ok) {
       UI.showToast(res.error || 'No se pudo cargar el artículo.', 'error');
       return;
@@ -199,6 +205,10 @@ const KNOWLEDGE = {
     });
 
     UI.setLoading(btn, false);
+    UI.markFieldErrors(res.fieldErrors, {
+      title: 'article-title', problem: 'article-problem', symptoms: 'article-symptoms',
+      cause: 'article-cause', solution: 'article-solution'
+    });
 
     if (!res.ok) {
       UI.showToast(res.error || 'Error al guardar el artículo.', 'error');

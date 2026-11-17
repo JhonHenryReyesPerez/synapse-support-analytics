@@ -184,6 +184,24 @@ const UI = {
   /**
    * Escapa caracteres HTML para prevenir inyecciones XSS.
    */
+  /**
+   * Marca como inválidos los controles cuyo campo rechazó el backend y enfoca el primero.
+   * Sin errores (envío aceptado o fallo de otro tipo) limpia la marca.
+   * @param {object} [fieldErrors] `fieldErrors` de API.request
+   * @param {object} controlIds campo del DTO → id del control
+   */
+  markFieldErrors(fieldErrors, controlIds) {
+    let first = null;
+    for (const [field, id] of Object.entries(controlIds)) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      const invalid = Boolean(fieldErrors && fieldErrors[field]);
+      el.setAttribute('aria-invalid', String(invalid));
+      if (invalid && !first) first = el;
+    }
+    if (first) first.focus();
+  },
+
   escapeHtml(str) {
     if (str === null || str === undefined) return '';
     // También las comillas: el resultado se usa dentro de atributos (value="...", data-...).

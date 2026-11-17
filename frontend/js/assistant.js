@@ -11,6 +11,10 @@ const ASSISTANT = {
   askSeq: 0,
   historySeq: 0,
   historyLoading: false,
+  // Última consulta sin resultado confirmado o terminada en ERROR: {ticketId, question, requestId, retryOfQueryId}.
+  // Repetir la misma pregunta reutiliza su requestId (el backend devuelve la consulta ya creada en
+  // vez de generar otra) o, si terminó en ERROR, crea una nueva enlazada con retryOfQueryId.
+  unsettledAsk: null,
 
   /** Fija el incidente activo; al cambiar, descarta respuesta, pregunta e historial del anterior. */
   setTicket(ticketId) {
@@ -47,15 +51,20 @@ const ASSISTANT = {
     this.setTicket(ticketId);
     const seq = ++this.askSeq;
 
-    // Generar UUID v4 para idempotencia (requestId)
-    const requestId = this.generateUuid();
-
-    const payload = {
-      requestId
+    const question = (customQuestion || '').trim();
+    const previous = this.unsettledAsk && this.unsettledAsk.ticketId === ticketId
+      && this.unsettledAsk.question === question ? this.unsettledAsk : null;
+    // UUID v4 para idempotencia: se conserva mientras el resultado del intento anterior sea incierto.
+    const attempt = {
+      ticketId, question,
+      requestId: (previous && previous.requestId) || this.generateUuid(),
+      retryOfQueryId: previous ? previous.retryOfQueryId : undefined
     };
-    if (customQuestion && customQuestion.trim()) {
-      payload.question = customQuestion.trim();
-    }
+    this.unsettledAsk = attempt;
+
+    const payload = { requestId: attempt.requestId };
+    if (question) payload.question = question;
+    if (attempt.retryOfQueryId) payload.retryOfQueryId = attempt.retryOfQueryId;
 
     if (container) {
       container.innerHTML = `
@@ -73,6 +82,8 @@ const ASSISTANT = {
     UI.setLoading(btnSubmit, true, 'Consultando Asistente...');
 
     const res = await API.post(`/tickets/${ticketId}/assistance`, payload);
+    // Se anota el desenlace aunque ya se muestre otro incidente: decide cómo se repite esta pregunta.
+    const uncertain = this.settleAsk(attempt, res);
     if (seq !== this.askSeq) return; // también descarta respuestas al volver de A a B y a A
     UI.setLoading(btnSubmit, false);
 
@@ -82,6 +93,7 @@ const ASSISTANT = {
           <div class="alert-no-results">
             <strong>No fue posible completar la consulta:</strong><br/>
             ${UI.escapeHtml(res.error || 'Ocurrió un error en la orquestación.')}
+            ${uncertain ? '<br/>No se pudo confirmar si la consulta llegó a procesarse. Al consultar de nuevo con la misma pregunta se recuperará esa misma consulta, sin generar otra.' : ''}
           </div>
         `;
       }
@@ -93,6 +105,28 @@ const ASSISTANT = {
     this.historyById[res.data.id] = res.data;
     this.renderResponse(res.data);
     await this.loadHistory(ticketId);
+  },
+
+  /**
+   * Actualiza unsettledAsk según la respuesta del intento.
+   * @returns {boolean} true si no se sabe si el backend procesó la consulta.
+   */
+  settleAsk(attempt, res) {
+    const failedQueryId = res.ok
+      ? (res.data && res.data.status === 'ERROR' ? res.data.id : null)
+      : (res.data && res.data.queryId) || null;
+    // Sin respuesta, o un 5xx sin queryId, no dicen si la consulta se creó; PENDING sigue en curso.
+    const uncertain = res.ok
+      ? Boolean(res.data) && res.data.status === 'PENDING'
+      : !failedQueryId && (res.status === 0 || res.status >= 500);
+    if (this.unsettledAsk !== attempt) return uncertain; // ya hay un intento posterior
+    if (failedQueryId) {
+      // Terminó en ERROR: repetirla es una consulta nueva enlazada con la fallida.
+      this.unsettledAsk = { ticketId: attempt.ticketId, question: attempt.question, retryOfQueryId: failedQueryId };
+    } else if (!uncertain) {
+      this.unsettledAsk = null;
+    }
+    return uncertain;
   },
 
   renderResponse(query) {
@@ -149,16 +183,25 @@ const ASSISTANT = {
         <div class="sources-container">
           ${query.sources.map((src, index) => {
             const simScore = (typeof src.similarity === 'number') ? src.similarity.toFixed(4) : '—';
+            const version = src.articleVersion != null ? ` · v${UI.escapeHtml(src.articleVersion)}` : '';
+            // current === false: el artículo cambió o dejó de estar publicado después de esta respuesta.
+            // La evidencia mostrada sigue siendo la que se usó entonces; solo se advierte su vigencia.
+            const outdated = src.current === false ? `
+                <div class="alert-limited-evidence" role="note">
+                  <span>${UI.icon('warning')}</span>
+                  <span><strong>Fuente histórica:</strong> este artículo fue modificado o dejó de estar publicado después de esta respuesta. El texto corresponde a la versión usada entonces y puede no estar vigente.</span>
+                </div>` : '';
             return `
               <div class="source-card">
                 <div class="source-header">
                   <div class="source-title">
-                    [Fuente ${index + 1}] ${UI.escapeHtml(src.title)}
+                    [Fuente ${index + 1}] ${UI.escapeHtml(src.title)}${version}
                   </div>
                   <span class="similarity-badge" title="Métrica de similitud coseno (no es probabilidad)">
                     cos: ${simScore}
                   </span>
                 </div>
+                ${outdated}
                 ${src.evidence ? `
                   <button type="button" class="source-evidence-toggle" onclick="ASSISTANT.toggleEvidence('ev-${query.id}-${index}')">
                     Ver fragmento de evidencia utilizada ${UI.icon('chevron-down')}

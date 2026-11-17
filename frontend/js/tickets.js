@@ -11,6 +11,8 @@ const TICKETS = {
   detailSeq: 0,
   commentsSeq: 0,
   historySeq: 0,
+  commentsShownFor: null, // incidente cuyos comentarios/historial están en pantalla
+  historyShownFor: null,
 
   async init() {
     await this.loadCategories();
@@ -207,6 +209,10 @@ const TICKETS = {
     });
 
     UI.setLoading(btnSubmit, false);
+    UI.markFieldErrors(res.fieldErrors, {
+      title: 'create-ticket-title', description: 'create-ticket-description',
+      categoryId: 'create-ticket-category', priority: 'create-ticket-priority'
+    });
 
     if (!res.ok) {
       UI.showToast(res.error || 'No se pudo crear el incidente.', 'error');
@@ -336,7 +342,8 @@ const TICKETS = {
     }
 
     UI.showToast(`Estado actualizado: ${res.data.newStatus}`, 'success');
-    await this.openTicketDetail(ticketId);
+    // Si mientras tanto se abrió otro incidente, no se le quita la vista para reabrir este.
+    if (this.activeTicketId === ticketId) await this.openTicketDetail(ticketId);
     await this.loadTickets();
     return true;
   },
@@ -400,7 +407,7 @@ const TICKETS = {
 
       UI.showToast('Técnico asignado exitosamente.', 'success');
       UI.closeModal('modal-generic');
-      await this.openTicketDetail(ticketId);
+      if (this.activeTicketId === ticketId) await this.openTicketDetail(ticketId);
       await this.loadTickets();
     };
 
@@ -442,14 +449,22 @@ const TICKETS = {
     const list = document.getElementById('detail-comments-list');
     if (!list) return;
 
-    list.innerHTML = `<span class="spinner"></span> Cargando comentarios...`;
+    // Al recargar el mismo incidente se conserva lo ya mostrado hasta tener la respuesta.
+    const reloading = this.commentsShownFor === ticketId;
+    if (!reloading) {
+      this.commentsShownFor = null;
+      list.innerHTML = `<span class="spinner"></span> Cargando comentarios...`;
+    }
     const seq = ++this.commentsSeq;
     const res = await API.get(`/tickets/${ticketId}/comments`);
     if (this.activeTicketId !== ticketId || seq !== this.commentsSeq) return;
     if (!res.ok) {
-      list.innerHTML = `<span style="color:var(--text-subtle);">Sin comentarios.</span>`;
+      // Un fallo no es una lista vacía: se dice y se ofrece reintentar.
+      if (reloading) UI.showToast(res.error || 'No se pudieron actualizar los comentarios.', 'error');
+      else list.innerHTML = this.loadErrorHtml('No se pudieron cargar los comentarios.', res.error, `TICKETS.loadComments(${Number(ticketId)})`);
       return;
     }
+    this.commentsShownFor = ticketId;
 
     const comments = res.data || [];
     if (comments.length === 0) {
@@ -478,7 +493,9 @@ const TICKETS = {
     const btn = document.getElementById('btn-submit-comment');
     UI.setLoading(btn, true, 'Publicando...');
 
-    const res = await API.post(`/tickets/${this.currentTicket.id}/comments`, {
+    const ticketId = this.currentTicket.id;
+    const input = document.getElementById('comment-input');
+    const res = await API.post(`/tickets/${ticketId}/comments`, {
       content,
       visibility: isInternal ? 'INTERNAL' : 'PUBLIC'
     });
@@ -490,24 +507,43 @@ const TICKETS = {
       return;
     }
 
-    document.getElementById('comment-input').value = '';
-    await this.loadComments(this.currentTicket.id);
+    // La respuesta puede llegar con otro incidente abierto o con un borrador nuevo en el campo
+    // compartido: solo se limpia el texto que se envió y solo se recarga el incidente comentado.
+    if (this.activeTicketId !== ticketId) return;
+    if (input.value.trim() === content) input.value = '';
+    await this.loadComments(ticketId);
+  },
+
+  /** Aviso de carga fallida con botón de reintento; `retryCall` es código propio, no dato del servidor. */
+  loadErrorHtml(message, detail, retryCall) {
+    return `<span role="alert" style="color:var(--color-danger);">${UI.escapeHtml(message)}${detail ? ` ${UI.escapeHtml(detail)}` : ''}</span>
+      <button type="button" class="btn btn-outline btn-sm" onclick="${retryCall}">Reintentar</button>`;
   },
 
   async loadHistory(ticketId) {
     const timeline = document.getElementById('detail-history-timeline');
     if (!timeline) return;
 
-    timeline.innerHTML = `<li><span class="spinner"></span></li>`;
+    const reloading = this.historyShownFor === ticketId;
+    if (!reloading) {
+      this.historyShownFor = null;
+      timeline.innerHTML = `<li><span class="spinner"></span></li>`;
+    }
     const seq = ++this.historySeq;
     const res = await API.get(`/tickets/${ticketId}/history`);
     if (this.activeTicketId !== ticketId || seq !== this.historySeq) return;
     if (!res.ok) {
+      if (reloading) UI.showToast(res.error || 'No se pudo actualizar el historial.', 'error');
+      else timeline.innerHTML = `<li>${this.loadErrorHtml('No se pudo cargar el historial.', res.error, `TICKETS.loadHistory(${Number(ticketId)})`)}</li>`;
+      return;
+    }
+    this.historyShownFor = ticketId;
+
+    const history = res.data || [];
+    if (history.length === 0) {
       timeline.innerHTML = `<li>Sin historial.</li>`;
       return;
     }
-
-    const history = res.data || [];
     timeline.innerHTML = history.map(h => `
       <li class="timeline-item">
         <div class="timeline-dot"></div>

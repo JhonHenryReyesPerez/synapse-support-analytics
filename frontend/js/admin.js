@@ -229,6 +229,7 @@ const ADMIN = {
 
     const res = await API.post('/categories', { name, description });
     UI.setLoading(btn, false);
+    UI.markFieldErrors(res.fieldErrors, { name: 'cat-name', description: 'cat-description' });
 
     if (!res.ok) {
       UI.showToast(res.error || 'No se pudo crear la categoría.', 'error');

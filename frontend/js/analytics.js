@@ -97,8 +97,13 @@ const ANALYTICS = {
     const cohort = data.cohort || {};
     const scope = { GLOBAL: 'Global', OWN: 'Mis incidentes', ASSIGNED: 'Mis asignados' }[cohort.scope] || 'Alcance de la sesión';
     const period = cohort.from || cohort.to ? `${cohort.from || 'Inicio'} — ${cohort.to || 'Hoy'}` : 'Todo el historial';
-    const category = (data.byCategory || []).find(c => c.categoryId === cohort.categoryId)?.category;
-    put('analytics-cohort', [scope, period, category || 'Todas las categorías', this.priorityLabels[cohort.priority] || 'Todas las prioridades'].join(' · '));
+    // La etiqueta sale de la cohorte que calculó el backend, no del selector (puede haber cambiado)
+    // ni solo de byCategory (vacío cuando la categoría filtrada no tiene incidentes).
+    const category = cohort.categoryId == null ? 'Todas las categorías'
+      : (data.byCategory || []).find(c => c.categoryId === cohort.categoryId)?.category
+        || (window.TICKETS?.categories || []).find(c => c.id === cohort.categoryId)?.name
+        || `Categoría #${cohort.categoryId}`;
+    put('analytics-cohort', [scope, period, category, this.priorityLabels[cohort.priority] || 'Todas las prioridades'].join(' · '));
     put('analytics-generated', cohort.generatedAt ? `Calculado: ${UI.formatDate(cohort.generatedAt)} · ${cohort.timeZone || 'America/Bogota'} · Estado actual de la cohorte` : '');
     put('analytics-exclusions', data.resolutionTime?.excludedCount != null ? `${n(data.resolutionTime.excludedCount)} casos excluidos del promedio por fechas no válidas. El promedio incluye solo resoluciones con fecha válida.` : '');
     put('analytics-trend-caption', data.trend?.granularity === 'WEEK' ? 'Incidentes registrados por semana · inicio el lunes' : 'Incidentes registrados por día');

@@ -19,15 +19,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 3. Inicializar navegación entre secciones
   initNavigation(currentUser);
 
-  // 4. Inicializar módulos base
-  if (window.TICKETS) await TICKETS.init();
-  if (window.ANALYTICS) await ANALYTICS.init();
-  if (window.KNOWLEDGE) await KNOWLEDGE.init();
-  if (currentUser && currentUser.role === 'ADMIN' && window.ADMIN) {
-    await ADMIN.init();
-  }
-
-  // Manejar botón de logout
+  // Cerrar sesión se registra antes de las cargas remotas: debe funcionar aunque el backend no responda.
   const btnLogout = document.getElementById('btn-app-logout');
   if (btnLogout) {
     btnLogout.addEventListener('click', () => {
@@ -35,6 +27,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         AUTH.logout();
       }
     });
+  }
+
+  // 4. Inicializar módulos base
+  if (window.TICKETS) await TICKETS.init();
+  if (window.ANALYTICS) await ANALYTICS.init();
+  if (window.KNOWLEDGE) await KNOWLEDGE.init();
+  if (currentUser && currentUser.role === 'ADMIN' && window.ADMIN) {
+    await ADMIN.init();
   }
 });
 
