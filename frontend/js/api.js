@@ -85,14 +85,17 @@ const API = {
       // 5. Manejo de errores de validación 400 y conflictos 409
       if (!response.ok) {
         let errorMsg = 'Ha ocurrido un error en la solicitud';
+        let fieldErrors;
         if (data) {
-          if (data.error) errorMsg = data.error;
+          // Validación de Spring: {error: 'Validación fallida', errors: {campo: detalle}}.
+          // El detalle por campo es lo que permite corregir la entrada: va antes que el resumen.
+          if (data.errors && typeof data.errors === 'object' && Object.keys(data.errors).length > 0) {
+            fieldErrors = data.errors;
+            errorMsg = `${data.error || 'Validación fallida'}: ${Object.values(data.errors).join('; ')}`;
+          } else if (data.error) errorMsg = data.error;
           else if (data.message) errorMsg = data.message;
-          else if (data.errors && typeof data.errors === 'object') {
-            errorMsg = Object.values(data.errors).join(', ');
-          }
         }
-        return { ok: false, status, data, error: errorMsg };
+        return { ok: false, status, data, error: errorMsg, fieldErrors };
       }
 
       return { ok: true, status, data };

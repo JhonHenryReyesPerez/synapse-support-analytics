@@ -171,6 +171,32 @@ class KnowledgeIndexTests extends ApiTestSupport {
     }
 
     @Test
+    void articleReactivatedDuringRemovalIsIndexedAgainByReconciliation() throws Exception {
+        String admin = adminToken();
+        long id = publishArticle("Borrado tardío", "Reiniciar el servicio");
+        // Mientras n8n borra el vector, un administrador reactiva el artículo y este se indexa.
+        n8n.onIndex = request -> {
+            n8n.onIndex = FakeN8nClient::indexed;
+            try {
+                this.request("POST", "/api/knowledge/articles/" + id + "/activate", null, admin);
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+            return FakeN8nClient.indexed(request);
+        };
+
+        request("POST", "/api/knowledge/articles/" + id + "/deactivate", null, admin);
+
+        // El borrado llegó después del upsert: el vector pudo perderse, así que no puede quedar INDEXED.
+        JsonNode result = article(id, admin);
+        assertThat(result.get("active").asBoolean()).isTrue();
+        assertThat(result.get("indexStatus").asText()).isEqualTo("PENDING");
+        request("POST", "/api/knowledge/articles/index/reconcile", null, admin);
+        assertThat(article(id, admin).get("indexStatus").asText()).isEqualTo("INDEXED");
+        assertThat(callsFor(id).get(callsFor(id).size() - 1).action()).isEqualTo(IndexRequest.Action.UPSERT);
+    }
+
+    @Test
     void integrationContractRequiresServiceSecretAndReflectsRelationalTruth() throws Exception {
         String admin = adminToken();
         long eligible = publishArticle("Proxy mal configurado", "Restablecer el proxy del sistema");
@@ -211,6 +237,39 @@ class KnowledgeIndexTests extends ApiTestSupport {
         n8n.onIndex = FakeN8nClient::indexed;
         publishArticle(title, "Solución de referencia");
         n8n.onIndex = previous;
+    }
+
+    /** Más artículos con error permanente que el lote: los primeros no deben monopolizar cada llamada. */
+    @Test
+    void permanentlyFailingBatchDoesNotStarveLaterArticles() throws Exception {
+        String admin = adminToken();
+        n8n.onIndex = request -> {
+            throw new N8nException(N8nException.Kind.TIMEOUT);
+        };
+        long last = 0;
+        for (int i = 0; i < 51; i++) {
+            last = json(request("POST", "/api/knowledge/articles", KnowledgeArticleTests.body("Lote " + i, "s"), admin))
+                    .get("id").asLong();
+            request("POST", "/api/knowledge/articles/" + last + "/verify", null, admin);
+            request("POST", "/api/knowledge/articles/" + last + "/activate", null, admin);
+        }
+        assertThat(article(last, admin).get("indexStatus").asText()).isEqualTo("ERROR");
+        assertThat(callsFor(last)).hasSize(1);
+
+        // Pueden quedar pendientes de otras pruebas por delante: se admiten algunas llamadas, no infinitas.
+        JsonNode summary = null;
+        for (int call = 0; call < 4 && callsFor(last).size() == 1; call++) {
+            summary = json(request("POST", "/api/knowledge/articles/index/reconcile", null, admin));
+            assertThat(summary.get("processed").asInt()).isLessThanOrEqualTo(50);
+        }
+        assertThat(callsFor(last)).as("el último artículo también se reintenta").hasSize(2);
+
+        // Recuperado el servicio, todos terminan indexados.
+        n8n.onIndex = FakeN8nClient::indexed;
+        for (int call = 0; call < 4; call++) {
+            request("POST", "/api/knowledge/articles/index/reconcile", null, admin);
+        }
+        assertThat(article(last, admin).get("indexStatus").asText()).isEqualTo("INDEXED");
     }
 
     private List<IndexRequest> callsFor(long id) {

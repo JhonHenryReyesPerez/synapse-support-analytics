@@ -41,7 +41,11 @@ public class CommentService {
     @Transactional
     public CommentResponse addComment(Long ticketId, CommentCreateRequest request, String username) {
         UserEntity author = findUser(username);
-        Ticket ticket = findTicket(ticketId);
+        // Con bloqueo: un cierre o una reasignación simultánea se evalúa antes o después, nunca en medio.
+        Ticket ticket = entityManager.find(Ticket.class, ticketId, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+        if (ticket == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "La incidencia no existe");
+        }
         String role = authorizedRole(ticket, author);
         if (ticket.getStatus() == TicketStatus.CLOSED) {
             throw badRequest("No se pueden agregar comentarios a una incidencia cerrada");

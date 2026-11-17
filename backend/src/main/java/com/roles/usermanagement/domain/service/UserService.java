@@ -140,6 +140,10 @@ public class UserService {
     if (username == null || username.isBlank()) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El usuario es obligatorio");
     }
+    // Orden único de bloqueo: primero el conjunto de administradores activos y después la cuenta.
+    // UserAccountPolicy vuelve a pedir ese conjunto; si aquí se bloqueara antes la cuenta, dos
+    // operaciones sobre administradores distintos se esperarían mutuamente (interbloqueo).
+    accounts.lockActiveByRole("ADMIN");
     return accounts.findForUpdate(username)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "El usuario no existe"));
   }

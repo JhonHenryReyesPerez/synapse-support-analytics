@@ -13,12 +13,6 @@ const CONFIG = {
   ROUTES: {
     LOGIN: 'index.html',
     APP: 'app.html'
-  },
-
-  // Umbral y modelos RAG informativos
-  RAG_METRICS: {
-    SIMILARITY_METRIC: 'cosine',
-    DEFAULT_MIN_SCORE: 0.70
   }
 };
 

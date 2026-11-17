@@ -33,7 +33,10 @@ public interface KnowledgeArticleRepository extends JpaRepository<KnowledgeArtic
 
     List<KnowledgeArticle> findByActiveTrueAndVerifiedTrueOrderByIdAsc();
 
-    List<KnowledgeArticle> findByIndexStatusInOrderByIdAsc(Collection<IndexSyncStatus> statuses);
+    /** Ids de artículos por sincronizar posteriores a {@code after}, en orden; el tope va en {@code limit}. */
+    @Query("select a.id from KnowledgeArticle a where a.indexStatus in :statuses and a.id > :after order by a.id")
+    List<Long> findIdsToSync(@Param("statuses") Collection<IndexSyncStatus> statuses, @Param("after") long after,
+                             Pageable limit);
 
     long countByActiveTrueAndVerifiedTrue();
 

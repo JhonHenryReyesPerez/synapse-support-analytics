@@ -111,10 +111,10 @@ cp .env.example .env      # editar los valores; .env está excluido de Git
 | `N8N_SERVICE_TOKEN` | Secreto que Spring Boot envía a n8n (`X-Service-Token`), mínimo 32 caracteres | Obligatoria si hay `N8N_BASE_URL` |
 | `INTEGRATION_API_TOKEN` | Secreto que n8n envía a `/api/integration/**` (`X-Integration-Token`), mínimo 32 caracteres | Vacía: esos endpoints quedan cerrados |
 | `N8N_INDEX_PATH`, `N8N_ASSIST_PATH` | Rutas de los webhooks | `/webhook/campusdesk-index`, `/webhook/campusdesk-assist` |
-| `N8N_CONNECT_TIMEOUT`, `N8N_READ_TIMEOUT` | Tiempos límite hacia n8n | `5s`, `60s` |
+| `N8N_CONNECT_TIMEOUT`, `N8N_READ_TIMEOUT` | Tiempo límite de conexión y plazo total de cada respuesta de n8n (cabeceras y cuerpo) | `5s`, `60s` |
 | `N8N_MAX_RESPONSE_BYTES` | Tamaño máximo de una respuesta de n8n | `1048576` |
 | `ASSIST_MAX_RESULTS` | Artículos a recuperar (3 a 5) | `5` |
-| `ASSIST_MIN_SCORE` | Umbral mínimo de similitud coseno (0 a 1) | `0.70` (valor inicial, sin calibrar) |
+| `ASSIST_MIN_SCORE` | Umbral mínimo de similitud coseno (0 a 1) | `0.55` (calibrado con `openai/text-embedding-3-small`; ver `docs/backend/PRUEBAS.md` §9) |
 | `ASSIST_PENDING_TIMEOUT` | Edad a partir de la cual una consulta sin resultado se cierra como error | `5m` |
 
 Las credenciales de Qdrant y de OpenRouter no se configuran aquí: pertenecen a n8n.
@@ -168,6 +168,7 @@ solo lo valida (`ddl-auto=validate`).
 | `V6` | Artículos de conocimiento |
 | `V7` | Consultas al asistente, respuestas, pasos y fuentes |
 | `V8` | Calificaciones |
+| `V9` | Retira del técnico el permiso de lectura de cuentas |
 
 Una base creada antes de adoptar Flyway se toma como versión 1 (`baseline-on-migrate`) y recibe las
 migraciones posteriores. **Esto solo se ha probado sobre bases vacías**: antes de aplicarlo a una
@@ -226,8 +227,8 @@ cuando falla n8n (con `queryId` en el cuerpo).
 ## Pruebas
 
 ```bash
-./gradlew test                    # H2 en memoria: 104 pruebas, 6 omitidas
-bash scripts/test-postgres.sh     # PostgreSQL 17 en Docker con las migraciones reales: 104 pruebas
+./gradlew test                    # H2 en memoria: 109 pruebas, 6 omitidas
+bash scripts/test-postgres.sh     # PostgreSQL 17 en Docker con las migraciones reales: 109 pruebas
 ```
 
 Resultados, correspondencia con las diez pruebas obligatorias y limitaciones:
@@ -261,8 +262,8 @@ Implementado y probado: seguridad, incidentes, categorías, base de conocimiento
 
 Pendiente o sin comprobar:
 
-- Prueba del asistente y de la indexación con modelos reales de OpenRouter (la prueba integrada con n8n y Qdrant usó un proveedor simulado).
-- Calibración del umbral de similitud con el modelo de embeddings real.
+- Revisión humana de la fidelidad de las respuestas generadas: la prueba con modelos reales cubrió pocos casos (`docs/backend/PRUEBAS.md` §8).
+- Recalibrar el umbral con consultas reales de los usuarios: se calibró con 25 consultas redactadas para la prueba.
 - Migraciones sobre una copia de la base de desarrollo existente.
 - Capturas de Swagger con los endpoints nuevos.
 - Revisión humana del código generado con asistencia de IA (`AI_USAGE.md`).

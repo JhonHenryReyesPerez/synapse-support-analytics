@@ -74,6 +74,7 @@ services:
       OPENROUTER_BASE_URL: ${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-openai/text-embedding-3-small}
       GENERATION_MODEL: ${GENERATION_MODEL:-google/gemini-2.5-flash}
+      GENERATION_MAX_TOKENS: ${GENERATION_MAX_TOKENS:-1500}
       QDRANT_URL: http://qdrant:6333
       QDRANT_COLLECTION: ${QDRANT_COLLECTION:-articulos_soporte}
       BACKEND_URL: http://backend:8051
@@ -119,7 +120,7 @@ services:
       N8N_SERVICE_TOKEN: ${N8N_SERVICE_TOKEN:?Definir N8N_SERVICE_TOKEN en .env}
       INTEGRATION_API_TOKEN: ${INTEGRATION_API_TOKEN:?Definir INTEGRATION_API_TOKEN en .env}
       ASSIST_MAX_RESULTS: ${ASSIST_MAX_RESULTS:-5}
-      ASSIST_MIN_SCORE: ${ASSIST_MIN_SCORE:-0.70}
+      ASSIST_MIN_SCORE: ${ASSIST_MIN_SCORE:-0.55}
     depends_on:
       db:
         condition: service_healthy

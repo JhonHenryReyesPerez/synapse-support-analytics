@@ -19,15 +19,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 3. Inicializar navegación entre secciones
   initNavigation(currentUser);
 
-  // 4. Inicializar módulos base
-  if (window.TICKETS) await TICKETS.init();
-  if (window.ANALYTICS) await ANALYTICS.init();
-  if (window.KNOWLEDGE) await KNOWLEDGE.init();
-  if (currentUser && currentUser.role === 'ADMIN' && window.ADMIN) {
-    await ADMIN.init();
-  }
-
-  // Manejar botón de logout
+  // Cerrar sesión se registra antes de las cargas remotas: debe funcionar aunque el backend no responda.
   const btnLogout = document.getElementById('btn-app-logout');
   if (btnLogout) {
     btnLogout.addEventListener('click', () => {
@@ -35,6 +27,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         AUTH.logout();
       }
     });
+  }
+
+  // 4. Inicializar módulos base
+  if (window.TICKETS) await TICKETS.init();
+  if (window.ANALYTICS) await ANALYTICS.init();
+  if (window.KNOWLEDGE) await KNOWLEDGE.init();
+  if (currentUser && currentUser.role === 'ADMIN' && window.ADMIN) {
+    await ADMIN.init();
   }
 });
 
@@ -62,6 +62,10 @@ function renderUserProfile(user) {
     document.querySelectorAll('.tech-admin-only').forEach(el => {
       el.style.display = 'none';
     });
+  } else {
+    // Solo el rol USER registra incidentes.
+    const btnNewTicket = document.getElementById('btn-new-ticket');
+    if (btnNewTicket) btnNewTicket.style.display = 'none';
   }
 }
 
@@ -69,12 +73,28 @@ function initNavigation(user) {
   const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
   const views = document.querySelectorAll('.view-section');
   const pageTitle = document.getElementById('header-view-title');
+  const description = document.getElementById('header-view-description');
+  const eyebrow = document.getElementById('header-view-eyebrow');
+  const navigation = document.getElementById('app-navigation');
+  const menu = document.getElementById('btn-navigation-toggle');
+
+  const setMenuOpen = open => {
+    navigation.classList.toggle('is-menu-open', open);
+    menu.setAttribute('aria-expanded', String(open));
+  };
+  menu.addEventListener('click', () => setMenuOpen(menu.getAttribute('aria-expanded') !== 'true'));
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && menu.getAttribute('aria-expanded') === 'true') {
+      setMenuOpen(false);
+      menu.focus();
+    }
+  });
 
   const viewTitles = {
-    'view-dashboard': 'Dashboard Analítico',
-    'view-tickets': 'Gestión de Incidentes',
-    'view-knowledge': 'Base de Conocimiento',
-    'view-admin': 'Administración y Catálogos'
+    'view-dashboard': ['El pulso del soporte.', 'Volumen, conocimiento y resolución en una misma lectura.', 'Análisis de incidentes'],
+    'view-tickets': ['Incidentes', 'Cada solicitud, su contexto y el siguiente paso.', 'Gestión de soporte'],
+    'view-knowledge': ['Conocimiento compartido.', 'Procedimientos documentados para resolver mejor.', 'Biblioteca técnica'],
+    'view-admin': ['Administración', 'Personas, accesos y categorías de soporte.', 'Organización']
   };
 
   navItems.forEach(item => {
@@ -83,8 +103,13 @@ function initNavigation(user) {
       if (!targetView) return;
 
       // Actualizar estado activo en navegación
-      navItems.forEach(n => n.classList.remove('is-active'));
+      navItems.forEach(n => {
+        n.classList.remove('is-active');
+        n.removeAttribute('aria-current');
+      });
       item.classList.add('is-active');
+      item.setAttribute('aria-current', 'page');
+      setMenuOpen(false);
 
       // Actualizar sección activa
       views.forEach(v => {
@@ -97,7 +122,10 @@ function initNavigation(user) {
 
       // Actualizar título en barra superior
       if (pageTitle && viewTitles[targetView]) {
-        pageTitle.textContent = viewTitles[targetView];
+        pageTitle.textContent = viewTitles[targetView][0];
+        description.textContent = viewTitles[targetView][1];
+        eyebrow.textContent = `Synapse / ${viewTitles[targetView][2]}`;
+        pageTitle.focus({ preventScroll: true });
       }
 
       // Disparar recargas específicas según vista

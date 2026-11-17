@@ -14,14 +14,12 @@
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
-  transition: all var(--transition-fast);
+  transition: border-color var(--transition-fast), color var(--transition-fast);
   overflow: hidden;
 }
 
 .article-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-  border-color: #cbd5e1;
+  border-color: var(--border-color);
 }
 
 .article-card-header {
@@ -76,37 +74,45 @@
 
 /* Badges de Conocimiento e Indexación */
 .badge-draft {
-  background-color: #f1f5f9;
-  color: #475569;
+  background-color: var(--status-closed-bg);
+  color: var(--status-closed-text);
 }
 .badge-verified {
-  background-color: #ecfdf5;
-  color: #047857;
-  border: 1px solid #a7f3d0;
+  background-color: var(--color-success-bg);
+  color: var(--status-resolved-text);
+  border: 1px solid var(--color-success-border);
 }
 .badge-active {
-  background-color: #eff6ff;
-  color: #1d4ed8;
-  border: 1px solid #bfdbfe;
+  background-color: var(--color-accent-subtle);
+  color: var(--status-open-text);
+  border: 1px solid var(--color-info-border);
 }
 .badge-inactive {
-  background-color: #fef2f2;
-  color: #b91c1c;
+  background-color: var(--color-danger-bg);
+  color: var(--priority-critica);
 }
 
 .badge-index-not-indexed {
-  background-color: #f1f5f9;
-  color: #64748b;
+  background-color: var(--status-closed-bg);
+  color: var(--text-muted);
 }
 .badge-index-pending {
-  background-color: #fef3c7;
-  color: #b45309;
+  background-color: var(--status-in-progress-bg);
+  color: var(--status-in-progress-text);
 }
 .badge-index-indexed {
-  background-color: #ecfdf5;
-  color: #047857;
+  background-color: var(--color-success-bg);
+  color: var(--status-resolved-text);
 }
 .badge-index-error {
-  background-color: #fef2f2;
-  color: #dc2626;
+  background-color: var(--color-danger-bg);
+  color: var(--priority-critica);
 }
+
+.article-card { box-shadow: none; border-radius: 0; border-width: 1px 0 0; border-top-color: var(--border-strong); background: transparent; }
+.article-card-title { font-family: var(--font-family-display); font-weight: 500; font-size: 24px; letter-spacing: -.4px; }
+.article-card-header, .article-card-body, .article-card-footer { padding-left: 0; padding-right: 0; }
+.article-card-body { font-size: 14px; }
+.article-card-footer { background: transparent; gap: 12px; flex-wrap: wrap; }
+.article-snippet-label { font-size: 11px; }
+.article-reader { font-family: var(--font-family-display); font-size: 17px; line-height: 1.7; }

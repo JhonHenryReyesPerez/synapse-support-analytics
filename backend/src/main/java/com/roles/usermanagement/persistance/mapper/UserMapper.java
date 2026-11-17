@@ -15,9 +15,6 @@ public interface UserMapper {
 
   List<UserDto> toUsersDto(List<UserEntity> userEntities);
 
-  @Mapping(target = "additionalPermissions", ignore = true)
-  UserEntity toUserEntity(UserDto userDto);
-
   default String roleName(UserEntity user) {
     return (user.getRoles() == null || user.getRoles().isEmpty())
             ? null

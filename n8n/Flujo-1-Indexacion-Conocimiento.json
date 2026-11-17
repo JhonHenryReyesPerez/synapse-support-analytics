@@ -126,7 +126,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json.deleteBody) }}",
         "options": {
-          "timeout": 30000
+          "timeout": 10000
         }
       },
       "id": "Eliminar de Qdrant",
@@ -173,7 +173,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json.embeddingBody) }}",
         "options": {
-          "timeout": 30000
+          "timeout": 20000
         }
       },
       "id": "Generar Embedding OpenRouter",
@@ -236,7 +236,7 @@
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json.upsertBody) }}",
         "options": {
-          "timeout": 30000
+          "timeout": 10000
         }
       },
       "id": "Upsert Point en Qdrant",

@@ -25,7 +25,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -39,7 +38,6 @@ public class AuthController {
     private final UserService userService;
     private final LoginAttemptLimiter loginAttempts;
 
-    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
 
     public AuthController(AuthenticationManager authenticationManager, 
                           JwtUtil jwtUtil, 
@@ -65,7 +63,7 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("error", "Todos los campos son obligatorios"));
         }
 
-        if (!EMAIL_PATTERN.matcher(registerDto.getEmail().trim()).matches()) {
+        if (!UserRepository.EMAIL_PATTERN.matcher(registerDto.getEmail().trim()).matches()) {
             return ResponseEntity.badRequest().body(Map.of("error", "El correo electrónico debe tener un formato válido"));
         }
 
@@ -110,7 +108,9 @@ public class AuthController {
 
             UserEntity user = userCrudRepository.findById(authentication.getName())
                     .orElseThrow(() -> new org.springframework.security.authentication.BadCredentialsException("Cuenta no disponible"));
-            String token = jwtUtil.create(user.getUsername(), credentialVersion(user));
+            // La versión es la de la clave que se acaba de comprobar: si cambió entre tanto, el token nace vencido.
+            String token = jwtUtil.create(user.getUsername(),
+                    ((com.roles.usermanagement.domain.service.AccountUserDetails) authentication.getPrincipal()).getCredentialVersion());
             boolean mustChange = Boolean.TRUE.equals(user.getMustChangePassword());
             loginAttempts.recordSuccess(identifier);
 

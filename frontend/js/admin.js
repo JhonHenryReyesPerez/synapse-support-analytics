@@ -11,6 +11,40 @@ const ADMIN = {
   },
 
   bindEvents() {
+    // Modal y Formulario Crear Usuario (Exclusivo Administradores)
+    const btnNewUser = document.getElementById('btn-new-user');
+    if (btnNewUser) {
+      btnNewUser.addEventListener('click', () => {
+        const form = document.getElementById('form-create-user');
+        if (form) form.reset();
+        document.getElementById('user-must-change')?.setAttribute('checked', 'checked');
+        UI.openModal('modal-create-user');
+      });
+    }
+
+    const formUser = document.getElementById('form-create-user');
+    if (formUser) {
+      formUser.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await this.handleCreateUser();
+      });
+    }
+
+    // Validador de contraseña para nuevo usuario
+    const userPassInput = document.getElementById('user-password');
+    if (userPassInput) {
+      const polLen = document.getElementById('usr-pol-length');
+      const polUpp = document.getElementById('usr-pol-upper');
+      const polSpc = document.getElementById('usr-pol-special');
+
+      userPassInput.addEventListener('input', () => {
+        const check = UI.checkPasswordPolicy(userPassInput.value);
+        if (polLen) polLen.classList.toggle('valid', check.hasMinLength && check.hasMaxBytes);
+        if (polUpp) polUpp.classList.toggle('valid', check.hasUppercase);
+        if (polSpc) polSpc.classList.toggle('valid', check.hasSpecial);
+      });
+    }
+
     // Formulario Crear Categoría
     const formCat = document.getElementById('form-create-category');
     if (formCat) {
@@ -46,25 +80,78 @@ const ADMIN = {
     const users = res.data || [];
     tbody.innerHTML = users.map(u => {
       // Roles del usuario
-      const roles = Array.isArray(u.roles) ? u.roles.map(r => r.role || r).join(', ') : (u.role || 'USER');
-      const isLocked = u.locked ? '<span class="badge badge-priority-critica">Bloqueado</span>' : '<span class="badge badge-resolved">Activo</span>';
-      const mustChange = u.mustChangePassword ? '<span class="badge badge-priority-alta">Cambio pendiente</span>' : '—';
+      const roleStr = Array.isArray(u.roles) ? u.roles.map(r => r.role || r).join(', ') : (u.role || 'USER');
+      let roleBadgeClass = 'background:var(--status-assigned-bg); color:var(--status-assigned-text);';
+      if (roleStr === 'ADMIN') roleBadgeClass = 'background:var(--status-in-progress-bg); color:var(--status-in-progress-text); font-weight:bold;';
+      if (roleStr === 'TECHNICIAN') roleBadgeClass = 'background:var(--status-assigned-bg); color:var(--status-assigned-text); font-weight:bold;';
+
+      const isLocked = u.disabled ? '<span class="badge badge-inactive">Deshabilitado</span>'
+        : (u.locked ? '<span class="badge badge-priority-critica">Bloqueado</span>' : '<span class="badge badge-resolved">Activo</span>');
+      const mustChange = u.mustChangePassword ? '<span class="badge badge-priority-alta">Cambio pendiente</span>' : '';
 
       return `
         <tr>
           <td style="font-weight: var(--font-weight-semibold);">${UI.escapeHtml(u.username)}</td>
-          <td>${UI.escapeHtml(u.fullName || '—')}</td>
+          <td>
+            <div>${UI.escapeHtml(u.fullName || '—')}</div>
+            <div style="font-size: 0.72rem; color: var(--text-muted);">${UI.escapeHtml(u.area || 'Sin dependencia')}</div>
+          </td>
           <td>${UI.escapeHtml(u.email || '—')}</td>
-          <td><span class="badge" style="background:#e0e7ff; color:#3730a3;">${UI.escapeHtml(roles)}</span></td>
+          <td><span class="badge" style="${roleBadgeClass}">${UI.escapeHtml(roleStr)}</span> ${mustChange}</td>
           <td>${isLocked}</td>
           <td>
-            <button class="btn btn-outline btn-sm" onclick="ADMIN.promptResetPassword('${u.username}')" title="Restablecer contraseña con clave temporal">
-              🔑 Restablecer
+            <button class="btn btn-outline btn-sm" data-username="${UI.escapeHtml(u.username)}" onclick="ADMIN.promptResetPassword(this.dataset.username)" title="Restablecer contraseña con clave temporal">
+              ${UI.icon('key')} Restablecer
             </button>
           </td>
         </tr>
       `;
     }).join('');
+  },
+
+  async handleCreateUser() {
+    const username = document.getElementById('user-username').value.trim();
+    const fullName = document.getElementById('user-fullname').value.trim();
+    const email = document.getElementById('user-email').value.trim();
+    const area = document.getElementById('user-area').value.trim();
+    const role = document.getElementById('user-role').value;
+    const password = document.getElementById('user-password').value;
+    const mustChangePassword = document.getElementById('user-must-change')?.checked || false;
+
+    if (!username || !email || !password || !fullName) {
+      UI.showToast('Nombre de usuario, nombre completo, correo y contraseña son obligatorios.', 'warning');
+      return;
+    }
+
+    const check = UI.checkPasswordPolicy(password);
+    if (!check.isValid) {
+      UI.showToast('La contraseña no cumple con la política de seguridad corporativa.', 'warning');
+      return;
+    }
+
+    const btn = document.getElementById('btn-submit-user');
+    UI.setLoading(btn, true, 'Registrando usuario corporativo...');
+
+    const res = await API.post('/user/add', {
+      username,
+      fullName,
+      email,
+      area: area || undefined,
+      role,
+      password,
+      mustChangePassword
+    });
+
+    UI.setLoading(btn, false);
+
+    if (!res.ok) {
+      UI.showToast(res.error || 'No fue posible crear la cuenta de usuario.', 'error');
+      return;
+    }
+
+    UI.showToast(`Usuario "${username}" creado exitosamente con rol ${role}.`, 'success');
+    UI.closeModal('modal-create-user');
+    await this.loadUsers();
   },
 
   promptResetPassword(username) {
@@ -82,7 +169,7 @@ const ADMIN = {
       return;
     }
 
-    const tempPass = res.data?.temporaryPassword || res.data?.message || 'Temporal123!';
+    const tempPass = res.data.temporaryPassword;
     alert(`Contraseña restablecida exitosamente para "${username}".\n\nClave temporal generada: ${tempPass}\n\nEl usuario deberá cambiarla obligatoriamente en su próximo ingreso.`);
     await this.loadUsers();
   },
@@ -142,6 +229,7 @@ const ADMIN = {
 
     const res = await API.post('/categories', { name, description });
     UI.setLoading(btn, false);
+    UI.markFieldErrors(res.fieldErrors, { name: 'cat-name', description: 'cat-description' });
 
     if (!res.ok) {
       UI.showToast(res.error || 'No se pudo crear la categoría.', 'error');

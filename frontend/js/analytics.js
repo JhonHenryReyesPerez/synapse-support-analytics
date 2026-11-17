@@ -1,19 +1,23 @@
-/**
- * Synapse Support Analytics - Módulo de Analítica y Dashboard (RF06 / RF07)
- */
+/** Siete indicadores de Spring Boot; el redondeo es solo de presentación. */
 const ANALYTICS = {
-  charts: {
-    category: null,
-    trend: null,
-    priority: null
-  },
+  charts: { category: null, trend: null, priority: null },
+  loadSeq: 0,
+  lastData: null,
+  categoryIds: [],
+  priorityKeys: [],
+  numbers: new Intl.NumberFormat('es-CO'),
+  decimals: new Intl.NumberFormat('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+  priorityLabels: { BAJA: 'Baja', MEDIA: 'Media', ALTA: 'Alta', CRITICA: 'Crítica' },
 
   async init() {
     this.bindEvents();
+    document.getElementById('btn-retry-analytics')?.addEventListener('click', () => this.loadAnalytics());
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').addEventListener('change', () => this.applyTheme());
     await this.loadAnalytics();
   },
 
   bindEvents() {
+    document.addEventListener('themechange', () => this.applyTheme());
     const btnApply = document.getElementById('btn-apply-analytics-filters');
     if (btnApply) {
       btnApply.addEventListener('click', () => {
@@ -34,216 +38,184 @@ const ANALYTICS = {
     }
   },
 
+  setFeedback(message, error = false) {
+    const box = document.getElementById('analytics-feedback');
+    if (!box) return;
+    box.hidden = !message;
+    box.classList.toggle('is-error', error);
+    document.getElementById('analytics-feedback-message').textContent = message;
+    document.getElementById('btn-retry-analytics').hidden = !error;
+  },
+
   async loadAnalytics() {
     const from = document.getElementById('analytics-filter-from')?.value || '';
     const to = document.getElementById('analytics-filter-to')?.value || '';
     const categoryId = document.getElementById('analytics-filter-category')?.value || '';
     const priority = document.getElementById('analytics-filter-priority')?.value || '';
     const granularity = document.getElementById('analytics-filter-granularity')?.value || 'DAY';
-
+    const seq = ++this.loadSeq;
+    const button = document.getElementById('btn-apply-analytics-filters');
+    const results = document.getElementById('analytics-results');
+    if (from && to && from > to) {
+      UI.setLoading(button, false);
+      results?.setAttribute('aria-busy', 'false');
+      this.setFeedback('El rango no es válido. Corrige las fechas y vuelve a filtrar. Los resultados visibles conservan su cohorte anterior.', true);
+      return;
+    }
     let query = `?granularity=${encodeURIComponent(granularity)}`;
     if (from) query += `&from=${encodeURIComponent(from)}`;
     if (to) query += `&to=${encodeURIComponent(to)}`;
     if (categoryId) query += `&categoryId=${encodeURIComponent(categoryId)}`;
     if (priority) query += `&priority=${encodeURIComponent(priority)}`;
 
-    const btnApply = document.getElementById('btn-apply-analytics-filters');
-    UI.setLoading(btnApply, true, 'Actualizando datos...');
-
+    UI.setLoading(button, true, 'Actualizando…');
+    results?.setAttribute('aria-busy', 'true');
+    this.setFeedback(this.lastData ? 'Actualizando. Mientras tanto se muestran los resultados de la cohorte anterior.' : 'Cargando indicadores…');
     const res = await API.get(`/analytics/summary${query}`);
-    UI.setLoading(btnApply, false);
-
+    if (seq !== this.loadSeq) return;
+    UI.setLoading(button, false);
+    results?.setAttribute('aria-busy', 'false');
     if (!res.ok) {
-      UI.showToast(res.error || 'Error al cargar los indicadores analíticos.', 'error');
+      const previous = this.lastData ? 'Se mantienen los resultados anteriores. ' : '';
+      this.setFeedback(previous + (res.error || 'No se pudieron cargar los indicadores. Intenta de nuevo.'), true);
       return;
     }
-
-    this.renderDashboard(res.data);
+    this.lastData = res.data || {};
+    this.renderDashboard(this.lastData);
   },
 
   renderDashboard(data) {
-    // 1. KPI 1: Total de incidentes
-    const totalEl = document.getElementById('kpi-total-incidents');
-    if (totalEl) totalEl.textContent = data.totalIncidents ?? 0;
+    const put = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+    const n = value => this.numbers.format(value);
+    const d = value => this.decimals.format(value);
+    put('kpi-total-incidents', data.totalIncidents == null ? '—' : n(data.totalIncidents));
+    put('kpi-resolution-rate', data.resolution?.ratePercentage == null ? '—' : `${d(data.resolution.ratePercentage)} %`);
+    put('kpi-resolved-count', data.resolution?.resolvedCount != null ? `${n(data.resolution.resolvedCount)} resueltos o cerrados` : 'Sin información de resolución');
+    put('kpi-avg-resolution-time', data.resolutionTime?.averageHours == null ? '—' : `${d(data.resolutionTime.averageHours)} h`);
+    put('kpi-resolution-sample', data.resolutionTime?.sampleSize != null ? `Horas transcurridas · muestra: ${n(data.resolutionTime.sampleSize)}` : 'Sin información de tiempos');
+    put('kpi-most-recurrent', (data.mostRecurrentCategories || []).map(c => c.category).join(' / ') || '—');
+    const cohort = data.cohort || {};
+    const scope = { GLOBAL: 'Global', OWN: 'Mis incidentes', ASSIGNED: 'Mis asignados' }[cohort.scope] || 'Alcance de la sesión';
+    const period = cohort.from || cohort.to ? `${cohort.from || 'Inicio'} — ${cohort.to || 'Hoy'}` : 'Todo el historial';
+    // La etiqueta sale de la cohorte que calculó el backend, no del selector (puede haber cambiado)
+    // ni solo de byCategory (vacío cuando la categoría filtrada no tiene incidentes).
+    const category = cohort.categoryId == null ? 'Todas las categorías'
+      : (data.byCategory || []).find(c => c.categoryId === cohort.categoryId)?.category
+        || (window.TICKETS?.categories || []).find(c => c.id === cohort.categoryId)?.name
+        || `Categoría #${cohort.categoryId}`;
+    put('analytics-cohort', [scope, period, category, this.priorityLabels[cohort.priority] || 'Todas las prioridades'].join(' · '));
+    put('analytics-generated', cohort.generatedAt ? `Calculado: ${UI.formatDate(cohort.generatedAt)} · ${cohort.timeZone || 'America/Bogota'} · Estado actual de la cohorte` : '');
+    put('analytics-exclusions', data.resolutionTime?.excludedCount != null ? `${n(data.resolutionTime.excludedCount)} casos excluidos del promedio por fechas no válidas. El promedio incluye solo resoluciones con fecha válida.` : '');
+    put('analytics-trend-caption', data.trend?.granularity === 'WEEK' ? 'Incidentes registrados por semana · inicio el lunes' : 'Incidentes registrados por día');
+    put('analytics-priority-summary', (data.byPriority || []).map(p => `${this.priorityLabels[p.priority] || p.priority}: ${n(p.count)} (${d(p.percentage)} %)` ).join(' · '));
 
-    // 2. KPI 4: Tasa de resolución
-    const resRateEl = document.getElementById('kpi-resolution-rate');
-    const resCountEl = document.getElementById('kpi-resolved-count');
-    if (resRateEl) {
-      const rate = data.resolution?.ratePercentage != null ? data.resolution.ratePercentage.toFixed(1) : '0.0';
-      resRateEl.textContent = `${rate}%`;
-    }
-    if (resCountEl) {
-      resCountEl.textContent = `${data.resolution?.resolvedCount || 0} incidentes resueltos o cerrados`;
-    }
-
-    // 3. KPI 5: Tiempo promedio de resolución en horas
-    const avgHoursEl = document.getElementById('kpi-avg-resolution-time');
-    const sampleSizeEl = document.getElementById('kpi-resolution-sample');
-    if (avgHoursEl) {
-      const avg = data.resolutionTime?.averageHours;
-      avgHoursEl.textContent = (avg != null) ? `${avg.toFixed(1)} h` : '—';
-    }
-    if (sampleSizeEl) {
-      sampleSizeEl.textContent = `Muestra: ${data.resolutionTime?.sampleSize || 0} casos calculados`;
-    }
-
-    // 4. KPI 6: Categoría más recurrente
-    const recurEl = document.getElementById('kpi-most-recurrent');
-    if (recurEl) {
-      const recurrents = data.mostRecurrentCategories || [];
-      if (recurrents.length > 0) {
-        recurEl.textContent = recurrents.map(c => c.name).join(', ');
-      } else {
-        recurEl.textContent = '—';
-      }
-    }
-
-    // Renderizar Gráficos con Chart.js (o fallback)
     this.renderCategoryChart(data.byCategory || []);
-    this.renderTrendChart(data.trend?.points || [], data.trend?.granularity || 'Día');
+    this.renderTrendChart(data.trend?.points || [], data.trend?.granularity);
     this.renderPriorityChart(data.byPriority || []);
-    this.renderCategoryBreakdownTable(data.resolutionTime?.byCategory || data.byCategory || []);
+    const averages = Object.fromEntries((data.resolutionTime?.byCategory || []).map(c => [c.categoryId, c.averageHours]));
+    this.renderCategoryBreakdownTable((data.byCategory || []).map(c => ({ ...c, averageHours: averages[c.categoryId] })));
+    const trendBody = document.getElementById('analytics-trend-tbody');
+    if (trendBody) trendBody.innerHTML = (data.trend?.points || []).map(p => `<tr><td>${UI.escapeHtml(p.periodStart)}</td><td>${n(p.count)}</td></tr>`).join('') || '<tr><td colspan="2">Sin datos en esta cohorte.</td></tr>';
+    const incomplete = data.totalIncidents == null || !data.resolution || !data.resolutionTime || !data.trend || !Array.isArray(data.byCategory) || !Array.isArray(data.byPriority);
+    this.setFeedback(incomplete ? 'La respuesta está incompleta. Los indicadores no disponibles se muestran con —.' : data.totalIncidents === 0 ? 'No hay incidentes para esta cohorte. Puedes ampliar el período o cambiar los filtros.' : typeof Chart === 'undefined' ? 'No se pudieron cargar los gráficos. Puedes consultar los valores en las tablas y los resúmenes.' : '');
+    this.applyTheme();
+  },
+
+  chartOptions() {
+    return {
+      responsive: true, maintainAspectRatio: false,
+      animation: window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ? false : { duration: 180 },
+      plugins: { legend: { display: false }, tooltip: { padding: 12 } },
+      scales: {
+        x: { grid: { display: false }, ticks: { maxTicksLimit: 7, maxRotation: 0, font: { family: 'IBM Plex Sans', size: 12 } } },
+        y: { beginAtZero: true, ticks: { precision: 0, font: { family: 'IBM Plex Sans', size: 12 } } }
+      }
+    };
+  },
+
+  applyTheme() {
+    const styles = getComputedStyle(document.documentElement);
+    const color = token => (styles.getPropertyValue(token) || '').trim();
+    const text = color('--text-muted');
+    const border = color('--border-color-subtle');
+    const surface = color('--chart-surface') || color('--bg-surface');
+    const palette = Array.from({ length: 7 }, (_, i) => color(`--chart-category-${i + 1}`));
+    Object.entries(this.charts).forEach(([name, chart]) => {
+      if (!chart) return;
+      chart.options.animation = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ? false : { duration: 180 };
+      if (chart.options.plugins?.legend?.labels) chart.options.plugins.legend.labels.color = text;
+      if (chart.options.plugins?.tooltip) Object.assign(chart.options.plugins.tooltip, {
+        backgroundColor: color('--bg-surface-elevated'), titleColor: color('--text-main'), bodyColor: color('--text-main'), borderColor: color('--border-color'), borderWidth: 1
+      });
+      Object.values(chart.options.scales || {}).forEach(scale => {
+        scale.ticks ||= {}; scale.grid ||= {}; scale.border ||= {};
+        scale.ticks.color = text;
+        scale.grid.color = border;
+        scale.border.color = border;
+      });
+      const dataset = chart.data.datasets[0];
+      if (name === 'category') {
+        dataset.borderColor = surface;
+        dataset.backgroundColor = this.categoryIds.map((id, i) => palette[Math.abs(Number(id) || i) % palette.length]);
+      } else if (name === 'trend') {
+        dataset.borderColor = color('--color-accent');
+        dataset.pointBackgroundColor = color('--color-accent');
+      } else if (name === 'priority') {
+        dataset.backgroundColor = this.priorityKeys.map(key => color(`--priority-${key.toLowerCase()}`));
+      }
+      chart.update('none');
+    });
   },
 
   renderCategoryChart(byCategory) {
     const ctx = document.getElementById('chart-category');
     if (!ctx || typeof Chart === 'undefined') return;
-
-    if (this.charts.category) {
-      this.charts.category.destroy();
-    }
-
-    const labels = byCategory.map(c => c.category || c.name || `Cat #${c.categoryId}`);
-    const values = byCategory.map(c => c.count);
-
+    this.charts.category?.destroy();
+    this.categoryIds = byCategory.map(c => c.categoryId);
     this.charts.category = new Chart(ctx, {
       type: 'doughnut',
-      data: {
-        labels,
-        datasets: [{
-          data: values,
-          backgroundColor: [
-            '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd',
-            '#4f46e5', '#6366f1', '#818cf8', '#a5b4fc',
-            '#059669', '#10b981', '#34d399', '#6ee7b7'
-          ],
-          borderWidth: 1,
-          borderColor: '#ffffff'
-        }]
-      },
+      data: { labels: byCategory.map(c => c.category), datasets: [{ data: byCategory.map(c => c.count), borderWidth: 2 }] },
       options: {
-        responsive: true,
-        maintainAspectRatio: false,
+        responsive: true, maintainAspectRatio: false, cutout: '76%',
         plugins: {
-          legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } },
-          tooltip: {
-            callbacks: {
-              label: (context) => {
-                const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                const val = context.raw;
-                const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
-                return ` ${val} incidentes (${pct}%)`;
-              }
-            }
-          }
+          legend: { position: 'bottom', labels: { boxWidth: 8, boxHeight: 8, padding: 12, font: { family: 'IBM Plex Sans', size: 12 } } },
+          tooltip: { callbacks: { label: item => `${this.numbers.format(item.raw)} incidentes (${this.decimals.format(byCategory[item.dataIndex].percentage)} %)` } }
         }
       }
     });
   },
 
-  renderTrendChart(points, granularityLabel) {
+  renderTrendChart(points, granularity) {
     const ctx = document.getElementById('chart-trend');
     if (!ctx || typeof Chart === 'undefined') return;
-
-    if (this.charts.trend) {
-      this.charts.trend.destroy();
-    }
-
-    const labels = points.map(p => p.periodStart);
-    const values = points.map(p => p.count);
-
+    this.charts.trend?.destroy();
+    const date = value => new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'short' }).format(new Date(`${value}T12:00:00`));
+    const options = this.chartOptions();
+    options.plugins.tooltip.callbacks = {
+      title: items => `${granularity === 'WEEK' ? 'Semana del' : 'Día'} ${points[items[0].dataIndex].periodStart}`,
+      label: item => `${this.numbers.format(item.raw)} incidentes`
+    };
     this.charts.trend = new Chart(ctx, {
       type: 'line',
-      data: {
-        labels,
-        datasets: [{
-          label: 'Incidentes registrados',
-          data: values,
-          borderColor: '#2563eb',
-          backgroundColor: 'rgba(37, 99, 235, 0.1)',
-          fill: true,
-          tension: 0.25,
-          pointRadius: points.length > 30 ? 2 : 4,
-          pointBackgroundColor: '#2563eb'
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          x: {
-            grid: { display: false },
-            ticks: { maxTicksLimit: 12, font: { size: 10 } }
-          },
-          y: {
-            beginAtZero: true,
-            ticks: { precision: 0, font: { size: 10 } },
-            grid: { color: '#f1f5f9' }
-          }
-        },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              title: (items) => `Período: ${items[0].label}`,
-              label: (item) => ` ${item.raw} incidentes`
-            }
-          }
-        }
-      }
+      data: { labels: points.map(p => date(p.periodStart)), datasets: [{
+        label: 'Incidentes registrados', data: points.map(p => p.count),
+        fill: false, tension: 0, borderWidth: 2, pointRadius: points.length > 30 ? 0 : 2, pointHoverRadius: 5
+      }] },
+      options
     });
   },
 
   renderPriorityChart(byPriority) {
     const ctx = document.getElementById('chart-priority');
     if (!ctx || typeof Chart === 'undefined') return;
-
-    if (this.charts.priority) {
-      this.charts.priority.destroy();
-    }
-
-    const labels = byPriority.map(p => p.priority);
-    const values = byPriority.map(p => p.count);
-    const colors = {
-      'BAJA': '#10b981',
-      'MEDIA': '#3b82f6',
-      'ALTA': '#f59e0b',
-      'CRITICA': '#ef4444'
-    };
-
+    this.charts.priority?.destroy();
+    this.priorityKeys = byPriority.map(p => p.priority);
+    const options = this.chartOptions();
+    options.plugins.tooltip.callbacks = { label: item => `${this.numbers.format(item.raw)} incidentes (${this.decimals.format(byPriority[item.dataIndex].percentage)} %)` };
     this.charts.priority = new Chart(ctx, {
       type: 'bar',
-      data: {
-        labels,
-        datasets: [{
-          label: 'Incidentes',
-          data: values,
-          backgroundColor: labels.map(l => colors[l] || '#64748b'),
-          borderRadius: 6
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          x: { grid: { display: false } },
-          y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#f1f5f9' } }
-        },
-        plugins: {
-          legend: { display: false }
-        }
-      }
+      data: { labels: byPriority.map(p => this.priorityLabels[p.priority] || p.priority), datasets: [{ label: 'Incidentes', data: byPriority.map(p => p.count), borderRadius: 2, maxBarThickness: 44 }] },
+      options
     });
   },
 
@@ -258,9 +230,9 @@ const ANALYTICS = {
 
     tbody.innerHTML = catData.map(c => {
       const catName = c.category || c.name || `Categoría #${c.categoryId || c.id}`;
-      const count = c.count || c.sampleSize || 0;
-      const pct = c.percentage != null ? `${c.percentage.toFixed(1)}%` : '—';
-      const avgH = c.averageHours != null ? `${c.averageHours.toFixed(1)} h` : '—';
+      const count = this.numbers.format(c.count);
+      const pct = c.percentage != null ? `${this.decimals.format(c.percentage)} %` : '—';
+      const avgH = c.averageHours != null ? `${this.decimals.format(c.averageHours)} h` : '—';
 
       return `
         <tr>

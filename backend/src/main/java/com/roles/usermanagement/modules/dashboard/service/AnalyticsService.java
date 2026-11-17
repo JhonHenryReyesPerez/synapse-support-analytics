@@ -29,6 +29,7 @@ import java.util.TimeZone;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -53,7 +54,9 @@ public class AnalyticsService {
         this.policy = policy;
     }
 
-    @Transactional(readOnly = true)
+    // REPEATABLE_READ: las consultas del resumen comparten instantánea. Con READ COMMITTED cada una
+    // ve lo confirmado hasta ese momento y el total puede no coincidir con sus desgloses.
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public AnalyticsSummaryResponse summary(LocalDate from, LocalDate to, Long categoryId, TicketPriority priority,
                                             TrendGranularity granularity, Authentication auth) {
         if (from != null && to != null && to.isBefore(from)) {

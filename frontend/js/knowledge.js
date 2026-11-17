@@ -3,7 +3,8 @@
  */
 const KNOWLEDGE = {
   currentPage: 0,
-  pageSize: 12,
+  // shortcut: sin paginación, se pide el máximo del backend (100); añadir páginas si hay más artículos.
+  pageSize: 100,
   currentScope: 'PUBLISHED',
 
   async init() {
@@ -55,7 +56,10 @@ const KNOWLEDGE = {
 
     grid.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; padding: 3rem;"><span class="spinner"></span> Cargando artículos...</div>`;
 
+    // Una respuesta de un alcance o página anteriores no debe pintarse bajo el selector actual.
+    const seq = this.listSeq = (this.listSeq || 0) + 1;
     const res = await API.get(`/knowledge/articles?scope=${this.currentScope}&page=${this.currentPage}&size=${this.pageSize}`);
+    if (seq !== this.listSeq) return;
     if (!res.ok) {
       grid.innerHTML = `<div style="grid-column: 1 / -1; color: var(--color-danger); text-align: center;">${UI.escapeHtml(res.error || 'Error al consultar artículos')}</div>`;
       return;
@@ -76,7 +80,7 @@ const KNOWLEDGE = {
       // Estado de Verificación y Activación
       let statusBadge = '<span class="badge badge-draft">Borrador</span>';
       if (art.verified && art.active) {
-        statusBadge = '<span class="badge badge-verified">✓ Verificado y Activo</span>';
+        statusBadge = `<span class="badge badge-verified">${UI.icon('check')} Verificado y Activo</span>`;
       } else if (art.verified && !art.active) {
         statusBadge = '<span class="badge badge-inactive">Inactivo (Verificado)</span>';
       }
@@ -113,9 +117,9 @@ const KNOWLEDGE = {
             <div class="article-badges">
               ${statusBadge}
               ${indexBadge}
-              <span class="badge" style="background:#f1f5f9; color:#475569;">v${art.contentVersion || 1}</span>
+              <span class="badge" style="background:var(--status-closed-bg); color:var(--status-closed-text);">v${art.contentVersion || 1}</span>
             </div>
-            <h3 class="article-card-title">${UI.escapeHtml(art.title)}</h3>
+            <h2 class="article-card-title">${UI.escapeHtml(art.title)}</h2>
           </header>
           <div class="article-card-body">
             <div>
@@ -138,7 +142,10 @@ const KNOWLEDGE = {
   },
 
   async viewArticle(id) {
+    const seq = this.viewSeq = (this.viewSeq || 0) + 1;
     const res = await API.get(`/knowledge/articles/${id}`);
+    // Se descarta si se pidió otro artículo después o si el modal compartido ya lo ocupa otra acción.
+    if (seq !== this.viewSeq || UI.modalStack.some(m => m.id === 'modal-generic')) return;
     if (!res.ok) {
       UI.showToast(res.error || 'No se pudo cargar el artículo.', 'error');
       return;
@@ -146,7 +153,7 @@ const KNOWLEDGE = {
 
     const art = res.data;
     const body = `
-      <div style="display:flex; flex-direction:column; gap: 1rem;">
+      <div class="article-reader" style="display:flex; flex-direction:column; gap: 1rem;">
         <div>
           <h4 style="font-size:var(--font-size-xs); color:var(--text-muted); text-transform:uppercase;">Problema:</h4>
           <p>${UI.escapeHtml(art.problem)}</p>
@@ -161,7 +168,7 @@ const KNOWLEDGE = {
         </div>
         <div>
           <h4 style="font-size:var(--font-size-xs); color:var(--text-muted); text-transform:uppercase;">Procedimiento de Solución:</h4>
-          <div style="background:#f8fafc; border:1px solid var(--border-color); border-radius:var(--radius-md); padding:1rem; white-space:pre-wrap; font-size:var(--font-size-sm);">
+          <div style="background:var(--bg-surface-alt); border:1px solid var(--border-color); border-radius:var(--radius-md); padding:1rem; white-space:pre-wrap; font-size:var(--font-size-sm);">
             ${UI.escapeHtml(art.solution)}
           </div>
         </div>
@@ -198,6 +205,10 @@ const KNOWLEDGE = {
     });
 
     UI.setLoading(btn, false);
+    UI.markFieldErrors(res.fieldErrors, {
+      title: 'article-title', problem: 'article-problem', symptoms: 'article-symptoms',
+      cause: 'article-cause', solution: 'article-solution'
+    });
 
     if (!res.ok) {
       UI.showToast(res.error || 'Error al guardar el artículo.', 'error');

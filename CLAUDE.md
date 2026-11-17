@@ -537,7 +537,7 @@ Registro de lo realizado en la rama `dev/JhonReyes`. Las secciones anteriores si
 
 ### 21.1 Listo y verificado
 
-Verificado con `./gradlew test` en H2 y con `backend/scripts/test-postgres.sh` en PostgreSQL 17 (migraciones reales de Flyway y Hibernate en modo `validate`), salvo donde se indica. Última ejecución (13 de noviembre de 2026): 104 pruebas y 0 fallos en ambos (en H2 se omiten las 6 de datos iniciales).
+Verificado con `./gradlew test` en H2 y con `backend/scripts/test-postgres.sh` en PostgreSQL 17 (migraciones reales de Flyway y Hibernate en modo `validate`), salvo donde se indica. Última ejecución (16 de noviembre de 2026): 109 pruebas y 0 fallos en ambos (en H2 se omiten las 6 de datos iniciales).
 
 | ID / etapa | Qué quedó implementado | Prueba principal |
 |---|---|---|
@@ -546,7 +546,7 @@ Verificado con `./gradlew test` en H2 y con `backend/scripts/test-postgres.sh` e
 | B03 | Cuenta con cambio de clave pendiente: solo `login`, `change-password` y `me`; el resto responde 403 `PASSWORD_CHANGE_REQUIRED` | `PasswordChangeRequiredTests` |
 | B04 | Token de 30 min; claim `cv` comparado con `credential_version`; el cambio o restablecimiento invalida tokens previos; `change-password` devuelve token nuevo; clave temporal aleatoria | `TokenInvalidationTests` |
 | B05 | `TicketAssignmentService` es el único caso de uso de asignación; `/transitions` y `/status` delegan en él; listado de técnicos derivado del rol con carga calculada desde tickets | `TicketAssignmentTests` (incluye concurrencia) |
-| Migraciones | Flyway: `V1` línea base … `V8`; `ddl-auto=validate`; `baseline-on-migrate` para bases ya existentes | Suite completa en PostgreSQL |
+| Migraciones | Flyway: `V1` línea base … `V9`; `ddl-auto=validate`; `baseline-on-migrate` para bases ya existentes | Suite completa en PostgreSQL |
 | B06 | `modules/category` (entidad, CRUD de ADMIN, activar/desactivar); `Ticket.category` ManyToOne; prioridad canónica BAJA/MEDIA/ALTA/CRITICA; alias anteriores solo como entrada | `CategoryTests` |
 | B07 | `fullName` y `area` opcionales en el usuario; `username` sigue siendo la clave primaria (sin ID técnico) | `UserAccountPolicyTests` |
 | B08 | `resolvedAt`, `closedAt`, `resolutionNote`; RESOLVE exige nota; fechas previas derivadas del historial; límites de título (150) y descripción (10.000) tras trim | `TicketResolutionTests` |
@@ -561,7 +561,7 @@ Verificado con `./gradlew test` en H2 y con `backend/scripts/test-postgres.sh` e
 | Etapa 5 (RF04, RF05) | `modules/assistance`: `POST /api/tickets/{id}/assistance` persiste la consulta en `PENDING`, llama a n8n sin transacción abierta y fija `ANSWERED`, `NO_RESULTS` o `ERROR`; `AssistResponseValidator` rechaza respuestas que no cumplen el contrato v1; las fuentes se contrastan con la base relacional (existencia, elegibilidad, versión, modelo de embeddings); un único reintento por fuentes obsoletas; evidencia conservada por fuente; una sola consulta en proceso por usuario e incidente, `requestId` idempotente y reintento explícito enlazado; `AssistanceRecovery` cierra las `PENDING` abandonadas; historial paginado por incidente; errores 502/503/504 con `queryId`; migración `V7` | `AssistanceTests` (con `FakeN8nClient`; no ejecutado contra un n8n real) |
 | Etapa 6 (RF08) | `PUT /api/assistance/queries/{id}/rating`: solo quien hizo una consulta `ANSWERED` la califica (entero 1–5, comentario opcional); una por respuesta y usuario, repetir la actualiza; admitida con el incidente cerrado; rango y unicidad también en la base (`V8`); la calificación aparece en la consulta y en el historial | `AssistanceRatingTests` |
 | Etapa 8 (parte del backend) | Datos iniciales deterministas por script explícito (`db/seed/demo_data.sql`: 13 usuarios, 31 artículos, 180 incidentes con historial); README raíz y del backend; contratos para el frontend y para n8n; diagramas de arquitectura y entidad-relación; informe de análisis con cifras reales del conjunto; documento de pruebas; OpenAPI exportado | `DemoDataSeedTests` (solo PostgreSQL), `OpenApiDocumentationTests`, `CommentVisibilityTests` |
-| Integración n8n, Qdrant y Compose | Flujos `n8n/Flujo-1-Indexacion-Conocimiento.json` y `n8n/Flujo-2-Asistencia-RAG.json` ajustados al contrato v1 (un punto por artículo, umbral y máximo tomados de cada solicitud, contexto armado con lo que devuelve el endpoint de elegibilidad, códigos de error propios, sin secretos en el JSON); `docker-compose.yml` con secretos obligatorios, puertos en `127.0.0.1` e imágenes con versión fija; `qdrant/setup_qdrant.sh` idempotente; `n8n/start-n8n.sh` importa y publica los flujos; `HttpN8nClient` fijado en HTTP/1.1 | Prueba integrada manual con n8n 2.47.7 y Qdrant 1.20.1 y el proveedor de modelos simulado (`docs/backend/PRUEBAS.md` §8); no ejecutada con OpenRouter real |
+| Integración n8n, Qdrant y Compose | Flujos `n8n/Flujo-1-Indexacion-Conocimiento.json` y `n8n/Flujo-2-Asistencia-RAG.json` ajustados al contrato v1 (un punto por artículo, umbral y máximo tomados de cada solicitud, contexto armado con lo que devuelve el endpoint de elegibilidad, códigos de error propios, sin secretos en el JSON); `docker-compose.yml` con secretos obligatorios, puertos en `127.0.0.1` e imágenes con versión fija; `qdrant/setup_qdrant.sh` idempotente; `n8n/start-n8n.sh` importa y publica los flujos; `HttpN8nClient` fijado en HTTP/1.1 | Prueba integrada manual con n8n 2.47.7, Qdrant 1.20.1 y modelos reales de OpenRouter (`docs/backend/PRUEBAS.md` §8) |
 
 ### 21.2 En curso, sin terminar
 
@@ -571,8 +571,8 @@ Nada en curso.
 
 Del backend:
 
-- Repetir la prueba integrada con una clave real de OpenRouter: la del 13 de noviembre usó un proveedor de modelos simulado, así que no demuestra la calidad de la recuperación ni la fidelidad del texto generado. Confirmar también los identificadores de modelo por defecto.
-- Calibrar `ASSIST_MIN_SCORE` (0,70 es un valor inicial) con el modelo de embeddings real y casos con y sin cobertura; documentar la justificación.
+- Evaluar la fidelidad de las respuestas con más casos y revisión humana: la prueba con modelos reales del 13 de noviembre cubrió las diez pruebas obligatorias y pocas repeticiones.
+- Recalibrar `ASSIST_MIN_SCORE` (0,55) con consultas reales de usuarios o si cambia el modelo de embeddings: se calibró con 25 consultas redactadas para la prueba.
 - Migraciones sobre una copia de la base de desarrollo existente (solo se han ejecutado sobre bases vacías).
 - Capturas de Swagger con los endpoints nuevos (la especificación ya está exportada en `docs/backend/openapi.json`).
 - Hallazgos abiertos de la auditoría (§22.4).
@@ -604,6 +604,9 @@ Añadidas a las del §20; requieren ratificación del equipo.
 16. **Un punto por artículo en Qdrant:** sin fragmentación; el identificador del punto es el del artículo y el payload no guarda el contenido, solo `articleId`, `contentVersion`, `contentHash`, `chunkIndex`, título y modelo.
 17. **HTTP/1.1 hacia n8n:** el cliente de Java pide por defecto actualizar a HTTP/2 sin TLS y n8n no responde a esa petición.
 
+18. **Umbral de similitud 0,55:** sustituye al 0,70 inicial. Sale de medir 25 consultas con `openai/text-embedding-3-small` (`docs/backend/PRUEBAS.md` §9): el artículo correcto más bajo obtuvo 0,594 y la consulta sin cobertura más alta 0,506. Con ese umbral la media es de 1,3 fuentes por consulta; no se baja para alcanzar tres porque entrarían artículos de temas cercanos. Las pruebas automáticas fijan 0,70 en su perfil para no depender del valor de producción.
+19. **Generación acotada:** el flujo envía `max_tokens` (1500 por defecto) y temperatura 0, y el prompt prohíbe añadir causas o explicaciones que no estén en los artículos y exige responder «sin información suficiente» cuando solo hay artículos de temas cercanos.
+
 ### 21.5 Cambios de contrato para el frontend y n8n
 
 - `GET /api/tickets` devuelve `{content, page, size, totalElements, totalPages}`.
@@ -626,9 +629,9 @@ Revisión del código de la rama `dev/JhonReyes` frente al enunciado (`docs/requ
 |---|---|---|
 | RF01 Incidentes | Implementado: registro, consulta, filtros, paginación y máquina de estados | Frontend |
 | RF02 Base de conocimiento | Implementado: ciclo borrador → verificado → activo; solo `active AND verified` es fuente | Frontend; revisión humana del contenido de los 31 artículos |
-| RF03 Embeddings | Implementado el lado de Spring Boot: contrato, estados de sincronización y endpoints para n8n | El flujo de n8n con OpenRouter y Qdrant (otro integrante); nunca se ejecutó contra un n8n real |
-| RF04 Búsqueda semántica | Implementado el contrato: 3 a 5 resultados, umbral configurable, validación de similitudes | El flujo real; el umbral 0,70 no está calibrado ni justificado con casos |
-| RF05 Asistente RAG | Implementado: persistencia, validación de fuentes contra la base y `NO_RESULTS` sin texto inventado | El flujo real; la fidelidad del texto generado requiere revisión humana |
+| RF03 Embeddings | Implementado: flujo de n8n con OpenRouter y Qdrant, estados de sincronización y endpoints para n8n; 28 artículos indexados con el modelo real | Nada pendiente |
+| RF04 Búsqueda semántica | Implementado: hasta 5 resultados, umbral configurable de 0,55 justificado con la calibración de `PRUEBAS.md` §9 | Recalibrar con consultas reales de usuarios |
+| RF05 Asistente RAG | Implementado y probado con el modelo real: respuesta con fuentes y similitudes, `NO_RESULTS` sin texto inventado | Revisión humana de la fidelidad con más casos; frontend |
 | RF06 Análisis de datos | Implementado: siete indicadores en SQL, contrastados con cálculo manual y con el conjunto de 180 incidentes | Nada del backend |
 | RF07 Dashboard | Implementada la API con filtros de fecha, categoría y prioridad | Los gráficos interactivos son del frontend |
 | RF08 Historial y evaluación | Implementado: consulta, respuesta, fuentes, estado, fecha y calificación 1–5 | Frontend |
@@ -641,7 +644,7 @@ Reglas de negocio del enunciado (§11): las consultas inteligentes solo entran p
 |---|---|
 | Repositorio con historial progresivo | La rama `dev/JhonReyes` está publicada, con más de 20 commits por delante de `main`. No hay merge ni pull request hacia `main` todavía, y el enunciado los evalúa |
 | Backend Spring Boot | Hecho |
-| Script SQL de datos iniciales y migraciones | Hecho: `db/migration/V1`–`V8` y `db/seed/demo_data.sql` |
+| Script SQL de datos iniciales y migraciones | Hecho: `db/migration/V1`–`V9` y `db/seed/demo_data.sql` |
 | Diagramas entidad-relación y arquitectura | Hechos en Mermaid (`docs/backend/DIAGRAMAS.md`); no se ha comprobado cómo se muestran |
 | `.env.example` | Hecho para el backend; el del proyecto completo depende del Compose |
 | Evidencias de Swagger o Postman | Parcial: `docs/backend/openapi.json` exportado; faltan capturas de los endpoints nuevos |
@@ -649,8 +652,8 @@ Reglas de negocio del enunciado (§11): las consultas inteligentes solo entran p
 | README | Hecho: raíz y `backend/` |
 | Informe de análisis de datos | Hecho sobre datos sintéticos: `docs/backend/INFORME_ANALISIS.md` |
 | `AI_USAGE.md` | Al día; toda la columna de revisión humana sigue en «Pendiente» |
-| Workflows JSON de n8n y Docker Compose | Hechos en `n8n/` y `docker-compose.yml`; probados con un proveedor de modelos simulado, no con OpenRouter real |
-| Frontend y presentación | De otros integrantes o del equipo; no están en el repositorio |
+| Workflows JSON de n8n y Docker Compose | Hechos en `n8n/` y `docker-compose.yml`; probados con modelos reales de OpenRouter |
+| Frontend y presentación | Frontend de otro integrante en `frontend/` (auditado en §22.8); la presentación no está en el repositorio |
 
 ### 22.3 Hallazgos corregidos en esta auditoría
 
@@ -667,8 +670,8 @@ Ordenados por importancia para la entrega.
 
 1. **Modo de uso de la IA.** El enunciado y el §1.1 piden tutoría técnica y ejemplos parciales, no generación integral. La mayor parte del código del backend de esta rama fue generada por la IA a petición explícita del responsable; `AI_USAGE.md` lo registra así y ninguna entrada tiene revisión humana. Es el principal riesgo frente a los criterios de evaluación: el responsable debe revisar el código, poder explicarlo y completar la columna de revisión con lo que realmente haya revisado.
 2. **Sin integración a `main`.** El 13 de noviembre se creó la rama `test` desde `main` y se abrió hacia ella el pull request n.º 1 con `dev/JhonReyes`, aún sin fusionar; falta también el paso de `test` a `main`. `dev/Json` no tiene pull request: GitHub no lo admite entre historias sin relación (§22.5).
-3. **RAG sin ejecutar con modelos reales.** El 13 de noviembre las diez pruebas obligatorias se ejecutaron de extremo a extremo con n8n y Qdrant reales, pero con el proveedor de modelos simulado (`docs/backend/PRUEBAS.md` §8). Falta repetirlas con una clave de OpenRouter.
-4. **Umbral de similitud sin justificar.** RF04 exige un umbral «configurable y justificado»; es configurable, pero 0,70 es un valor inicial sin casos de prueba que lo respalden.
+3. **Fidelidad del asistente evaluada con pocos casos.** El 13 de noviembre las diez pruebas obligatorias se ejecutaron con modelos reales de OpenRouter y dieron el resultado esperado (`docs/backend/PRUEBAS.md` §8). Con el primer prompt el modelo añadió una vez información que no estaba en los artículos; se corrigió, pero la comprobación posterior son pocas repeticiones.
+4. **Umbral calibrado con un conjunto pequeño.** 0,55 está justificado con 25 consultas (`docs/backend/PRUEBAS.md` §9), todas redactadas para la prueba y sobre artículos sintéticos.
 5. **Código sin uso en `modules/dashboard`.** `DashboardCacheMetric`, `MetricFilterRequest` y `MetricPeriod` no tienen referencias; la tabla `dashboard_metrics_cache` existe en `V1` y queda vacía. No se eliminaron porque retirar la entidad exige decidir qué hacer con la tabla.
 6. **Validación manual en `AuthController`.** Registro, login y cambio de clave validan con `if` y responden `{"error": ...}`, distinto del formato de `ApiExceptionHandler` (`timestamp`, `status`, `error`, `message`). Funciona y está probado, pero se aparta del §15 (Bean Validation, errores con formato consistente). Cambiarlo altera el contrato que ya consume el frontend.
 7. **Swagger público en todos los perfiles.** `/swagger-ui.html` y `/v3/api-docs` no piden autenticación tampoco fuera de `dev`. Útil para la evidencia del proyecto; en un despliegue real convendría desactivarlos con las propiedades de springdoc (`springdoc.api-docs.enabled`, `springdoc.swagger-ui.enabled`), algo que no se ha probado aquí.
@@ -698,3 +701,104 @@ Esa revisión se hizo por lectura. Después, a petición del responsable, se fus
 - Rendimiento y carga: no se midieron tiempos de las consultas analíticas ni concurrencia del asistente más allá de las pruebas de asignación concurrente.
 - Dependencias: no se analizaron vulnerabilidades conocidas de las bibliotecas.
 - Lectura línea a línea de los módulos anteriores a esta rama (`ticket`, `comment`, `statushistory`, `technician`): se revisaron mediante sus pruebas y por búsquedas dirigidas, no completos.
+
+### 22.7 Auditoría de calidad (14 de noviembre de 2026)
+
+Segunda revisión, hecha por la misma herramienta de IA, sobre el árbol de `dev/Json`: lectura de seguridad, cuentas, tickets, conocimiento, asistente, analítica, Compose y flujos de n8n. No sustituye la revisión humana.
+
+Corregido:
+
+| Hallazgo | Corrección |
+|---|---|
+| `TicketService.update` leía el ticket sin bloqueo: una edición simultánea con la asignación lo devolvía a `OPEN` sin técnico (reproducido en PostgreSQL) | Lectura con `findForUpdate`; pruebas `assignedTicketCannotBeEditedByItsApplicant` y `editRacingWithAssignmentNeverUndoesIt` |
+| `UserRepository.register` y `save` usaban `users.save()`, que con clave asignada hace `merge`: dos altas simultáneas del mismo usuario podían sobrescribir la primera cuenta | `em.persist`; el duplicado choca con la clave primaria y responde 409. Sin prueba propia de concurrencia |
+| Los nodos HTTP del flujo de asistencia sumaban 135 s y el backend espera 60 s (`N8N_READ_TIMEOUT`) | Tiempos límite de 10, 5, 5 y 35 s en asistencia y de 20 y 10 s en indexación. No ejecutado contra n8n con los valores nuevos |
+
+Abierto:
+
+1. `LoginAttemptLimiter`: con 10.000 identificadores en seguimiento, los nuevos no se cuentan y el límite deja de aplicarse a ellos.
+2. Corregido el 15 de noviembre de 2026: `TECHNICIAN` ya no recibe `USER_READ` (`SecurityBootstrapService`) y la migración `V9` lo retira de las bases existentes; un técnico recibe 403 en `GET /api/user/all` y en `GET /api/user/{username}/permissions` (`technicianCannotReadOtherAccounts`).
+3. Corregido el 15 de noviembre de 2026: `UserAccountPolicy` bloquea las cuentas de administrador activas antes de contarlas (`lockActiveByRole`). Sin prueba propia de concurrencia: provocarla exige degradar a `superadmin`, del que dependen las demás pruebas.
+4. La comprobación de rol sobre `UserEntity` está repetida en `CommentService`, `DashboardService`, `TicketAssignmentService` y `UserAccountPolicy`.
+5. `IUserRepository`, `IUserRoleRepository` y `UserRoleRepository` no aportan nada: una sola implementación y un reenvío.
+
+### 22.8 Auditoría del frontend (15 de noviembre de 2026)
+
+Revisión por lectura de `frontend/` (rama `test`, commit `d70ef9a`) frente a los DTO del backend, hecha por la misma herramienta de IA. El frontend es de otro integrante; las correcciones se hicieron en `dev/DiegoLeon` a petición del responsable del backend y debe revisarlas su autor. No se ejecutó en un navegador.
+
+Corregido:
+
+| Hallazgo | Corrección |
+|---|---|
+| El nombre de usuario se insertaba sin escapar en la tabla de usuarios y en el selector de técnicos; el backend admitía cualquier carácter y el registro es público | `UI.escapeHtml` escapa también comillas; el botón usa `data-username`; el backend solo admite letras, números, punto, guion y guion bajo (`usernameWithMarkupIsRejected`) |
+| El historial del asistente metía la consulta como JSON en un `onclick`: una pregunta con `&quot;` ejecutaba código al abrirla | El enlace lleva solo el id (`ASSISTANT.historyById`) |
+| La casilla «nota interna» enviaba `internal`, que el backend ignora: el comentario quedaba `PUBLIC` | Se envía y se lee `visibility` |
+| Reasignar llamaba a `PATCH /assign` (409) | `PUT /reassign` con justificación |
+| Historial de estados, categoría más recurrente y mensaje de transición leían campos que no existen | `newStatus`, `changedBy`, `category` |
+| La tabla por categoría mostraba resueltos como casos y nunca el porcentaje | Casos y porcentaje de `byCategory`, promedio de `resolutionTime.byCategory` |
+| Solo se veían 12 artículos | Se piden 100 (máximo del backend), sin paginación |
+| Ver un artículo ocultaba para siempre el botón «Confirmar» del modal compartido | Se restablece al asignar y al resolver |
+| La respuesta del asistente de un incidente seguía visible al abrir otro; una consulta `ERROR` se mostraba como respuesta vacía calificable | Se limpia el panel; sin respuesta solo se muestra el mensaje |
+| Botones de iniciar, resolver, cerrar y «nuevo incidente» visibles para roles que el backend rechaza | Visibles solo para el rol que puede usarlos |
+| Cuentas deshabilitadas mostradas como activas; cancelar el comentario guardaba la calificación | Corregidos |
+| Código sin uso: `AUTH.register`, `CONFIG.RAG_METRICS` (decía 0,70), clave de respaldo `Temporal123!`, `DashboardCacheMetric`, `MetricFilterRequest`, `MetricPeriod` | Eliminados; la tabla `dashboard_metrics_cache` se conserva vacía |
+
+Abierto:
+
+1. `POST /api/auth/register` sigue público aunque el frontend ya no tiene formulario de registro; el equipo debe decidir si se cierra (las pruebas lo usan para crear usuarios).
+2. Resuelto el 16 de noviembre de 2026: Chart.js 4.4.1 se sirve como recurso local.
+3. `LoginAttemptLimiter` ya purga las entradas vencidas antes de dejar de contar; con 10.000 identificadores vigentes a la vez los nuevos no se cuentan. Es el límite de memoria elegido, no un fallo.
+4. Los hallazgos 4 y 5 de §22.7 (comprobación de rol repetida e interfaces de un solo uso).
+5. Resuelto el 15 de noviembre de 2026: las correcciones se recorrieron en Edge sin ventana contra el entorno completo de `test` (`docs/backend/PRUEBAS.md` §11), con el proveedor de modelos simulado. Quedan sin recorrer la creación de artículos, categorías y usuarios, el restablecimiento de contraseñas y el cambio obligatorio de clave.
+
+### 22.9 Auditoría independiente con Codex (16 de noviembre de 2026)
+
+A petición del responsable, OpenAI Codex auditó el backend en modo de solo lectura, coordinado desde Claude Code con Orca. Claude Code hizo las correcciones y Codex las revisó; ninguna de las dos herramientas sustituye la revisión humana.
+
+Corregido (aceptado por Codex tras leer el diff):
+
+| Hallazgo | Corrección |
+|---|---|
+| El login comprobaba la clave y firmaba el token con la versión de credenciales leída después: un cambio de clave simultáneo dejaba un token válido obtenido con la clave anterior | `AuthController` firma con la versión del principal autenticado |
+| Al asignar, la cuenta del técnico se leía sin bloqueo: una baja o un cambio de rol simultáneos dejaban un incidente activo con un técnico no asignable | `TicketAssignmentService` lee al técnico con bloqueo compartido. El primer intento, con bloqueo exclusivo, interbloqueaba dos reasignaciones cruzadas; lo detectó Codex en la revisión |
+| Un borrado tardío en n8n podía eliminar el vector de un artículo ya reactivado y dejarlo `INDEXED` sin vector | `KnowledgeIndexService` deja `PENDING` también tras un `DELETE` obsoleto (`articleReactivatedDuringRemovalIsIndexedAgainByReconciliation`) |
+| El flujo de asistencia recortaba a `maxResults` antes de validar la elegibilidad: con los cinco mejores inservibles y el sexto vigente respondía `NO_RESULTS` | El flujo valida todos los candidatos recuperados y recorta después. Comprobado ejecutando los dos nodos en memoria, no dentro de n8n |
+| Un comentario podía guardarse en un incidente cerrado en ese instante o por un técnico recién reasignado | `CommentService.addComment` lee el incidente con bloqueo de escritura |
+
+Las correcciones de login, asignación y comentarios no tienen prueba propia de concurrencia: se validaron por lectura y con la suite completa.
+
+Abierto:
+
+1. Corregido el 16 de noviembre de 2026 (§22.10, n.º 1): reproducido con un servidor local y resuelto con un plazo total.
+2. Corregido el 16 de noviembre de 2026 (§22.10, n.º 12): la reconciliación avanza con un cursor.
+3. La búsqueda pide a Qdrant como máximo `maxResults × 4` candidatos: si todos estuvieran desactivados, la respuesta sería `NO_RESULTS` aunque existiera uno vigente más abajo.
+4. Codex no revisó categorías, DTO y mappers completos, datos iniciales, dependencias ni frontend.
+
+### 22.10 Segunda auditoría de Codex y correcciones (16 de noviembre de 2026)
+
+Codex auditó en solo lectura el árbol `4dcaf47` (backend y frontend editorial del pull request n.º 16) y entregó 14 hallazgos. Claude Code los reprodujo y corrigió en la rama `JhonHenryReyesPerez/corregir-auditoria-synapse`, creada desde `test`. Sin cambios de contrato, permisos, fórmulas ni migraciones. Revisión humana pendiente.
+
+| N.º | Hallazgo | Corrección | Prueba |
+|---|---|---|---|
+| 1 | `HttpN8nClient`: el cuerpo de la respuesta no tenía plazo (hilo bloqueado más de 10 min con un plazo de 500 ms) | `N8N_READ_TIMEOUT` es ahora el plazo total (cabeceras y cuerpo); al vencer se cancela la conexión; el tope de bytes se aplica durante la recepción | `HttpN8nClientTests` (cliente real contra un servidor local) |
+| 2 | Un comentario, transición o asignación que terminaba con otro incidente abierto borraba el borrador nuevo o reabría el anterior | Se captura el incidente antes de la petición; solo se limpia el texto enviado y solo se refresca si sigue abierto | `frontend/tests/audit-fixes.test.cjs` |
+| 3 | Una lista de artículos de un alcance anterior se pintaba bajo el alcance actual | Contador de solicitudes en la lista y en el lector de artículos | Ídem |
+| 4 | La cohorte de una categoría sin incidentes decía «Todas las categorías» | La etiqueta sale de `cohort.categoryId` (catálogo o «Categoría #id») | Ídem |
+| 5 | `sources[].current=false` no se mostraba | Aviso «Fuente histórica» y versión del artículo; la evidencia usada se conserva | Ídem |
+| 6 | Un fallo al cargar comentarios o historial se mostraba como lista vacía | Mensaje de error con reintento; al refrescar el mismo incidente se conserva lo mostrado | Ídem |
+| 7 | El cliente ocultaba el detalle por campo de las validaciones | `API.request` devuelve el detalle y `fieldErrors`; los formularios de incidente, artículo y categoría marcan el control (`aria-invalid`) | Ídem |
+| 8 | Cerrar sesión no funcionaba mientras la carga inicial seguía pendiente | El botón se registra antes de las cargas remotas | Ídem |
+| 9 | Dos cambios simultáneos sobre administradores distintos se interbloqueaban (`40P01` en PostgreSQL) | `UserService.lockedAccount` bloquea primero el conjunto de administradores activos y después la cuenta | `UserAccountPolicyTests.concurrentAdminDemotionsDoNotDeadlock` |
+| 10 | El resumen analítico podía mezclar instantáneas (total 2, desglose 3) | `AnalyticsService.summary` usa `REPEATABLE_READ`; sin caché ni cambios de fórmula | `AnalyticsSnapshotTests` |
+| 11 | Reintentar tras una respuesta perdida generaba otra consulta | El asistente conserva el `requestId` mientras el resultado es incierto; tras un `ERROR` reintenta con `retryOfQueryId` | `frontend/tests/audit-fixes.test.cjs` |
+| 12 | Los primeros 50 artículos con error permanente impedían reconciliar el resto | Límite en la consulta y cursor en memoria que continúa tras el último intentado y vuelve al principio | `KnowledgeIndexTests.permanentlyFailingBatchDoesNotStarveLaterArticles` |
+| 13 | El alta y la actualización administrativas aceptaban correos mal formados | Una sola validación de formato y longitud (200) para registro, alta y actualización | `UserAccountPolicyTests.malformedEmailIsRejectedOnAdminCreateAndUpdate` |
+| 14 | Tres métodos sin consumidores | Eliminados `UserMapper.toUserEntity`, `UserRoleMapper.toUserRoleEntity` y `TechnicianRepository.findByAvailabilityStatusOrderByActiveTicketsCountAsc` | Compilación y suite |
+
+Decisiones y límites:
+
+1. **Bloqueo de administradores:** toda actualización, cambio de rol o baja de una cuenta bloquea antes las cuentas de administrador activas, sea cual sea la cuenta afectada. Estas operaciones quedan serializadas entre sí.
+2. **Cursor de reconciliación en memoria:** se reinicia con la aplicación y no se comparte entre instancias.
+3. **Reintento del asistente:** la identidad pendiente vive en la página; al recargarla se pierde y la consulta siguiente es nueva.
+4. Los errores de validación se asocian al control con `aria-invalid` y el detalle se muestra en el aviso; no se añadió un texto por campo bajo cada control.
+5. No comprobado: recorrido en navegador de las correcciones del frontend (las pruebas usan un DOM mínimo), `HttpN8nClient` contra un n8n real que deje el cuerpo a medias, y carga concurrente más allá de las pruebas citadas.

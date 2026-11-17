@@ -33,6 +33,25 @@ public class UserRepository implements IUserRepository {
   private ResponseStatusException invalid(String message) {
     return new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
   }
+  /** Formato de correo común a registro, alta administrativa y actualización. */
+  public static final java.util.regex.Pattern EMAIL_PATTERN =
+      java.util.regex.Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
+  /** Correo normalizado (sin espacios, en minúsculas); 400 si no tiene formato válido o supera la columna. */
+  private String validEmail(String email) {
+    String clean = email.trim().toLowerCase();
+    if (clean.length() > 200 || !EMAIL_PATTERN.matcher(clean).matches()) {
+      throw invalid("El correo electrónico debe tener un formato válido (máximo 200 caracteres)");
+    }
+    return clean;
+  }
+  /** El nombre acaba en HTML, URLs y registros: solo letras, números, punto, guion y guion bajo. */
+  private String validUsername(String username) {
+    String clean = username == null ? "" : username.trim();
+    if (!clean.matches("[A-Za-z0-9._-]{1,50}")) {
+      throw invalid("El usuario es obligatorio: hasta 50 caracteres entre letras, números, punto, guion y guion bajo");
+    }
+    return clean;
+  }
   private void requireValidPassword(String password) {
     PasswordPolicy.violation(password).ifPresent(message -> { throw invalid(message); });
   }
@@ -105,12 +124,10 @@ public class UserRepository implements IUserRepository {
   @Override
   @Transactional
   public UserDto save(UserDto dto) {
-    if(dto.getUsername()==null || dto.getUsername().isBlank() || dto.getUsername().length()>50)
-      throw invalid("El usuario es obligatorio y debe tener como máximo 50 caracteres");
-    String cleanUsername = dto.getUsername().trim();
+    String cleanUsername = validUsername(dto.getUsername());
     if(users.existsById(cleanUsername)) throw new ResponseStatusException(HttpStatus.CONFLICT,"El usuario ya existe");
     if(dto.getEmail()==null || dto.getEmail().isBlank()) throw invalid("El correo es obligatorio");
-    String cleanEmail = dto.getEmail().trim().toLowerCase();
+    String cleanEmail = validEmail(dto.getEmail());
     if(users.existsByEmail(cleanEmail)) throw new ResponseStatusException(HttpStatus.CONFLICT,"El correo electrónico ya se encuentra registrado");
     requireValidPassword(dto.getPassword());
     String role=requestedRole(dto,true);
@@ -122,7 +139,8 @@ public class UserRepository implements IUserRepository {
     user.setArea(optionalText(dto.getArea(), 100, "El área"));
     user.setRoles(new ArrayList<>());
     setPermissions(user,dto.getAdditionalPermissions());
-    user=users.save(user); setRole(user,role); em.flush(); return mapper.toUserDto(user);
+    // persist y no save: con clave asignada, save hace merge y actualizaría una cuenta creada en paralelo.
+    em.persist(user); setRole(user,role); em.flush(); return mapper.toUserDto(user);
   }
   @Transactional
   public UserDto update(UserDto dto) {
@@ -130,7 +148,7 @@ public class UserRepository implements IUserRepository {
     String role=requestedRole(dto,false);
     if(dto.getEmail()!=null) {
       if(dto.getEmail().isBlank()) throw invalid("El correo no puede estar vacío");
-      String cleanEmail = dto.getEmail().trim().toLowerCase();
+      String cleanEmail = validEmail(dto.getEmail());
       if(users.existsByEmailAndUsernameNot(cleanEmail,dto.getUsername()))
         throw new ResponseStatusException(HttpStatus.CONFLICT,"El correo ya pertenece a otro usuario");
       user.setEmail(cleanEmail);
@@ -195,15 +213,12 @@ public class UserRepository implements IUserRepository {
 
   @Transactional
   public UserDto register(RegisterDto dto) {
-    if (dto.getUsername() == null || dto.getUsername().isBlank() || dto.getUsername().length() > 50) {
-      throw invalid("El nombre de usuario es obligatorio y debe tener como máximo 50 caracteres");
-    }
+    String cleanUsername = validUsername(dto.getUsername());
     if (dto.getEmail() == null || dto.getEmail().isBlank()) {
       throw invalid("El correo electrónico es obligatorio");
     }
     requireValidPassword(dto.getPassword());
-    String cleanUsername = dto.getUsername().trim();
-    String cleanEmail = dto.getEmail().trim().toLowerCase();
+    String cleanEmail = validEmail(dto.getEmail());
 
     if (users.existsById(cleanUsername)) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, "El nombre de usuario ya se encuentra registrado");
@@ -222,7 +237,8 @@ public class UserRepository implements IUserRepository {
     user.setFullName(optionalText(dto.getFullName(), 150, "El nombre"));
     user.setArea(optionalText(dto.getArea(), 100, "El área"));
     user.setRoles(new ArrayList<>());
-    user = users.save(user);
+    // persist y no save: con clave asignada, save hace merge y actualizaría una cuenta creada en paralelo.
+    em.persist(user);
 
     setRole(user, "USER");
     em.flush();

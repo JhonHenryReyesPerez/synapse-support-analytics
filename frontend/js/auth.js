@@ -42,19 +42,21 @@ const AUTH = {
       return res;
     }
 
-    const { token, username, mustChangePassword } = res.data;
+    const { token, mustChangePassword } = res.data;
     localStorage.setItem(CONFIG.STORAGE_TOKEN, token);
 
     // Obtener datos de rol y permisos mediante GET /api/auth/me
-    let userDetails = { username, role: 'USER' };
     const meRes = await API.get('/auth/me');
-    if (meRes.ok && meRes.data) {
-      userDetails = {
-        ...userDetails,
-        ...meRes.data
+    if (!meRes.ok || !meRes.data?.username || !meRes.data?.role) {
+      localStorage.removeItem(CONFIG.STORAGE_TOKEN);
+      localStorage.removeItem(CONFIG.STORAGE_USER);
+      return {
+        ...meRes,
+        ok: false,
+        error: meRes.error || 'No se pudo obtener tu perfil. Inicia sesión nuevamente.'
       };
     }
-    userDetails.mustChangePassword = Boolean(mustChangePassword);
+    const userDetails = { ...meRes.data, mustChangePassword: Boolean(mustChangePassword) };
     localStorage.setItem(CONFIG.STORAGE_USER, JSON.stringify(userDetails));
 
     return {
@@ -62,18 +64,6 @@ const AUTH = {
       mustChangePassword: Boolean(mustChangePassword),
       user: userDetails
     };
-  },
-
-  /**
-   * Registra una nueva cuenta pública con rol USER por defecto.
-   * Endpoint: POST /api/auth/register
-   */
-  async register(username, email, password) {
-    return await API.post('/auth/register', {
-      username: username.trim(),
-      email: email.trim(),
-      password: password
-    });
   },
 
   /**

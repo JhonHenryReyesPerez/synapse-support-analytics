@@ -7,8 +7,8 @@ aquí solo está el contrato que ambos lados deben cumplir. Fuente en el código
 
 Estado: implementado en el backend y en los dos flujos de `n8n/`. Probado con un doble de n8n
 (`FakeN8nClient`) y, el 13 de noviembre de 2026, de extremo a extremo con n8n 2.47.7 y Qdrant 1.20.1
-reales y el proveedor de modelos simulado (`docs/backend/PRUEBAS.md` §8). **No se ha ejecutado con
-modelos reales de OpenRouter.**
+reales, primero con el proveedor de modelos simulado y después con modelos reales de OpenRouter
+(`openai/text-embedding-3-small` y `google/gemini-2.5-flash`). Resultados en `docs/backend/PRUEBAS.md` §8.
 
 ## 1. Reglas generales
 
@@ -19,7 +19,7 @@ modelos reales de OpenRouter.**
 | Secretos | Dos secretos distintos, mínimo 32 caracteres, por variable de entorno. Nunca dentro del JSON del workflow |
 | Destino | La URL de n8n es fija por configuración; ningún cliente la elige |
 | Rutas por defecto | Indexación `/webhook/campusdesk-index`; asistencia `/webhook/campusdesk-assist` (`N8N_INDEX_PATH`, `N8N_ASSIST_PATH`) |
-| Tiempos | Conexión 5 s y respuesta 60 s por defecto (`N8N_CONNECT_TIMEOUT`, `N8N_READ_TIMEOUT`) |
+| Tiempos | Conexión 5 s y respuesta completa (cabeceras y cuerpo) 60 s por defecto (`N8N_CONNECT_TIMEOUT`, `N8N_READ_TIMEOUT`); al vencer, el backend corta la conexión |
 | Tamaño | Respuesta máxima de 1 MiB (`N8N_MAX_RESPONSE_BYTES`) |
 | Protocolo | HTTP/1.1. El cliente del backend lo fija: n8n no responde a la petición de actualización a HTTP/2 sin TLS |
 | Estado HTTP | n8n responde **200** con el JSON del contrato, también cuando informa `status: "ERROR"`. Cualquier otro estado se trata como fallo de n8n |
@@ -86,7 +86,7 @@ y el índice del fragmento.
 
 Si la respuesta no cumple, el artículo queda con `indexStatus = ERROR` y sigue existiendo en la base
 relacional. Se reintenta con `POST /api/knowledge/articles/{id}/reindex` o con
-`POST /api/knowledge/articles/index/reconcile` (hasta 50 pendientes por llamada).
+`POST /api/knowledge/articles/index/reconcile` (hasta 50 pendientes por llamada; cada llamada continúa después del último artículo intentado).
 
 ## 3. Consulta de asistencia (RF04 y RF05)
 
@@ -104,7 +104,7 @@ relacional. Se reintenta con `POST /api/knowledge/articles/{id}/reindex` o con
   "incidentDescription": "El equipo no navega y muestra el aviso Sin acceso a internet",
   "incidentCategory": "Conectividad",
   "maxResults": 5,
-  "minScore": 0.7
+  "minScore": 0.55
 }
 ```
 
@@ -146,7 +146,7 @@ permisos operativos (no cambia estados de incidentes, no asigna técnicos, no ve
   ],
   "embeddingModel": "nombre-del-modelo-de-embeddings",
   "generationModel": "nombre-del-modelo-de-generación",
-  "threshold": 0.7,
+  "threshold": 0.55,
   "similarityMetric": "cosine",
   "workflowVersion": "assist-1",
   "errorCode": null
@@ -234,8 +234,8 @@ Qdrant cuyo artículo o versión no figure en la lista debe retirarse.
 
 ## 6. Pendiente de acordar con quien construye los workflows
 
-- **Umbral:** `ASSIST_MIN_SCORE=0.70` es un valor inicial sin calibrar. Debe ajustarse con el modelo
-  de embeddings real y un conjunto de consultas de prueba (con cobertura y sin ella), y documentar la justificación.
+- **Umbral:** `ASSIST_MIN_SCORE=0.55`, calibrado con `openai/text-embedding-3-small` y 25 consultas de prueba
+  (`docs/backend/PRUEBAS.md` §9). Hay que recalibrarlo si cambia el modelo de embeddings o el contenido de los artículos.
 - **Fragmentación:** los flujos actuales indexan cada artículo como un único punto (fragmento 0, `chunkIds` con la forma `"{articleId}-0"`). Si los artículos crecen habrá que fragmentar.
 - **Códigos de error** que emiten los flujos: `INVALID_REQUEST`, `EMBEDDING_FAILED`, `VECTOR_UPSERT_FAILED`, `VECTOR_DELETE_FAILED`, `VECTOR_SEARCH_FAILED`, `ELIGIBILITY_CHECK_FAILED`, `GENERATION_FAILED` y `GENERATION_INVALID_OUTPUT`.
-- **Prueba con modelos reales:** la prueba integrada usó un proveedor simulado; falta repetirla con una clave de OpenRouter.
+- **Límite de tokens:** el flujo de asistencia envía `max_tokens` (`GENERATION_MAX_TOKENS`, 1500 por defecto). Sin él, OpenRouter reserva el máximo del modelo y rechaza la petición si el saldo no lo cubre.
