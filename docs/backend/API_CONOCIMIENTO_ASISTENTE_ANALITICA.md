@@ -75,6 +75,7 @@ La llamada es síncrona: puede tardar hasta unos dos minutos. Deshabilita el bot
 | 400 | Pregunta vacía o demasiado larga, o `requestId` que no es UUID | Error de validación |
 | 409 | Incidente cerrado, o ya hay una consulta propia en proceso | `message` |
 | 502, 503, 504 | Fallo técnico. El cuerpo trae `code`, `queryId` y `requestId` | «No fue posible completar la consulta; intenta de nuevo» y ofrecer reintento con `retryOfQueryId` |
+| Sin respuesta (red) o 5xx sin `queryId` | No se sabe si la consulta se creó | Repetir con el **mismo** `requestId`: devuelve la consulta existente o la crea, sin duplicarla |
 
 Respuesta (`AssistanceQueryResponse`):
 

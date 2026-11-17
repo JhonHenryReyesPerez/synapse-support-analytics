@@ -111,7 +111,7 @@ cp .env.example .env      # editar los valores; .env está excluido de Git
 | `N8N_SERVICE_TOKEN` | Secreto que Spring Boot envía a n8n (`X-Service-Token`), mínimo 32 caracteres | Obligatoria si hay `N8N_BASE_URL` |
 | `INTEGRATION_API_TOKEN` | Secreto que n8n envía a `/api/integration/**` (`X-Integration-Token`), mínimo 32 caracteres | Vacía: esos endpoints quedan cerrados |
 | `N8N_INDEX_PATH`, `N8N_ASSIST_PATH` | Rutas de los webhooks | `/webhook/campusdesk-index`, `/webhook/campusdesk-assist` |
-| `N8N_CONNECT_TIMEOUT`, `N8N_READ_TIMEOUT` | Tiempos límite hacia n8n | `5s`, `60s` |
+| `N8N_CONNECT_TIMEOUT`, `N8N_READ_TIMEOUT` | Tiempo límite de conexión y plazo total de cada respuesta de n8n (cabeceras y cuerpo) | `5s`, `60s` |
 | `N8N_MAX_RESPONSE_BYTES` | Tamaño máximo de una respuesta de n8n | `1048576` |
 | `ASSIST_MAX_RESULTS` | Artículos a recuperar (3 a 5) | `5` |
 | `ASSIST_MIN_SCORE` | Umbral mínimo de similitud coseno (0 a 1) | `0.55` (calibrado con `openai/text-embedding-3-small`; ver `docs/backend/PRUEBAS.md` §9) |

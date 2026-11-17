@@ -370,3 +370,26 @@ más la causa; si se repite, conviene revisar ese límite.
 - La fidelidad la juzgó la herramienta de IA leyendo las respuestas frente a los artículos, no una persona.
 - Las pruebas 4 y 5 no se repitieron; las cubre el §11.
 - No ejercita las correcciones de concurrencia del §22.9 de `CLAUDE.md`.
+
+## 13. Correcciones de la segunda auditoría de Codex (16 de noviembre de 2026)
+
+Hallazgos y correcciones en `CLAUDE.md` §22.10. Ejecutado en la rama `JhonHenryReyesPerez/corregir-auditoria-synapse`.
+
+| Ejecución | Resultado |
+|---|---|
+| `./gradlew test` (H2) | 116 pruebas, 0 fallos, 6 omitidas (`DemoDataSeedTests`) |
+| Suite en PostgreSQL 17 (contenedor desechable `campusdesk-test-pg`, bases nuevas creadas y eliminadas para esta ejecución, Flyway y `validate`) | 116 pruebas, 0 fallos, 0 omitidas |
+| `node --test frontend/tests/*.test.*` | 54 pruebas, 0 fallos (37 anteriores y 17 nuevas) |
+
+Reproducción antes de corregir:
+
+| N.º | Evidencia |
+|---|---|
+| 1 | `HttpN8nClientTests` contra el cliente anterior: hilo bloqueado en `readNBytes` más de 10 minutos con un plazo de 500 ms (volcado de hilos). Con la corrección: `N8N_TIMEOUT` en 0,6 s y el servidor observa el cierre de la conexión; una respuesta de 80 MB se rechaza al superar el tope |
+| 2–8 y 11 | Las pruebas nuevas ejecutadas contra los scripts de `b44680f`: 15 fallos de 17 (las otras dos son casos de control) |
+| 9 | Sin el orden de bloqueo: `[500, 200]` en la primera ronda, con `40P01` en PostgreSQL; también falla en H2 |
+| 10 | Sin `REPEATABLE_READ`: total 2 y desglose por categoría 3, en H2 y en PostgreSQL |
+| 12 | Sin avanzar el cursor: el artículo 51 no se reintenta en cuatro reconciliaciones |
+| 13 | No se ejecutó contra el código anterior; la reprodujo Codex (`PUT /api/user/update` con `not-an-email` respondía 200) |
+
+No comprobado: navegador real para las correcciones del frontend, n8n real y sus workflows; las pruebas de concurrencia son de pocas rondas y no equivalen a una prueba de carga.

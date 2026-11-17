@@ -746,7 +746,7 @@ Corregido:
 Abierto:
 
 1. `POST /api/auth/register` sigue público aunque el frontend ya no tiene formulario de registro; el equipo debe decidir si se cierra (las pruebas lo usan para crear usuarios).
-2. Chart.js se carga desde un CDN: sin conexión los gráficos quedan en blanco sin aviso.
+2. Resuelto el 16 de noviembre de 2026: Chart.js 4.4.1 se sirve como recurso local.
 3. `LoginAttemptLimiter` ya purga las entradas vencidas antes de dejar de contar; con 10.000 identificadores vigentes a la vez los nuevos no se cuentan. Es el límite de memoria elegido, no un fallo.
 4. Los hallazgos 4 y 5 de §22.7 (comprobación de rol repetida e interfaces de un solo uso).
 5. Resuelto el 15 de noviembre de 2026: las correcciones se recorrieron en Edge sin ventana contra el entorno completo de `test` (`docs/backend/PRUEBAS.md` §11), con el proveedor de modelos simulado. Quedan sin recorrer la creación de artículos, categorías y usuarios, el restablecimiento de contraseñas y el cambio obligatorio de clave.
@@ -769,7 +769,36 @@ Las correcciones de login, asignación y comentarios no tienen prueba propia de 
 
 Abierto:
 
-1. `HttpN8nClient`: el tiempo límite cubre hasta las cabeceras; si n8n deja el cuerpo a medias, la lectura no tiene plazo. Sin reproducir.
-2. `KnowledgeIndexService.reconcile` toma siempre los primeros 50 artículos pendientes o con error: si esos 50 fallan siempre, los siguientes no se intentan. El conjunto actual tiene 31.
+1. Corregido el 16 de noviembre de 2026 (§22.10, n.º 1): reproducido con un servidor local y resuelto con un plazo total.
+2. Corregido el 16 de noviembre de 2026 (§22.10, n.º 12): la reconciliación avanza con un cursor.
 3. La búsqueda pide a Qdrant como máximo `maxResults × 4` candidatos: si todos estuvieran desactivados, la respuesta sería `NO_RESULTS` aunque existiera uno vigente más abajo.
 4. Codex no revisó categorías, DTO y mappers completos, datos iniciales, dependencias ni frontend.
+
+### 22.10 Segunda auditoría de Codex y correcciones (16 de noviembre de 2026)
+
+Codex auditó en solo lectura el árbol `4dcaf47` (backend y frontend editorial del pull request n.º 16) y entregó 14 hallazgos. Claude Code los reprodujo y corrigió en la rama `JhonHenryReyesPerez/corregir-auditoria-synapse`, creada desde `test`. Sin cambios de contrato, permisos, fórmulas ni migraciones. Revisión humana pendiente.
+
+| N.º | Hallazgo | Corrección | Prueba |
+|---|---|---|---|
+| 1 | `HttpN8nClient`: el cuerpo de la respuesta no tenía plazo (hilo bloqueado más de 10 min con un plazo de 500 ms) | `N8N_READ_TIMEOUT` es ahora el plazo total (cabeceras y cuerpo); al vencer se cancela la conexión; el tope de bytes se aplica durante la recepción | `HttpN8nClientTests` (cliente real contra un servidor local) |
+| 2 | Un comentario, transición o asignación que terminaba con otro incidente abierto borraba el borrador nuevo o reabría el anterior | Se captura el incidente antes de la petición; solo se limpia el texto enviado y solo se refresca si sigue abierto | `frontend/tests/audit-fixes.test.cjs` |
+| 3 | Una lista de artículos de un alcance anterior se pintaba bajo el alcance actual | Contador de solicitudes en la lista y en el lector de artículos | Ídem |
+| 4 | La cohorte de una categoría sin incidentes decía «Todas las categorías» | La etiqueta sale de `cohort.categoryId` (catálogo o «Categoría #id») | Ídem |
+| 5 | `sources[].current=false` no se mostraba | Aviso «Fuente histórica» y versión del artículo; la evidencia usada se conserva | Ídem |
+| 6 | Un fallo al cargar comentarios o historial se mostraba como lista vacía | Mensaje de error con reintento; al refrescar el mismo incidente se conserva lo mostrado | Ídem |
+| 7 | El cliente ocultaba el detalle por campo de las validaciones | `API.request` devuelve el detalle y `fieldErrors`; los formularios de incidente, artículo y categoría marcan el control (`aria-invalid`) | Ídem |
+| 8 | Cerrar sesión no funcionaba mientras la carga inicial seguía pendiente | El botón se registra antes de las cargas remotas | Ídem |
+| 9 | Dos cambios simultáneos sobre administradores distintos se interbloqueaban (`40P01` en PostgreSQL) | `UserService.lockedAccount` bloquea primero el conjunto de administradores activos y después la cuenta | `UserAccountPolicyTests.concurrentAdminDemotionsDoNotDeadlock` |
+| 10 | El resumen analítico podía mezclar instantáneas (total 2, desglose 3) | `AnalyticsService.summary` usa `REPEATABLE_READ`; sin caché ni cambios de fórmula | `AnalyticsSnapshotTests` |
+| 11 | Reintentar tras una respuesta perdida generaba otra consulta | El asistente conserva el `requestId` mientras el resultado es incierto; tras un `ERROR` reintenta con `retryOfQueryId` | `frontend/tests/audit-fixes.test.cjs` |
+| 12 | Los primeros 50 artículos con error permanente impedían reconciliar el resto | Límite en la consulta y cursor en memoria que continúa tras el último intentado y vuelve al principio | `KnowledgeIndexTests.permanentlyFailingBatchDoesNotStarveLaterArticles` |
+| 13 | El alta y la actualización administrativas aceptaban correos mal formados | Una sola validación de formato y longitud (200) para registro, alta y actualización | `UserAccountPolicyTests.malformedEmailIsRejectedOnAdminCreateAndUpdate` |
+| 14 | Tres métodos sin consumidores | Eliminados `UserMapper.toUserEntity`, `UserRoleMapper.toUserRoleEntity` y `TechnicianRepository.findByAvailabilityStatusOrderByActiveTicketsCountAsc` | Compilación y suite |
+
+Decisiones y límites:
+
+1. **Bloqueo de administradores:** toda actualización, cambio de rol o baja de una cuenta bloquea antes las cuentas de administrador activas, sea cual sea la cuenta afectada. Estas operaciones quedan serializadas entre sí.
+2. **Cursor de reconciliación en memoria:** se reinicia con la aplicación y no se comparte entre instancias.
+3. **Reintento del asistente:** la identidad pendiente vive en la página; al recargarla se pierde y la consulta siguiente es nueva.
+4. Los errores de validación se asocian al control con `aria-invalid` y el detalle se muestra en el aviso; no se añadió un texto por campo bajo cada control.
+5. No comprobado: recorrido en navegador de las correcciones del frontend (las pruebas usan un DOM mínimo), `HttpN8nClient` contra un n8n real que deje el cuerpo a medias, y carga concurrente más allá de las pruebas citadas.
