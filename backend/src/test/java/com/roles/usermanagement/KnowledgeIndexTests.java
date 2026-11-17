@@ -239,6 +239,39 @@ class KnowledgeIndexTests extends ApiTestSupport {
         n8n.onIndex = previous;
     }
 
+    /** Más artículos con error permanente que el lote: los primeros no deben monopolizar cada llamada. */
+    @Test
+    void permanentlyFailingBatchDoesNotStarveLaterArticles() throws Exception {
+        String admin = adminToken();
+        n8n.onIndex = request -> {
+            throw new N8nException(N8nException.Kind.TIMEOUT);
+        };
+        long last = 0;
+        for (int i = 0; i < 51; i++) {
+            last = json(request("POST", "/api/knowledge/articles", KnowledgeArticleTests.body("Lote " + i, "s"), admin))
+                    .get("id").asLong();
+            request("POST", "/api/knowledge/articles/" + last + "/verify", null, admin);
+            request("POST", "/api/knowledge/articles/" + last + "/activate", null, admin);
+        }
+        assertThat(article(last, admin).get("indexStatus").asText()).isEqualTo("ERROR");
+        assertThat(callsFor(last)).hasSize(1);
+
+        // Pueden quedar pendientes de otras pruebas por delante: se admiten algunas llamadas, no infinitas.
+        JsonNode summary = null;
+        for (int call = 0; call < 4 && callsFor(last).size() == 1; call++) {
+            summary = json(request("POST", "/api/knowledge/articles/index/reconcile", null, admin));
+            assertThat(summary.get("processed").asInt()).isLessThanOrEqualTo(50);
+        }
+        assertThat(callsFor(last)).as("el último artículo también se reintenta").hasSize(2);
+
+        // Recuperado el servicio, todos terminan indexados.
+        n8n.onIndex = FakeN8nClient::indexed;
+        for (int call = 0; call < 4; call++) {
+            request("POST", "/api/knowledge/articles/index/reconcile", null, admin);
+        }
+        assertThat(article(last, admin).get("indexStatus").asText()).isEqualTo("INDEXED");
+    }
+
     private List<IndexRequest> callsFor(long id) {
         return n8n.indexCalls.stream().filter(call -> call.articleId() == id).toList();
     }

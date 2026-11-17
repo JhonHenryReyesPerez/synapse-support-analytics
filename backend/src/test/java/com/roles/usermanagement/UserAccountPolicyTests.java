@@ -6,7 +6,10 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.net.http.HttpResponse;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -155,6 +158,31 @@ class UserAccountPolicyTests extends ApiTestSupport {
         assertThat(request("GET", "/api/tickets", null, lockedToken).statusCode()).isEqualTo(401);
     }
 
+    /** El alta y la actualización administrativas validan el correo igual que el registro. */
+    @Test
+    void malformedEmailIsRejectedOnAdminCreateAndUpdate() throws Exception {
+        String admin = adminToken();
+        String user = registerUser();
+        String original = account(user).get("email").asText();
+
+        assertThat(request("PUT", "/api/user/update", "{\"username\":\"" + user + "\",\"email\":\"not-an-email\"}", admin)
+                .statusCode()).isEqualTo(400);
+        assertThat(request("PUT", "/api/user/update",
+                "{\"username\":\"" + user + "\",\"email\":\"" + "a".repeat(200) + "@test.local\"}", admin).statusCode())
+                .isEqualTo(400);
+        assertThat(account(user).get("email").asText()).isEqualTo(original);
+        assertThat(request("POST", "/api/user/add", "{\"username\":\"x_" + user + "\",\"email\":\"sin-arroba\","
+                + "\"password\":\"" + PASSWORD + "\"}", admin).statusCode()).isEqualTo(400);
+
+        // Un correo válido se sigue aceptando y normalizando; omitirlo no lo toca.
+        assertThat(request("PUT", "/api/user/update",
+                "{\"username\":\"" + user + "\",\"email\":\" Nuevo_" + user + "@Test.Local \"}", admin).statusCode()).isEqualTo(200);
+        assertThat(account(user).get("email").asText()).isEqualTo("nuevo_" + user + "@test.local");
+        assertThat(request("PUT", "/api/user/update", "{\"username\":\"" + user + "\",\"area\":\"Soporte\"}", admin)
+                .statusCode()).isEqualTo(200);
+        assertThat(account(user).get("email").asText()).isEqualTo("nuevo_" + user + "@test.local");
+    }
+
     @Test
     void usernameWithMarkupIsRejected() throws Exception {
         String body = "{\"username\":\"\\\"><svg onload=alert(1)>\",\"email\":\"x_%s@test.local\",\"password\":\"" + PASSWORD + "\"}";
@@ -173,6 +201,44 @@ class UserAccountPolicyTests extends ApiTestSupport {
         assertThat(request("GET", "/api/user/" + ADMIN + "/permissions", null, technicianToken).statusCode())
                 .isEqualTo(403);
         assertThat(request("GET", "/api/technicians", null, adminToken()).statusCode()).isEqualTo(200);
+    }
+
+    /**
+     * Dos administradores degradados a la vez: cada operación bloqueaba primero su cuenta y luego
+     * el conjunto de administradores, y se interbloqueaban. No toca a superadmin, que sigue activo.
+     */
+    @Test
+    void concurrentAdminDemotionsDoNotDeadlock() throws Exception {
+        String admin = adminToken();
+        for (int round = 0; round < 8; round++) {
+            String first = registerUser();
+            String second = registerUser();
+            assertThat(assignRole(first, "ADMIN", admin)).isEqualTo(200);
+            assertThat(assignRole(second, "ADMIN", admin)).isEqualTo(200);
+            CountDownLatch start = new CountDownLatch(1);
+
+            var one = CompletableFuture.supplyAsync(() -> demoteWhenReleased(start, first, admin));
+            var other = CompletableFuture.supplyAsync(() -> demoteWhenReleased(start, second, admin));
+            start.countDown();
+
+            assertThat(List.of(one.get(), other.get())).as("ronda %d", round).containsOnly(200);
+            assertThat(account(first).get("role").asText()).isEqualTo("USER");
+            assertThat(account(second).get("role").asText()).isEqualTo("USER");
+        }
+    }
+
+    private int assignRole(String username, String role, String token) throws Exception {
+        return request("POST", "/api/user/assignRole",
+                "{\"username\":\"" + username + "\",\"role\":\"" + role + "\"}", token).statusCode();
+    }
+
+    private int demoteWhenReleased(CountDownLatch start, String username, String token) {
+        try {
+            start.await();
+            return assignRole(username, "USER", token);
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     private JsonNode account(String username) throws Exception {
