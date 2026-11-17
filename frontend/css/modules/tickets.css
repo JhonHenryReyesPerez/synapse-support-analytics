@@ -188,3 +188,15 @@
   color: var(--text-main);
   white-space: pre-wrap;
 }
+
+.data-table { min-width: 800px; }
+.data-table th { text-transform: none; letter-spacing: 0; }
+.data-table td { font-variant-numeric: tabular-nums; }
+#tickets-table-body td:nth-child(2) { min-width: 240px; max-width: 420px; overflow-wrap: anywhere; }
+.table-responsive { border-radius: 0; box-shadow: none; }
+.ticket-detail-grid > *, .comment-header > *, .timeline-header > * { min-width: 0; }
+.comment-header, .timeline-header { gap: 8px; flex-wrap: wrap; }
+.comment-body { overflow-wrap: anywhere; }
+#detail-actions-container { display: flex; flex-wrap: wrap; gap: 10px; }
+.comment-actions { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+.pagination-bar { flex-wrap: wrap; gap: 12px; padding: 16px; }

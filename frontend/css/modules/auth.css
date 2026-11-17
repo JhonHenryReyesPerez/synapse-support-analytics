@@ -7,7 +7,7 @@
   align-items: center;
   justify-content: center;
   padding: var(--spacing-6);
-  background: radial-gradient(circle at 10% 20%, rgba(37, 99, 235, 0.05) 0%, rgba(15, 23, 42, 0.02) 90%), var(--bg-body);
+  background: var(--bg-body);
 }
 
 .auth-container {
@@ -32,13 +32,13 @@
   justify-content: center;
   width: 54px;
   height: 54px;
-  border-radius: var(--radius-xl);
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
-  color: #ffffff;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-accent);
   font-size: 1.6rem;
   font-weight: bold;
   margin-bottom: var(--spacing-3);
-  box-shadow: var(--shadow-md);
+  box-shadow: none;
 }
 
 .auth-brand h1 {
@@ -57,8 +57,8 @@
 .auth-card {
   background-color: var(--bg-surface);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-xl);
+  border-radius: 0;
+  box-shadow: none;
   padding: var(--spacing-8);
 }
 
@@ -134,14 +134,13 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  transition: all var(--transition-fast);
+  transition: color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .demo-pill:hover {
   background-color: var(--color-accent-subtle);
   border-color: var(--color-accent-light);
   color: var(--color-accent);
-  transform: translateY(-1px);
 }
 
 .demo-pill.pill-admin {
@@ -156,4 +155,16 @@
 }
 .demo-pill.pill-user {
   border-color: var(--border-color);
+}
+
+.auth-brand h1 { font-family: var(--font-family-display); font-size: 40px; font-weight: 400; letter-spacing: -1.2px; }
+.auth-card { background: transparent; border: 0; border-top: 2px solid var(--border-strong); border-bottom: 1px solid var(--border-color); padding: 28px 0; }
+.auth-logo-badge { width: 40px; height: 40px; margin-bottom: 8px; }
+.corporate-notice { background: transparent; border: 0; border-bottom: 1px solid var(--border-color); padding: 0 0 20px; color: var(--text-muted); }
+.demo-credentials-box { border: 0; border-top: 1px solid var(--border-color); border-radius: 0; padding: 20px 0 0; background: transparent; }
+.demo-credentials-box > summary { cursor: pointer; font-weight: 500; color: var(--text-muted); padding: 4px 0; }
+.demo-credentials-header { flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+@media (max-width: 580px) {
+  .auth-page { padding: 24px 16px; align-items: flex-start; }
+  .auth-brand h1 { font-size: 34px; }
 }

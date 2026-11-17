@@ -7,7 +7,10 @@ const THEME = {
     document.documentElement.dataset.theme = isDark ? 'dark' : 'light';
     document.querySelectorAll('[data-theme-toggle]').forEach(button => {
       button.setAttribute('aria-pressed', String(isDark));
+      button.textContent = isDark ? 'Modo claro' : 'Modo oscuro';
     });
+    const themeColor = document.querySelector?.('meta[name="theme-color"]');
+    if (themeColor) themeColor.content = isDark ? '#1a171c' : '#f4f0e8';
     document.dispatchEvent(new Event('themechange'));
   },
 

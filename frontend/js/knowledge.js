@@ -116,7 +116,7 @@ const KNOWLEDGE = {
               ${indexBadge}
               <span class="badge" style="background:var(--status-closed-bg); color:var(--status-closed-text);">v${art.contentVersion || 1}</span>
             </div>
-            <h3 class="article-card-title">${UI.escapeHtml(art.title)}</h3>
+            <h2 class="article-card-title">${UI.escapeHtml(art.title)}</h2>
           </header>
           <div class="article-card-body">
             <div>
@@ -147,7 +147,7 @@ const KNOWLEDGE = {
 
     const art = res.data;
     const body = `
-      <div style="display:flex; flex-direction:column; gap: 1rem;">
+      <div class="article-reader" style="display:flex; flex-direction:column; gap: 1rem;">
         <div>
           <h4 style="font-size:var(--font-size-xs); color:var(--text-muted); text-transform:uppercase;">Problema:</h4>
           <p>${UI.escapeHtml(art.problem)}</p>
