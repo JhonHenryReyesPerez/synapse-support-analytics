@@ -9,22 +9,30 @@ import com.roles.usermanagement.integration.n8n.dto.AssistResponse;
 import com.roles.usermanagement.integration.n8n.dto.IndexRequest;
 import com.roles.usermanagement.integration.n8n.dto.IndexResponse;
 import java.io.IOException;
-import java.io.InputStream;
+import java.io.ByteArrayOutputStream;
 import java.net.ConnectException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpTimeoutException;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Flow;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 /**
- * Cliente HTTP de n8n: destino fijo por configuración, secreto de servicio en cabecera, tiempos
- * límite de conexión y respuesta, y tope de tamaño. No reintenta: repetir una generación tras un
+ * Cliente HTTP de n8n: destino fijo por configuración, secreto de servicio en cabecera, tiempo
+ * límite de conexión, plazo total de respuesta (cabeceras y cuerpo) y tope de tamaño. No reintenta: repetir una generación tras un
  * timeout es decisión del caso de uso, no del transporte.
  */
 @Component
@@ -76,11 +84,22 @@ public class HttpN8nClient implements N8nClient {
                     .header(TOKEN_HEADER, properties.serviceToken())
                     .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(payload), StandardCharsets.UTF_8))
                     .build();
-            HttpResponse<InputStream> response = http.send(request, HttpResponse.BodyHandlers.ofInputStream());
-            byte[] body;
-            try (InputStream stream = response.body()) {
-                body = stream.readNBytes(properties.maxResponseBytes() + 1);
+            int maxBytes = properties.maxResponseBytes();
+            CompletableFuture<HttpResponse<byte[]>> exchange = http.sendAsync(request, info -> new CappedBody(maxBytes + 1));
+            HttpResponse<byte[]> response;
+            try {
+                // Plazo total: cabeceras y cuerpo. HttpRequest.timeout solo cubre hasta las cabeceras.
+                response = exchange.get(properties.readTimeout().toMillis(), TimeUnit.MILLISECONDS);
+            } catch (TimeoutException e) {
+                exchange.cancel(true); // cierra la conexión; no deja la lectura viva
+                throw new HttpTimeoutException("n8n response not completed in time");
+            } catch (ExecutionException e) {
+                if (e.getCause() instanceof IOException io) {
+                    throw io;
+                }
+                throw new IOException(e.getCause());
             }
+            byte[] body = response.body();
             long millis = (System.nanoTime() - start) / 1_000_000;
             // Se registran correlación, estado y duración; nunca el contenido ni el secreto.
             log.info("n8n {} {} status={} ms={}", path, correlation, response.statusCode(), millis);
@@ -112,6 +131,53 @@ public class HttpN8nClient implements N8nClient {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new N8nException(N8nException.Kind.UNAVAILABLE, e);
+        }
+    }
+
+    /** Acumula el cuerpo hasta {@code limit} bytes y corta la recepción al alcanzarlos. */
+    private static final class CappedBody implements HttpResponse.BodySubscriber<byte[]> {
+
+        private final CompletableFuture<byte[]> result = new CompletableFuture<>();
+        private final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        private final int limit;
+        private Flow.Subscription subscription;
+
+        CappedBody(int limit) {
+            this.limit = limit;
+        }
+
+        @Override
+        public CompletionStage<byte[]> getBody() {
+            return result;
+        }
+
+        @Override
+        public void onSubscribe(Flow.Subscription subscription) {
+            this.subscription = subscription;
+            subscription.request(Long.MAX_VALUE);
+        }
+
+        @Override
+        public void onNext(List<ByteBuffer> items) {
+            for (ByteBuffer item : items) {
+                byte[] chunk = new byte[Math.min(item.remaining(), limit - buffer.size())];
+                item.get(chunk);
+                buffer.writeBytes(chunk);
+            }
+            if (buffer.size() >= limit) {
+                subscription.cancel();
+                result.complete(buffer.toByteArray());
+            }
+        }
+
+        @Override
+        public void onError(Throwable throwable) {
+            result.completeExceptionally(throwable);
+        }
+
+        @Override
+        public void onComplete() {
+            result.complete(buffer.toByteArray());
         }
     }
 }
