@@ -132,3 +132,7 @@ Los iconos vectoriales se sirven desde `assets/icons.svg`, sin bibliotecas ni se
 - Se respeta `prefers-reduced-motion` en CSS y Chart.js. Los tests comprueban contraste de texto, badges, botones y límites de controles en ambos temas; no sustituyen una auditoría con lector de pantalla.
 
 Validación de este incremento: 37 pruebas de Node aprobadas (54 tras las correcciones de la auditoría del 16 de noviembre, `tests/audit-fixes.test.cjs`). Revisión visual con Orca en escritorio (1440 px), tablet (768 px) y móvil (390 px), incluidos gráficos, navegación, detalle de incidente y formularios. Las operaciones de escritura del backend y la generación RAG no se ejecutaron como parte de esta revisión visual.
+
+Correcciones posteriores al cierre de la auditoría: una transición o asignación tardía solo refresca la misma apertura del detalle; cerrar el modal también invalida un refresco que ya está en curso. Los intentos inciertos del asistente se conservan por incidente al consultar otros incidentes, incluido el enlace de reintento tras un error terminal. Ese estado sigue limitado a la página y no sobrevive a una recarga.
+
+Validación de estas dos correcciones: 61 pruebas de Node aprobadas, con siete casos nuevos (seis fallaban antes de corregir y uno verifica que el refresco normal siga funcionando). Estas pruebas usan el DOM simulado; no se repitió el recorrido en navegador ni se invocó el proveedor RAG real.

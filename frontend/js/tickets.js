@@ -225,11 +225,11 @@ const TICKETS = {
     await this.loadTickets();
   },
 
-  async openTicketDetail(ticketId) {
+  async openTicketDetail(ticketId, refreshModal = null) {
     this.activeTicketId = ticketId;
     const seq = ++this.detailSeq;
     const res = await API.get(`/tickets/${ticketId}`);
-    if (seq !== this.detailSeq) return;
+    if (seq !== this.detailSeq || (refreshModal && !UI.modalStack.includes(refreshModal))) return;
     if (!res.ok) {
       this.activeTicketId = this.currentTicket ? this.currentTicket.id : null;
       UI.showToast(res.error || 'No se pudo cargar el detalle del incidente.', 'error');
@@ -331,6 +331,8 @@ const TICKETS = {
 
   /** @returns {Promise<boolean>} true si el backend aceptó la transición. */
   async executeTransition(ticketId, action, extraPayload = {}) {
+    const detailModal = UI.modalStack.find(m => m.id === 'modal-ticket-detail');
+    const detailSeq = this.detailSeq;
     const res = await API.post(`/tickets/${ticketId}/transitions`, {
       action,
       ...extraPayload
@@ -342,8 +344,10 @@ const TICKETS = {
     }
 
     UI.showToast(`Estado actualizado: ${res.data.newStatus}`, 'success');
-    // Si mientras tanto se abrió otro incidente, no se le quita la vista para reabrir este.
-    if (this.activeTicketId === ticketId) await this.openTicketDetail(ticketId);
+    // Solo se refresca la misma apertura: cerrar y volver al incidente también invalida el contexto.
+    if (this.activeTicketId === ticketId && this.detailSeq === detailSeq && UI.modalStack.includes(detailModal)) {
+      await this.openTicketDetail(ticketId, detailModal);
+    }
     await this.loadTickets();
     return true;
   },
@@ -385,6 +389,8 @@ const TICKETS = {
     const btnConfirm = document.getElementById('btn-generic-confirm');
     btnConfirm.style.display = ''; // ver un artículo lo oculta
     btnConfirm.onclick = async () => {
+      const detailModal = UI.modalStack.find(m => m.id === 'modal-ticket-detail');
+      const detailSeq = this.detailSeq;
       const technicianUsername = document.getElementById('assign-tech-select').value;
       const justification = document.getElementById('assign-justification')?.value?.trim();
 
@@ -407,7 +413,9 @@ const TICKETS = {
 
       UI.showToast('Técnico asignado exitosamente.', 'success');
       UI.closeModal('modal-generic');
-      if (this.activeTicketId === ticketId) await this.openTicketDetail(ticketId);
+      if (this.activeTicketId === ticketId && this.detailSeq === detailSeq && UI.modalStack.includes(detailModal)) {
+        await this.openTicketDetail(ticketId, detailModal);
+      }
       await this.loadTickets();
     };
 

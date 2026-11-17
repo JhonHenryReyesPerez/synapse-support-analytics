@@ -11,10 +11,10 @@ const ASSISTANT = {
   askSeq: 0,
   historySeq: 0,
   historyLoading: false,
-  // Última consulta sin resultado confirmado o terminada en ERROR: {ticketId, question, requestId, retryOfQueryId}.
+  // Última consulta sin resultado confirmado o terminada en ERROR por incidente.
   // Repetir la misma pregunta reutiliza su requestId (el backend devuelve la consulta ya creada en
   // vez de generar otra) o, si terminó en ERROR, crea una nueva enlazada con retryOfQueryId.
-  unsettledAsk: null,
+  unsettledAsks: new Map(),
 
   /** Fija el incidente activo; al cambiar, descarta respuesta, pregunta e historial del anterior. */
   setTicket(ticketId) {
@@ -52,15 +52,15 @@ const ASSISTANT = {
     const seq = ++this.askSeq;
 
     const question = (customQuestion || '').trim();
-    const previous = this.unsettledAsk && this.unsettledAsk.ticketId === ticketId
-      && this.unsettledAsk.question === question ? this.unsettledAsk : null;
+    const stored = this.unsettledAsks.get(ticketId);
+    const previous = stored && stored.question === question ? stored : null;
     // UUID v4 para idempotencia: se conserva mientras el resultado del intento anterior sea incierto.
     const attempt = {
       ticketId, question,
       requestId: (previous && previous.requestId) || this.generateUuid(),
       retryOfQueryId: previous ? previous.retryOfQueryId : undefined
     };
-    this.unsettledAsk = attempt;
+    this.unsettledAsks.set(ticketId, attempt);
 
     const payload = { requestId: attempt.requestId };
     if (question) payload.question = question;
@@ -108,7 +108,7 @@ const ASSISTANT = {
   },
 
   /**
-   * Actualiza unsettledAsk según la respuesta del intento.
+   * Actualiza el intento del incidente sin alterar los de otros incidentes.
    * @returns {boolean} true si no se sabe si el backend procesó la consulta.
    */
   settleAsk(attempt, res) {
@@ -119,12 +119,14 @@ const ASSISTANT = {
     const uncertain = res.ok
       ? Boolean(res.data) && res.data.status === 'PENDING'
       : !failedQueryId && (res.status === 0 || res.status >= 500);
-    if (this.unsettledAsk !== attempt) return uncertain; // ya hay un intento posterior
+    if (this.unsettledAsks.get(attempt.ticketId) !== attempt) return uncertain; // ya hay un intento posterior
     if (failedQueryId) {
       // Terminó en ERROR: repetirla es una consulta nueva enlazada con la fallida.
-      this.unsettledAsk = { ticketId: attempt.ticketId, question: attempt.question, retryOfQueryId: failedQueryId };
+      this.unsettledAsks.set(attempt.ticketId, {
+        ticketId: attempt.ticketId, question: attempt.question, retryOfQueryId: failedQueryId
+      });
     } else if (!uncertain) {
-      this.unsettledAsk = null;
+      this.unsettledAsks.delete(attempt.ticketId);
     }
     return uncertain;
   },
