@@ -32,9 +32,11 @@ test('uses the system theme until the user chooses, then persists the toggle', (
   const current = page(null, true);
   assert.equal(current.root.dataset.theme, 'dark');
   assert.equal(current.button['aria-pressed'], 'true');
+  assert.equal(current.button.textContent, 'Modo claro');
   current.button.click();
   assert.equal(current.root.dataset.theme, 'light');
   assert.equal(current.saved(), 'light');
+  assert.equal(current.button.textContent, 'Modo oscuro');
   assert.equal(page(current.saved(), true).root.dataset.theme, 'light');
   assert.equal(page('dark', false).root.dataset.theme, 'dark');
 });
