@@ -21,6 +21,11 @@ test('all Code nodes compile and every connection refers to an existing node', (
   const names = new Set(workflow.nodes.map(n => n.name));
   assert.equal(names.size, workflow.nodes.length);
   for (const n of workflow.nodes) if (n.type.endsWith('.code')) new AsyncFunction('$json', '$', '$input', '$env', n.parameters.jsCode);
+  for (const n of workflow.nodes) if (n.type.endsWith('.webhook')) assert.equal(n.webhookId, n.parameters.path);
+  // n8n closes an expression at the first '}}', so an object literal ending in '}}' breaks it.
+  const exprs = JSON.stringify(workflow.nodes.map(n => n.parameters)).match(/"=[^"\\]*(?:\\.[^"\\]*)*"/g) || [];
+  for (const e of exprs) for (const [, inner] of JSON.parse(e).matchAll(/\{\{([\s\S]*?)\}\}/g))
+    assert.equal(inner.split('{').length, inner.split('}').length, 'unbalanced expression: ' + e);
   for (const [from, types] of Object.entries(workflow.connections)) {
     assert(names.has(from));
     for (const outputs of Object.values(types)) for (const links of outputs) for (const link of links) assert(names.has(link.node));

@@ -15,7 +15,8 @@
         "httpMethod": "POST",
         "path": "synapse-knowledge-v2",
         "responseMode": "responseNode"
-      }
+      },
+      "webhookId": "synapse-knowledge-v2"
     },
     {
       "id": "c0728d11-791e-5715-bfbb-9c20b834e1a8",
@@ -418,7 +419,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({vectors:{size:$(\"Validar V2\").first().json.profile.dimension,distance:\"Cosine\"}}) }}"
+        "jsonBody": "={{ JSON.stringify({ vectors: { size: $(\"Validar V2\").first().json.profile.dimension, distance: \"Cosine\" } }) }}"
       },
       "onError": "continueRegularOutput"
     },

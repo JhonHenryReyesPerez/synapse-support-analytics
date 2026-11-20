@@ -57,9 +57,19 @@ Activar comprueba el manifiesto relacional vigente y no sustituye el diagnóstic
 - Tras los ajustes finales se repitieron los 13 escenarios RAG y el caso de asistencia citada; los códigos literales no aceptan prefijos de otros códigos/versiones. Swagger conserva los operationId anteriores y documenta JWT y coseno nullable.
 - Revisión de Git y `git diff --check`. No se alteraron datos ni infraestructura existentes.
 
+### Verificación integrada (19 de noviembre de 2026, Claude Code)
+
+- **PostgreSQL 17 con Flyway y Hibernate `validate`** (`backend/scripts/test-postgres.sh`): V10 se aplica sobre base vacía; **132 pruebas, 0 fallos, 0 omitidas** (incluye las 6 de datos iniciales).
+- **Tercer workflow dentro de n8n 2.47.7 con Qdrant 1.20.1**, backend sobre PostgreSQL y proveedor de modelos **simulado** (Postman simulation, sin OpenRouter). Encontró dos defectos del workflow que las pruebas por nodos no detectaban, ya corregidos:
+  1. El webhook no tenía `webhookId`: al importarlo, n8n no registraba la ruta fija `synapse-knowledge-v2` (404 «webhook is not registered»).
+  2. El cuerpo de «Crear colección» terminaba en `}})`; n8n cierra la expresión en el primer `}}` y la evaluación fallaba (`invalid syntax`) sin llegar a Qdrant, así que ningún perfil podía indexarse (`INDEX_CREATE_FAILED`).
+  `n8n/tests/knowledge-v2.test.cjs` comprueba ahora ambos casos (`webhookId` igual a la ruta y llaves equilibradas en cada expresión); la segunda aserción falla con el workflow anterior.
+- Tras corregirlos, 11 comprobaciones de extremo a extremo correctas: separación JWT/token de integración; creación de colección, indexación por lotes, salud completa y activación de perfiles HYBRID y RERANK; RRF y reranking con filtro técnico SQL y validación relacional; generación con citas, historial e idempotencia por `requestId`; `ERROR` persistido con `EMBEDDING_FAILED`, `INVALID_RERANK` e `INVALID_CITATION` (502 con `code`); `NO_RESULTS` sin solución inventada; el artículo retirado deja de aparecer y la reparación elimina solo sus vectores; regreso al perfil `text`; el proveedor recibió llamadas de embeddings, reranking y generación.
+- No demuestra calidad de recuperación ni de respuestas: el proveedor simulado devuelve el mismo vector para todo texto. Script fuera del repositorio, no forma parte de `./gradlew test`.
+
 ## Límites y comprobaciones pendientes
 
-- Docker Desktop no estaba disponible: pendiente ejecutar V10 con PostgreSQL/Flyway y el tercer workflow dentro de n8n 2.47.7 con Qdrant 1.20.1. H2 y nodos aislados no sustituyen esas pruebas.
+- V10 solo se ha aplicado sobre bases vacías, no sobre una copia de la base de desarrollo existente.
 - Sin llamadas reales de embeddings/reranking/generación: no se afirma mejor calidad o latencia del corpus del equipo. Requiere evaluación humana y proveedor configurado.
 - Importación solo PDF con texto: sin OCR/DOCX/HTML ni tablas/imágenes automáticas. No almacena archivo original. La procedencia reenviada al guardar es declarada, no una firma del servidor.
 - Corpus/candidatos textuales en memoria. Límites del workflow: 10.000 fragmentos elegibles, 200 candidatos de evidencia, 100 densos y 40 para reranking. Diagnóstico hasta 25.600 puntos; si es incompleto bloquea reparar. Evaluar paginación/FTS al superarlos.
