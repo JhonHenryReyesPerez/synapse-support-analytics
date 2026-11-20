@@ -138,3 +138,6 @@ defecto, 0,55, sale de la calibración del §9 del mismo documento.
 - Cuando no hay artículos suficientemente relevantes, el sistema lo informa en lugar de generar una solución sin respaldo.
 - Los indicadores del dashboard se calculan con consultas reales a la base de datos, nunca con un modelo.
 - Las claves y credenciales se configuran con variables de entorno; el repositorio no contiene secretos.
+
+## Screenshots de log
+![first commit log](screenshots/image.png)
