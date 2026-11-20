@@ -31,7 +31,7 @@ CLAUDE.md    Especificación de trabajo del backend y estado de implementación
 ```
 ## examen prueba commits
 
-![alt text](image.png)
+<img width="1486" height="424" alt="image" src="docs/img/Imagen pegada.png" />
 
 
 ## Inicio rápido del backend
