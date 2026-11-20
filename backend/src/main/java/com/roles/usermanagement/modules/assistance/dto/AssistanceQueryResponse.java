@@ -39,7 +39,8 @@ public record AssistanceQueryResponse(
         RatingResponse rating,
         LocalDateTime createdAt,
         @Schema(description = "Instante del estado terminal; null mientras está pendiente")
-        LocalDateTime completedAt
+        LocalDateTime completedAt,
+        String advancedJson
 ) {
 
     public record Source(
@@ -48,10 +49,10 @@ public record AssistanceQueryResponse(
             String title,
             @Schema(description = "Versión de contenido que respaldó la respuesta")
             int articleVersion,
-            @Schema(description = "Similitud coseno entre la consulta y el artículo. No es una probabilidad de éxito "
+            @Schema(types={"number","null"}, format="double", description = "Similitud coseno; null si no se utilizó la vía vectorial. No es una probabilidad de éxito "
                     + "ni un porcentaje de certeza")
-            double similarity,
-            @Schema(description = "Posición: 1 es la fuente más similar")
+            Double similarity,
+            @Schema(description = "Posición de recuperación: v1 por coseno, v2 por ranking")
             int order,
             @Schema(description = "Contenido del artículo tal como se usó para responder")
             String evidence,
@@ -63,7 +64,7 @@ public record AssistanceQueryResponse(
     public record Retrieval(
             @Schema(description = "Máximo de artículos solicitado")
             int maxResults,
-            @Schema(description = "Umbral mínimo de similitud aplicado")
+            @Schema(description = "Umbral de la vía vectorial; no se aplica al score léxico ni al ranking RRF")
             double minScore,
             @Schema(description = "Métrica de similitud; el contrato v1 usa coseno")
             String similarityMetric,

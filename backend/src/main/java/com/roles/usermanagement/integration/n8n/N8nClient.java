@@ -11,6 +11,11 @@ import com.roles.usermanagement.integration.n8n.dto.IndexResponse;
  */
 public interface N8nClient {
 
+    /** Webhook v2 fijo para las herramientas RAG; nunca recibe una URL elegida por el usuario. */
+    default java.util.Map<String,Object> knowledge(java.util.Map<String,Object> request) {
+        throw new N8nException(N8nException.Kind.NOT_CONFIGURED);
+    }
+
     IndexResponse index(IndexRequest request);
 
     AssistResponse assist(AssistRequest request);

@@ -287,3 +287,7 @@ El proyecto partió de la plantilla de código abierto **spring-security-user-ro
 que se reutilizan la configuración base de Spring Security con JWT, el modelo de rol único con
 permisos individuales y el servicio de inicialización de catálogos. Sobre esa base el equipo
 desarrolló CampusDesk.
+
+## Herramientas RAG v2
+
+Módulo `modules/rag`, migración aditiva V10 y webhook fijo `/webhook/synapse-knowledge-v2`. El perfil textual no necesita proveedor. Los candidatos vectoriales requieren indexación explícita y el tercer workflow. Ver [contrato](../docs/CONTRATO_RAG_V2.md) y [activación, pruebas y limitaciones](../docs/MEJORAS_RAG_IMPLEMENTADAS.md).

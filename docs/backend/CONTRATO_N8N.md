@@ -239,3 +239,7 @@ Qdrant cuyo artículo o versión no figure en la lista debe retirarse.
 - **Fragmentación:** los flujos actuales indexan cada artículo como un único punto (fragmento 0, `chunkIds` con la forma `"{articleId}-0"`). Si los artículos crecen habrá que fragmentar.
 - **Códigos de error** que emiten los flujos: `INVALID_REQUEST`, `EMBEDDING_FAILED`, `VECTOR_UPSERT_FAILED`, `VECTOR_DELETE_FAILED`, `VECTOR_SEARCH_FAILED`, `ELIGIBILITY_CHECK_FAILED`, `GENERATION_FAILED` y `GENERATION_INVALID_OUTPUT`.
 - **Límite de tokens:** el flujo de asistencia envía `max_tokens` (`GENERATION_MAX_TOKENS`, 1500 por defecto). Sin él, OpenRouter reserva el máximo del modelo y rechaza la petición si el saldo no lo cubre.
+
+## Extensión de herramientas v2
+
+El contrato anterior permanece para los dos workflows v1. El tercer workflow `synapseKnowledgeV2` usa un sobre independiente `schemaVersion:2` y las operaciones INDEX/SEARCH/GENERATE/SCROLL/DELETE. Véase [CONTRATO_RAG_V2.md](../CONTRATO_RAG_V2.md). No enviar solicitudes v2 a los webhooks v1.

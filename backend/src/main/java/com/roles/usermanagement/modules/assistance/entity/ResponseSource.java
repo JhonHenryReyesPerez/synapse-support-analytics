@@ -50,8 +50,8 @@ public class ResponseSource {
     private int articleVersion;
 
     /** Similitud coseno devuelta por la recuperación. No es una probabilidad de éxito. */
-    @Column(nullable = false, updatable = false)
-    private double score;
+    @Column(updatable = false)
+    private Double score;
 
     /** Posición de la fuente en la respuesta: 1 es la más similar. */
     @Column(name = "source_order", nullable = false, updatable = false)

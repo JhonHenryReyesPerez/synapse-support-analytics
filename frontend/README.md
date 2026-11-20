@@ -136,3 +136,7 @@ Validación de este incremento: 37 pruebas de Node aprobadas (54 tras las correc
 Correcciones posteriores al cierre de la auditoría: una transición o asignación tardía solo refresca la misma apertura del detalle; cerrar el modal también invalida un refresco que ya está en curso. Los intentos inciertos del asistente se conservan por incidente al consultar otros incidentes, incluido el enlace de reintento tras un error terminal. Ese estado sigue limitado a la página y no sobrevive a una recarga.
 
 Validación de estas dos correcciones: 61 pruebas de Node aprobadas, con siete casos nuevos (seis fallaban antes de corregir y uno verifica que el refresco normal siga funcionando). Estas pruebas usan el DOM simulado; no se repitió el recorrido en navegador ni se invocó el proveedor RAG real.
+
+## Herramientas de conocimiento v2
+
+El buscador y los filtros técnicos están en Conocimiento. ADMIN dispone de laboratorio, perfiles, diagnóstico, evaluación, brechas y telemetría. El editor admite PUT, paginación y PDF revisable; el asistente permite elegir perfil, aportar hechos, ver citas y exportar Markdown. Conserva temas claro/oscuro. Consulta [alcance y pruebas](../docs/MEJORAS_RAG_IMPLEMENTADAS.md) y [contrato](../docs/CONTRATO_RAG_V2.md).

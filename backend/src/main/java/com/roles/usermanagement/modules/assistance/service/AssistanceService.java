@@ -92,12 +92,15 @@ public class AssistanceService {
     private final N8nClient n8n;
     private final AssistanceProperties properties;
     private final TransactionTemplate transactions;
+    private final com.roles.usermanagement.modules.rag.service.AdvancedRagService advanced;
+    private final Duration advancedBudget;
 
     public AssistanceService(TicketRepository tickets, UserCrudRepository users, TicketAccessPolicy policy,
                              AssistanceQueryRepository queries, AssistanceResponseRepository responses,
                              KnowledgeArticleRepository articles, AssistanceHistoryService history, N8nClient n8n,
                              AssistanceProperties properties, N8nProperties n8nProperties,
-                             PlatformTransactionManager transactionManager) {
+                             PlatformTransactionManager transactionManager, com.roles.usermanagement.modules.rag.service.AdvancedRagService advanced) {
+        this.advanced = advanced;
         this.tickets = tickets;
         this.users = users;
         this.policy = policy;
@@ -109,6 +112,7 @@ public class AssistanceService {
         this.properties = properties;
         this.transactions = new TransactionTemplate(transactionManager);
 
+        this.advancedBudget=n8nProperties.connectTimeout().plus(n8nProperties.readTimeout()).multipliedBy(MAX_ATTEMPTS * 2L);
         // Una consulta en curso no debe darse por abandonada: el límite tiene que cubrir sus dos intentos.
         Duration worstCase = n8nProperties.connectTimeout().plus(n8nProperties.readTimeout()).multipliedBy(MAX_ATTEMPTS);
         if (properties.pendingTimeout().compareTo(worstCase) <= 0) {
@@ -126,7 +130,7 @@ public class AssistanceService {
         long start = System.nanoTime();
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
             AssistRequest request = withAttempt(opened.request(), attempt);
-            AssistOutcome outcome = call(request);
+            AssistOutcome outcome = call(request, auth.getName());
             boolean lastAttempt = attempt == MAX_ATTEMPTS;
             Completion completion;
             try {
@@ -195,10 +199,15 @@ public class AssistanceService {
         query.setTicket(ticket);
         query.setRequester(requester);
         query.setQuestion(question);
+        query.setRetrievalProfile(body!=null && body.retrievalProfileId()!=null ? body.retrievalProfileId() : retryOf==null?null:retryOf.getRetrievalProfile());
+        if(query.getRetrievalProfile()!=null) {
+            if(properties.pendingTimeout().compareTo(advancedBudget)<=0)throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                "El timeout pendiente debe cubrir recuperación y generación en dos intentos para usar perfiles RAG");
+        }
         query.setStatus(AssistanceStatus.PENDING);
         query.setRequestId(requestId == null ? UUID.randomUUID().toString() : requestId);
         query.setMaxResults(properties.maxResults());
-        query.setMinScore(properties.minScore());
+        query.setMinScore(query.getRetrievalProfile()==null?properties.minScore():advanced.minimumCosine(query.getRetrievalProfile()));
         query.setAttempts(0);
         query.setRetryOf(retryOf);
         query.setCreatedAt(now);
@@ -207,7 +216,7 @@ public class AssistanceService {
         // Datos mínimos: sin identidad del usuario, sin comentarios y sin el token.
         return new Opened(query.getId(), new AssistRequest(SCHEMA_VERSION, query.getRequestId(), query.getId(),
                 ticket.getId(), 1, question, ticket.getTitle(), ticket.getDescription(), ticket.getCategory().getName(),
-                query.getMaxResults(), query.getMinScore()));
+                query.getMaxResults(), query.getMinScore(), query.getRetrievalProfile()));
     }
 
     private AssistanceQuery retryTarget(Long queryId, Long ticketId) {
@@ -250,9 +259,9 @@ public class AssistanceService {
     }
 
     /** Llamada a n8n fuera de toda transacción. Cualquier fallo se reduce a un código seguro. */
-    private AssistOutcome call(AssistRequest request) {
+    private AssistOutcome call(AssistRequest request, String actor) {
         try {
-            return AssistResponseValidator.validate(request, n8n.assist(request));
+            return request.retrievalProfileId()==null ? AssistResponseValidator.validate(request, n8n.assist(request)) : advanced.answer(request, actor);
         } catch (N8nException e) {
             return new Failed(e.code());
         } catch (RuntimeException e) {
@@ -297,7 +306,7 @@ public class AssistanceService {
             return lastAttempt ? finish(query, AssistanceStatus.ERROR, SOURCES_CHANGED) : Completion.STALE_SOURCES;
         }
         Metadata metadata = answered.metadata();
-        boolean otherModel = metadata.embeddingModel() != null && found.values().stream()
+        boolean otherModel = request.retrievalProfileId()==null && metadata.embeddingModel() != null && found.values().stream()
                 .anyMatch(article -> article.getEmbeddingModel() != null
                         && !article.getEmbeddingModel().equals(metadata.embeddingModel()));
         if (otherModel) {
@@ -307,11 +316,12 @@ public class AssistanceService {
 
         AssistanceResponse response = new AssistanceResponse();
         response.setQuery(query);
+        query.setAdvancedJson(answered.detailsJson());
         response.setAnswer(answered.answer());
         response.getRecommendedSteps().addAll(answered.steps());
         response.setGenerationModel(metadata.generationModel());
         response.setCreatedAt(LocalDateTime.now());
-        List<SourceRef> ranked = answered.sources().stream()
+        List<SourceRef> ranked = request.retrievalProfileId()!=null ? answered.sources() : answered.sources().stream()
                 .sorted(Comparator.comparingDouble(SourceRef::score).reversed().thenComparingLong(SourceRef::articleId))
                 .toList();
         for (int i = 0; i < ranked.size(); i++) {
@@ -324,7 +334,7 @@ public class AssistanceService {
             source.setScore(ref.score());
             source.setSourceOrder(i + 1);
             source.setArticleTitle(article.getTitle());
-            source.setEvidence(evidenceOf(article));
+            source.setEvidence(ref.evidence()==null?evidenceOf(article):ref.evidence());
             source.setContentHash(article.getContentHash());
             response.getSources().add(source);
         }
@@ -360,6 +370,6 @@ public class AssistanceService {
     private static AssistRequest withAttempt(AssistRequest request, int attempt) {
         return new AssistRequest(request.schemaVersion(), request.requestId(), request.queryId(), request.incidentId(),
                 attempt, request.question(), request.incidentTitle(), request.incidentDescription(),
-                request.incidentCategory(), request.maxResults(), request.minScore());
+                request.incidentCategory(), request.maxResults(), request.minScore(), request.retrievalProfileId());
     }
 }

@@ -26,6 +26,11 @@ public record AssistanceRequest(
         @Schema(description = "Consulta anterior del mismo incidente que este reintento repite. Crea una consulta nueva "
                 + "y conserva intacta la anterior.")
         @Positive(message = "retryOfQueryId debe ser positivo")
-        Long retryOfQueryId
+        Long retryOfQueryId,
+        @Pattern(regexp = "[a-z0-9_-]{1,40}")
+        String retrievalProfileId
 ) {
+    public AssistanceRequest(String question, String requestId, Long retryOfQueryId) {
+        this(question, requestId, retryOfQueryId, null);
+    }
 }

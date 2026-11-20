@@ -19,6 +19,11 @@ public record AssistRequest(
         /** Máximo de artículos a recuperar (objetivo: entre 3 y 5). */
         int maxResults,
         /** Umbral mínimo de similitud; no completar con artículos por debajo de este valor. */
-        double minScore
+        double minScore,
+        String retrievalProfileId
 ) {
+    public AssistRequest(int schemaVersion, String requestId, Long queryId, Long incidentId, int attempt, String question,
+        String incidentTitle, String incidentDescription, String incidentCategory, int maxResults, double minScore) {
+        this(schemaVersion,requestId,queryId,incidentId,attempt,question,incidentTitle,incidentDescription,incidentCategory,maxResults,minScore,null);
+    }
 }

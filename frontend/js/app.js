@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (window.TICKETS) await TICKETS.init();
   if (window.ANALYTICS) await ANALYTICS.init();
   if (window.KNOWLEDGE) await KNOWLEDGE.init();
+  if (window.RAG) await RAG.init();
   if (currentUser && currentUser.role === 'ADMIN' && window.ADMIN) {
     await ADMIN.init();
   }

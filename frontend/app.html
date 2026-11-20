@@ -20,6 +20,7 @@
 
   <!-- Chart.js para Visualización Analítica (RF07) -->
   <script src="assets/vendor/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="css/modules/rag.css">
 </head>
 <body class="app-layout">
   <a class="skip-link" href="#main-content">Saltar al contenido</a>
@@ -299,6 +300,56 @@
            3. VISTA: BASE DE CONOCIMIENTO (RF02 / RF03)
            ==================================================================== -->
       <section class="view-section" id="view-knowledge">
+        <section class="rag-search-panel" aria-labelledby="rag-search-heading">
+          <div class="rag-heading"><div><p class="analytics-section-label">Biblioteca / Recuperación</p><h2 id="rag-search-heading">Encuentra el procedimiento.</h2></div><span class="rag-caption">Búsqueda documental sin generar respuestas</span></div>
+          <form id="rag-search-form">
+            <div class="rag-query-row"><div class="form-group"><label class="form-label" for="rag-question">Describe el problema o escribe el código exacto</label><input class="form-control" id="rag-question" maxlength="2000" required placeholder="Mensaje de error, síntomas o procedimiento…"></div>
+              <div class="form-group"><label class="form-label" for="rag-profile">Recuperación</label><select class="form-select" id="rag-profile"><option value="text">Textual</option></select></div><button class="btn btn-primary" id="rag-search-submit" type="submit">Buscar</button></div>
+            <details class="rag-filter-details"><summary>Compatibilidad técnica</summary><div class="rag-form-grid">
+              <div class="form-group"><label class="form-label" for="rag-platform">Sistema operativo</label><input class="form-control" id="rag-platform" maxlength="80"></div>
+              <div class="form-group"><label class="form-label" for="rag-application">Aplicación</label><input class="form-control" id="rag-application" maxlength="120"></div>
+              <div class="form-group"><label class="form-label" for="rag-productVersion">Versión</label><input class="form-control" id="rag-productVersion" maxlength="80"></div>
+              <div class="form-group"><label class="form-label" for="rag-architecture">Arquitectura</label><input class="form-control" id="rag-architecture" maxlength="40"></div>
+            </div></details>
+          </form>
+          <p id="rag-search-feedback" role="status" aria-live="polite"></p><div id="rag-search-results"></div>
+        </section>
+        <details class="rag-studio admin-only" id="rag-studio"><summary>Laboratorio y salud del conocimiento</summary>
+          <p class="rag-caption">Los experimentos y la indexación se ejecutan por solicitud. Pueden consumir servicios del proveedor.</p>
+          <section class="rag-studio-section"><h3>Perfiles de recuperación</h3>
+            <div class="rag-toolbar"><label for="rag-admin-profile">Perfil</label><select id="rag-admin-profile" class="form-select"></select>
+              <button type="button" class="btn btn-outline btn-sm" id="rag-plan">Prever indexación</button><button type="button" class="btn btn-outline btn-sm" id="rag-index">Indexar siguiente lote</button>
+              <button type="button" class="btn btn-outline btn-sm" id="rag-health">Comprobar índice</button><button type="button" class="btn btn-outline btn-sm" id="rag-repair">Retirar obsoletos</button><button type="button" class="btn btn-primary btn-sm" id="rag-activate">Activar perfil</button></div>
+            <div id="rag-index-output" role="status" aria-live="polite"></div>
+            <details><summary>Crear un perfil para comparar</summary><form id="rag-profile-form" class="rag-form-grid">
+              <div class="form-group"><label class="form-label" for="profile-id">Identificador</label><input class="form-control" id="profile-id" required maxlength="40" pattern="[a-z0-9_-]+"></div>
+              <div class="form-group"><label class="form-label" for="profile-name">Nombre</label><input class="form-control" id="profile-name" required maxlength="100"></div>
+              <div class="form-group"><label class="form-label" for="profile-model">Modelo de embeddings</label><input class="form-control" id="profile-model" value="openai/text-embedding-3-small" required maxlength="120"></div>
+              <div class="form-group"><label class="form-label" for="profile-dimension">Dimensiones</label><input class="form-control" id="profile-dimension" type="number" value="1536" min="1" max="8192" required></div>
+              <div class="form-group"><label class="form-label" for="profile-strategy">Estrategia</label><select class="form-select" id="profile-strategy"><option value="TEXT">Textual</option><option value="DENSE">Vectorial</option><option value="HYBRID">Híbrida RRF</option><option value="RERANK">Híbrida con reranking</option></select></div>
+              <div class="form-group"><label class="form-label" for="profile-minCosine">Umbral de la vía vectorial</label><input class="form-control" id="profile-minCosine" type="number" value="0.55" step="0.01" min="0" max="1" required></div>
+              <div class="form-group"><label class="form-label" for="profile-chunkSize">Tamaño orientativo del fragmento (0: artículo)</label><input class="form-control" id="profile-chunkSize" type="number" value="0" min="0" max="8000" required></div>
+              <div class="form-group"><label class="form-label" for="profile-representation">Texto vectorizado</label><select class="form-select" id="profile-representation"><option value="FULL">Contenido completo por sección</option><option value="SYMPTOMS">Problema y síntomas</option></select></div>
+              <div class="form-group"><label class="form-label" for="profile-rerankModel">Modelo de reranking (solo esa estrategia)</label><input class="form-control" id="profile-rerankModel" value="cohere/rerank-v3.5" maxlength="120"></div>
+              <button class="btn btn-primary" type="submit">Crear perfil candidato</button>
+            </form></details>
+          </section>
+          <section class="rag-studio-section"><h3>Banco de evaluación</h3><p class="rag-caption">Separa los casos de calibración de los reservados. Las métricas miden recuperación; la fidelidad de una respuesta requiere revisión humana.</p>
+            <form id="rag-case-form" class="rag-form-grid">
+              <div class="form-group rag-wide"><label class="form-label" for="case-question">Pregunta de prueba</label><textarea class="form-control" id="case-question" required maxlength="2000" rows="2"></textarea></div>
+              <div class="form-group"><label class="form-label" for="case-ids">IDs de artículos pertinentes, separados por coma</label><input class="form-control" id="case-ids" placeholder="Vacío si debe abstenerse"></div>
+              <label><input type="checkbox" id="case-abstain"> Debe devolver cero resultados</label>
+              <div class="form-group"><label class="form-label" for="case-split">Conjunto</label><select class="form-select" id="case-split"><option value="CALIBRATION">Calibración</option><option value="HOLDOUT">Reservado para evaluación</option></select></div>
+              <div class="form-group"><label class="form-label" for="case-category">Tema</label><input class="form-control" id="case-category" maxlength="100"></div>
+              <div class="form-group rag-wide"><label class="form-label" for="case-notes">Criterio y revisión humana</label><textarea class="form-control" id="case-notes" maxlength="4000" rows="2"></textarea></div><button class="btn btn-outline" type="submit">Guardar caso revisado</button>
+            </form>
+            <div class="rag-checks" id="rag-evaluation-cases"></div><label class="form-label" for="rag-evaluation-profiles">Perfiles a comparar (máximo 3)</label><select class="form-select" id="rag-evaluation-profiles" multiple size="3"></select>
+            <button class="btn btn-primary" id="rag-run-evaluation" type="button">Ejecutar casos seleccionados</button><p id="rag-evaluation-feedback" role="status"></p><div id="rag-evaluation-results" class="rag-table-scroll" tabindex="0" role="region" aria-label="Resultados de evaluación"></div>
+          </section>
+          <section class="rag-studio-section"><div class="rag-heading"><h3>Cobertura y revisión editorial</h3><button type="button" class="btn btn-outline btn-sm" id="rag-load-gaps">Consultar casos</button></div><p class="rag-caption">Consultas sin resultados y valoraciones de 1–2 estrellas. Una valoración mide utilidad percibida, no resolución.</p><div id="rag-gaps"></div><button type="button" class="btn btn-outline btn-sm" id="rag-more-gaps" hidden>Cargar anteriores</button></section>
+          <section class="rag-studio-section"><div class="rag-heading"><h3>Operación del RAG</h3><button type="button" class="btn btn-outline btn-sm" id="rag-load-operations">Actualizar</button></div><div id="rag-operations" class="rag-table-scroll" tabindex="0" role="region" aria-label="Tiempos y consumo de consultas"></div></section>
+        </details>
+
         
         <div class="toolbar-card">
           <div class="filter-group">
@@ -324,6 +375,7 @@
           <!-- Tarjetas de artículos inyectadas por JS -->
         </div>
 
+      <div class="rag-pagination"><button type="button" class="btn btn-outline btn-sm" id="kb-page-prev" disabled>Anterior</button><span id="kb-page-label" role="status"></span><button type="button" class="btn btn-outline btn-sm" id="kb-page-next" disabled>Siguiente</button></div>
       </section>
 
       <!-- ====================================================================
@@ -450,6 +502,9 @@
                   <svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#sparkles"></use></svg> Consultar Asistente Inteligente
                 </button>
 
+                <div class="form-group"><label class="form-label" for="assistant-profile">Recuperación para esta consulta</label><select class="form-select" id="assistant-profile"><option value="">Clásica</option></select></div>
+                <details><summary>Aportar contexto y aclarar la pregunta</summary><label class="form-label" for="assistant-facts">Hechos confirmados (un dato por línea, máximo 4)</label><textarea class="form-control" id="assistant-facts" rows="3" maxlength="2000" placeholder="Sistema operativo, error exacto o resultado de una prueba"></textarea><button type="button" class="btn btn-outline btn-sm" id="rag-clarify">Preparar pregunta</button><p id="rag-clarify-feedback" role="status"></p></details>
+                <button type="button" class="btn btn-outline btn-sm" id="rag-export" hidden>Exportar respuesta y evidencia</button>
                 <!-- Contenedor del resultado RAG -->
                 <div id="assistant-result-container"></div>
               </div>
@@ -497,6 +552,7 @@
               </div>
             </div>
 
+            <div class="card"><div class="card-header"><h3 class="card-title">Conocimiento relacionado</h3></div><div class="card-body"><button type="button" class="btn btn-outline btn-sm" id="rag-similar">Buscar incidentes similares</button><button type="button" class="btn btn-outline btn-sm tech-admin-only" id="rag-resolution-draft">Preparar artículo desde resolución</button><div id="rag-ticket-related" role="status"></div></div></div>
             <!-- Metadatos del Incidente -->
             <div class="card">
               <div class="card-header">
@@ -615,6 +671,12 @@
             <label class="form-label" for="article-solution">Procedimiento de Solución</label>
             <textarea id="article-solution" class="form-control" rows="4" placeholder="Pasos detallados para solucionar el problema..." required></textarea>
           </div>
+<details class="rag-editor-tools"><summary>Compatibilidad y documentación de origen</summary><div class="rag-form-grid">
+<div class="form-group"><label class="form-label" for="article-platform">Sistema operativo</label><input class="form-control" id="article-platform" maxlength="80"></div>
+<div class="form-group"><label class="form-label" for="article-application">Aplicación</label><input class="form-control" id="article-application" maxlength="120"></div>
+<div class="form-group"><label class="form-label" for="article-productVersion">Versión</label><input class="form-control" id="article-productVersion" maxlength="80"></div>
+<div class="form-group"><label class="form-label" for="article-architecture">Arquitectura</label><input class="form-control" id="article-architecture" maxlength="40"></div>
+</div><label class="form-label" for="rag-import-file">Manual PDF con texto (hasta 5 MB)</label><input type="file" id="rag-import-file" accept="application/pdf,.pdf"><button class="btn btn-outline btn-sm" type="button" id="rag-import-preview">Extraer y revisar</button><p id="rag-import-notice" role="status"></p><textarea class="form-control" id="rag-import-text" rows="5" readonly aria-label="Texto extraído del manual"></textarea><button class="btn btn-outline btn-sm" type="button" id="rag-import-use">Usar texto seleccionado como solución</button></details><button type="button" class="btn btn-outline btn-sm" id="rag-find-duplicates">Buscar artículos parecidos</button><div id="rag-duplicates" role="status"></div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline" onclick="UI.closeModal('modal-create-article')">Cancelar</button>
@@ -745,6 +807,7 @@
   <script src="js/tickets.js"></script>
   <script src="js/assistant.js"></script>
   <script src="js/knowledge.js"></script>
+  <script src="js/rag.js"></script>
   <script src="js/analytics.js"></script>
   <script src="js/admin.js"></script>
   <script src="js/app.js"></script>

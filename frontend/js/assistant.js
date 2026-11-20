@@ -33,6 +33,9 @@ const ASSISTANT = {
     if (container) container.innerHTML = '';
     const question = document.getElementById('assistant-custom-question');
     if (question) question.value = '';
+    const facts=document.getElementById('assistant-facts');if(facts)facts.value='';
+    const related=document.getElementById('rag-ticket-related');if(related)related.textContent='';
+    const clarification=document.getElementById('rag-clarify-feedback');if(clarification)clarification.textContent='';
     const historyList = document.getElementById('assistant-history-list');
     if (historyList) historyList.innerHTML = '';
     // Una consulta en curso del incidente anterior no debe bloquear el botón del nuevo.
@@ -52,17 +55,19 @@ const ASSISTANT = {
     const seq = ++this.askSeq;
 
     const question = (customQuestion || '').trim();
+    const retrievalProfileId=document.getElementById('assistant-profile')?.value||null;
     const stored = this.unsettledAsks.get(ticketId);
-    const previous = stored && stored.question === question ? stored : null;
+    const previous = stored && stored.question === question && stored.retrievalProfileId===retrievalProfileId ? stored : null;
     // UUID v4 para idempotencia: se conserva mientras el resultado del intento anterior sea incierto.
     const attempt = {
-      ticketId, question,
+      ticketId, question, retrievalProfileId,
       requestId: (previous && previous.requestId) || this.generateUuid(),
       retryOfQueryId: previous ? previous.retryOfQueryId : undefined
     };
     this.unsettledAsks.set(ticketId, attempt);
 
     const payload = { requestId: attempt.requestId };
+    if(retrievalProfileId)payload.retrievalProfileId=retrievalProfileId;
     if (question) payload.question = question;
     if (attempt.retryOfQueryId) payload.retryOfQueryId = attempt.retryOfQueryId;
 
@@ -123,7 +128,7 @@ const ASSISTANT = {
     if (failedQueryId) {
       // Terminó en ERROR: repetirla es una consulta nueva enlazada con la fallida.
       this.unsettledAsks.set(attempt.ticketId, {
-        ticketId: attempt.ticketId, question: attempt.question, retryOfQueryId: failedQueryId
+        ticketId: attempt.ticketId, question: attempt.question, retrievalProfileId: attempt.retrievalProfileId, retryOfQueryId: failedQueryId
       });
     } else if (!uncertain) {
       this.unsettledAsks.delete(attempt.ticketId);
@@ -137,6 +142,16 @@ const ASSISTANT = {
     if (query.ticketId != null && query.ticketId !== this.currentTicketId) return; // consulta de otro incidente
 
     this.activeQueryId = query.id;
+    const exportButton=document.getElementById('rag-export');if(exportButton)exportButton.hidden=false;
+    let advanced=null;try{advanced=query.advancedJson?JSON.parse(query.advancedJson):null;}catch{/* historial v1 sin detalles avanzados */}
+    const stepCitations=index=>{
+      const refs=advanced?.citations?.find(c=>c.stepIndex===index)?.pointIds||[];
+      return refs.map(point=>{
+        const evidence=advanced.sources.find(s=>s.pointId===point);
+        const sourceIndex=(query.sources||[]).findIndex(s=>s.articleId===evidence?.articleId);
+        return sourceIndex<0?'':`<button type="button" class="btn btn-outline btn-sm" onclick="ASSISTANT.toggleEvidence('ev-${query.id}-${sourceIndex}')">Fuente ${sourceIndex+1} · ${UI.escapeHtml(evidence.section)}</button>`;
+      }).join('');
+    };
 
     // Caso 1: sin respuesta (NO_RESULTS, ERROR o PENDING): solo el mensaje del backend, sin calificación
     if (query.status !== 'ANSWERED') {
@@ -170,7 +185,7 @@ const ASSISTANT = {
           Pasos de resolución recomendados:
         </div>
         <ol class="steps-list">
-          ${query.recommendedSteps.map(step => `<li>${UI.escapeHtml(step)}</li>`).join('')}
+          ${query.recommendedSteps.map((step,index) => `<li>${UI.escapeHtml(step)}<div class="rag-citations">${stepCitations(index)}</div></li>`).join('')}
         </ol>
       `;
     }

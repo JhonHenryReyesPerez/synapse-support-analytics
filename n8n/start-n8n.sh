@@ -9,5 +9,6 @@ done
 
 n8n publish:workflow --id=campusdeskIndex01
 n8n publish:workflow --id=campusdeskAssist1
+n8n publish:workflow --id=synapseKnowledgeV2
 
 exec n8n start

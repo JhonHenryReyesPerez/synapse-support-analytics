@@ -18,6 +18,8 @@ const API = {
       ...(options.headers || {})
     };
 
+    if (typeof FormData !== 'undefined' && options.body instanceof FormData) delete headers['Content-Type'];
+
     const token = localStorage.getItem(CONFIG.STORAGE_TOKEN);
     if (token && !headers['Authorization']) {
       headers['Authorization'] = `Bearer ${token}`;

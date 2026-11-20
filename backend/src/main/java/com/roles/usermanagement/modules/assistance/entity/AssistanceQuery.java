@@ -38,6 +38,12 @@ import lombok.Setter;
         })
 public class AssistanceQuery {
 
+    @Column(name="retrieval_profile", length=40)
+    private String retrievalProfile;
+
+    @Column(name="advanced_json", columnDefinition="TEXT")
+    private String advancedJson;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -70,7 +76,7 @@ public class AssistanceQuery {
     @Column(name = "max_results", nullable = false, updatable = false)
     private int maxResults;
 
-    /** Umbral de similitud aplicado: ninguna fuente persistida queda por debajo de este valor. */
+    /** Umbral de la vía vectorial; v2 híbrida también admite evidencia literal. */
     @Column(name = "min_score", nullable = false, updatable = false)
     private double minScore;
 

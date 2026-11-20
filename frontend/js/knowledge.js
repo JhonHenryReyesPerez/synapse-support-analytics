@@ -3,8 +3,10 @@
  */
 const KNOWLEDGE = {
   currentPage: 0,
-  // shortcut: sin paginación, se pide el máximo del backend (100); añadir páginas si hay más artículos.
-  pageSize: 100,
+  pageSize: 20,
+  totalPages: 0,
+  editingArticleId: null,
+  sourceTicketId: null,
   currentScope: 'PUBLISHED',
 
   async init() {
@@ -12,7 +14,43 @@ const KNOWLEDGE = {
     await this.loadArticles();
   },
 
+  prepareArticle() {
+    this.editSeq=(this.editSeq||0)+1;
+    this.editingArticleId=null; this.sourceTicketId=null;
+    document.getElementById('form-create-article')?.reset();
+    document.getElementById('modal-title-art').textContent='Nuevo artículo de conocimiento';
+    document.getElementById('btn-submit-article').textContent='Guardar borrador';
+    if(window.RAG){RAG.imported=null;RAG.usedDocument=null;RAG.text('rag-import-notice','');RAG.text('rag-duplicates','');}
+  },
+
+  async editArticle(id) {
+    const seq=this.editSeq=(this.editSeq||0)+1;
+    const res=await API.get(`/knowledge/articles/${id}`);
+    if(seq!==this.editSeq)return;
+    if(!res.ok){UI.showToast(res.error,'error');return;}
+    this.prepareArticle();this.editingArticleId=id;
+    const token=this.editSeq;
+    const metadata=await API.get(`/rag/articles/${id}/metadata`);
+    if(token!==this.editSeq || this.editingArticleId!==id)return;
+    if(!metadata.ok){UI.showToast(metadata.error || 'No se pudieron consultar los metadatos; vuelve a intentar.','error');return;}
+    for(const field of ['title','problem','symptoms','cause','solution'])document.getElementById('article-'+field).value=res.data[field]||'';
+    for(const [field,key] of [['platform','platform'],['application','application'],['productVersion','product_version'],['architecture','architecture']])document.getElementById('article-'+field).value=metadata.data[key]||'';
+    this.sourceTicketId=metadata.data.source_ticket_id||null;
+    if(window.RAG && metadata.data.source_document_hash)RAG.usedDocument={filename:metadata.data.source_document_name,sha256:metadata.data.source_document_hash,pages:metadata.data.source_document_pages};
+    document.getElementById('modal-title-art').textContent='Editar artículo · v'+res.data.contentVersion;
+    document.getElementById('btn-submit-article').textContent='Guardar cambios';
+    UI.openModal('modal-create-article');
+  },
+
+  changePage(delta) {
+    const next=this.currentPage+delta;
+    if(next<0 || next>=this.totalPages)return;
+    this.currentPage=next;return this.loadArticles();
+  },
+
   bindEvents() {
+    document.getElementById('kb-page-prev')?.addEventListener('click',()=>this.changePage(-1));
+    document.getElementById('kb-page-next')?.addEventListener('click',()=>this.changePage(1));
     // Selector de Scope (Publicados / Mis Artículos / Todos)
     const scopeSelect = document.getElementById('kb-scope-select');
     if (scopeSelect) {
@@ -27,8 +65,7 @@ const KNOWLEDGE = {
     const btnNew = document.getElementById('btn-new-article');
     if (btnNew) {
       btnNew.addEventListener('click', () => {
-        const form = document.getElementById('form-create-article');
-        if (form) form.reset();
+        this.prepareArticle();
         UI.openModal('modal-create-article');
       });
     }
@@ -67,6 +104,12 @@ const KNOWLEDGE = {
 
     const pageData = res.data;
     const articles = pageData.content || [];
+    this.totalPages=pageData.totalPages||0;
+    const label=document.getElementById('kb-page-label');
+    if(label)label.textContent=`Página ${this.totalPages?this.currentPage+1:0} de ${this.totalPages} · ${pageData.totalElements??articles.length} artículos`;
+    const prev=document.getElementById('kb-page-prev'),next=document.getElementById('kb-page-next');
+    if(prev)prev.disabled=this.currentPage===0;
+    if(next)next.disabled=this.currentPage+1>=this.totalPages;
 
     if (articles.length === 0) {
       grid.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 3rem;">No hay artículos técnicos en este alcance.</div>`;
@@ -111,6 +154,7 @@ const KNOWLEDGE = {
         `;
       }
 
+      const canEdit=isAdmin || (currentUser?.role==='TECHNICIAN' && art.authorUsername===currentUser.username && !art.verified);
       return `
         <article class="article-card">
           <header class="article-card-header">
@@ -134,6 +178,7 @@ const KNOWLEDGE = {
           </div>
           <footer class="article-card-footer">
             <span style="font-size:0.75rem; color:var(--text-subtle);">Autor: ${UI.escapeHtml(art.authorUsername || 'Técnico')}</span>
+            ${canEdit?`<button class="btn btn-outline btn-sm" onclick="KNOWLEDGE.editArticle(${art.id})">Editar</button>`:''}
             <button class="btn btn-outline btn-sm" onclick="KNOWLEDGE.viewArticle(${art.id})">Ver Completo</button>
           </footer>
         </article>
@@ -200,9 +245,8 @@ const KNOWLEDGE = {
     const btn = document.getElementById('btn-submit-article');
     UI.setLoading(btn, true, 'Guardando borrador...');
 
-    const res = await API.post('/knowledge/articles', {
-      title, problem, symptoms, cause, solution
-    });
+    const payload={title,problem,symptoms,cause,solution};
+    const res = this.editingArticleId ? await API.put(`/knowledge/articles/${this.editingArticleId}`,payload) : await API.post('/knowledge/articles',payload);
 
     UI.setLoading(btn, false);
     UI.markFieldErrors(res.fieldErrors, {
@@ -215,7 +259,13 @@ const KNOWLEDGE = {
       return;
     }
 
-    UI.showToast('Artículo creado en estado Borrador.', 'success');
+    this.editingArticleId=res.data.id;
+    const technical={sourceTicketId:this.sourceTicketId};
+    if(window.RAG && RAG.usedDocument)Object.assign(technical,{sourceDocumentName:RAG.usedDocument.filename,sourceDocumentHash:RAG.usedDocument.sha256,sourceDocumentPages:RAG.usedDocument.pages});
+    for(const field of ['platform','application','productVersion','architecture'])technical[field]=document.getElementById('article-'+field)?.value.trim()||null;
+    const meta=await API.put(`/rag/articles/${res.data.id}/metadata`,technical);
+    if(!meta.ok){UI.showToast('El contenido está guardado. No se guardaron los metadatos: '+(meta.error||'reintenta el envío.'),'error');return;}
+    UI.showToast('Artículo guardado. Requiere revisión antes de publicar cambios de contenido.', 'success');
     UI.closeModal('modal-create-article');
     await this.loadArticles();
   },

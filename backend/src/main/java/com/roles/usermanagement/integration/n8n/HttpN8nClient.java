@@ -66,6 +66,12 @@ public class HttpN8nClient implements N8nClient {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
+    public java.util.Map<String,Object> knowledge(java.util.Map<String,Object> request) {
+        return post("/webhook/synapse-knowledge-v2", request, java.util.Map.class, "requestId=" + request.get("requestId"));
+    }
+
+    @Override
     public AssistResponse assist(AssistRequest request) {
         return post(properties.assistPath(), request, AssistResponse.class,
                 "requestId=" + request.requestId() + " queryId=" + request.queryId());

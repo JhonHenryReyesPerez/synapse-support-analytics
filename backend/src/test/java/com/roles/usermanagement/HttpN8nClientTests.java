@@ -30,6 +30,25 @@ class HttpN8nClientTests {
     private static final int MAX_BYTES = 1024;
     private HttpServer server;
 
+    @Test
+    void knowledgeUsesFixedV2PathAndServiceTokenOverRealHttp() throws Exception {
+        server=HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(),0),0);
+        var called=new java.util.concurrent.atomic.AtomicBoolean();
+        server.createContext("/webhook/synapse-knowledge-v2", exchange -> {
+            called.set(true);
+            assertThat(exchange.getRequestHeaders().getFirst("X-Service-Token")).isEqualTo("x".repeat(32));
+            assertThat(new String(exchange.getRequestBody().readAllBytes(),StandardCharsets.UTF_8)).contains("SEARCH");
+            byte[] body="{\"schemaVersion\":2,\"status\":\"OK\",\"hits\":[]}".getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200,body.length);
+            try(var out=exchange.getResponseBody()){out.write(body);}
+        });
+        server.start();
+        var client=new HttpN8nClient(new N8nProperties("http://127.0.0.1:"+server.getAddress().getPort(),"x".repeat(32),null,
+            "/unused-index","/unused-assist",Duration.ofSeconds(1),Duration.ofSeconds(5),MAX_BYTES));
+        assertThat(client.knowledge(java.util.Map.of("operation","SEARCH")).get("status")).isEqualTo("OK");
+        assertThat(called.get()).isTrue();
+    }
+
     @AfterEach
     void stopServer() {
         if (server != null) {

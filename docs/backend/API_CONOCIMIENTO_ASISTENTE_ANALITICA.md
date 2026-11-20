@@ -162,3 +162,7 @@ resoluciones en la cohorte; no lo muestres como cero. Definiciones y SQL equival
 - En tickets, `category` es el nombre y `categoryId` el identificador (`GET /api/categories`).
 - Resolver exige `resolutionNote`; reasignar por `/transitions` exige `justification`.
 - `POST /api/auth/change-password` devuelve un `token` nuevo; el anterior deja de servir.
+
+## Extensión RAG v2
+
+Las rutas aditivas `/api/rag/**`, PDF y metadatos se describen en [CONTRATO_RAG_V2.md](../CONTRATO_RAG_V2.md). La solicitud de asistencia existente admite `retrievalProfileId` opcional; el historial añade `advancedJson` y permite `sources[].similarity=null` para evidencia léxica. Sin perfil conserva v1. Los siete indicadores no cambian.

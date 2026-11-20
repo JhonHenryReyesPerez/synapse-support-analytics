@@ -1,5 +1,7 @@
 package com.roles.usermanagement;
 
+import com.roles.usermanagement.integration.n8n.N8nException;
+
 import com.roles.usermanagement.integration.n8n.N8nClient;
 import com.roles.usermanagement.integration.n8n.dto.AssistRequest;
 import com.roles.usermanagement.integration.n8n.dto.AssistResponse;
@@ -36,7 +38,13 @@ public class FakeN8nClient implements N8nClient {
         assistCalls.clear();
         onIndex = FakeN8nClient::indexed;
         onAssist = FakeN8nClient::noResults;
+        onKnowledge = request -> { throw new N8nException(N8nException.Kind.NOT_CONFIGURED); };
     }
+
+    public java.util.function.Function<java.util.Map<String,Object>,java.util.Map<String,Object>> onKnowledge = request -> {
+        throw new N8nException(N8nException.Kind.NOT_CONFIGURED);
+    };
+    @Override public java.util.Map<String,Object> knowledge(java.util.Map<String,Object> request) { return onKnowledge.apply(request); }
 
     @Override
     public IndexResponse index(IndexRequest request) {

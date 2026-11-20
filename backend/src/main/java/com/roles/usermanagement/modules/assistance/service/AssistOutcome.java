@@ -9,7 +9,8 @@ import java.util.List;
 public sealed interface AssistOutcome {
 
     /** El flujo generó una respuesta y declara las fuentes que usó. */
-    record Answered(String answer, List<String> steps, List<SourceRef> sources, Metadata metadata) implements AssistOutcome {
+    record Answered(String answer, List<String> steps, List<SourceRef> sources, Metadata metadata, String detailsJson) implements AssistOutcome {
+        public Answered(String answer,List<String> steps,List<SourceRef> sources,Metadata metadata) {this(answer,steps,sources,metadata,null);}
     }
 
     /** Ningún artículo superó el umbral: no hay orientación técnica. */
@@ -20,7 +21,8 @@ public sealed interface AssistOutcome {
     record Failed(String errorCode) implements AssistOutcome {
     }
 
-    record SourceRef(long articleId, int contentVersion, double score) {
+    record SourceRef(long articleId, int contentVersion, Double score, String evidence) {
+        public SourceRef(long articleId,int contentVersion,double score){this(articleId,contentVersion,score,null);}
     }
 
     record Metadata(String embeddingModel, String generationModel, String similarityMetric, String workflowVersion) {

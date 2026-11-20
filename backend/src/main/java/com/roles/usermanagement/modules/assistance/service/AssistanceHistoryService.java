@@ -116,7 +116,7 @@ public class AssistanceHistoryService {
                 query.getRetryOf() == null ? null : query.getRetryOf().getId(),
                 rating == null ? null : RatingService.toResponse(query.getId(), rating),
                 query.getCreatedAt(),
-                query.getCompletedAt());
+                query.getCompletedAt(), query.getAdvancedJson());
     }
 
     private static AssistanceQueryResponse.Source toSource(ResponseSource source) {
@@ -132,7 +132,7 @@ public class AssistanceHistoryService {
             case PENDING -> "La consulta está en proceso.";
             case ANSWERED -> "Respuesta basada en " + sourceCount
                     + (sourceCount == 1 ? " artículo verificado" : " artículos verificados") + " de la base de conocimiento."
-                    + (limited ? " Evidencia limitada: menos de tres artículos superaron el umbral de similitud." : "");
+                    + (limited ? " Evidencia limitada: se recuperaron menos de tres artículos pertinentes." : "");
             case NO_RESULTS -> "No se encontró información suficientemente relevante en la base de conocimiento "
                     + "para esta consulta. No se generó ninguna solución.";
             case ERROR -> "No fue posible completar la consulta por un fallo técnico. Esto no indica que falte "

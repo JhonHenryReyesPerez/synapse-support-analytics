@@ -6,7 +6,7 @@
     "version" : "1.0"
   },
   "servers" : [ {
-    "url" : "http://localhost:55453",
+    "url" : "http://localhost:8051",
     "description" : "Generated server url"
   } ],
   "tags" : [ {
@@ -490,6 +490,114 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/RoleCatalogDto"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/rag/gaps/{id}" : {
+      "put" : {
+        "tags" : [ "rag-controller" ],
+        "operationId" : "review",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/GapReview"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/rag/articles/{id}/metadata" : {
+      "get" : {
+        "tags" : [ "rag-controller" ],
+        "operationId" : "metadata",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      },
+      "put" : {
+        "tags" : [ "rag-controller" ],
+        "operationId" : "metadata_1",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/TechnicalMetadata"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
                 }
               }
             }
@@ -1228,6 +1336,351 @@
         } ]
       }
     },
+    "/api/rag/search" : {
+      "post" : {
+        "tags" : [ "rag-controller" ],
+        "operationId" : "search",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SearchInput"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/rag/profiles" : {
+      "get" : {
+        "tags" : [ "rag-controller" ],
+        "operationId" : "profiles",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      },
+      "post" : {
+        "tags" : [ "rag-controller" ],
+        "operationId" : "ragCreateProfile",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ProfileInput"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/rag/profiles/{id}/repair" : {
+      "post" : {
+        "tags" : [ "rag-controller" ],
+        "operationId" : "repair",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/rag/profiles/{id}/index" : {
+      "post" : {
+        "tags" : [ "rag-controller" ],
+        "operationId" : "index",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "limit",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 5
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/rag/profiles/{id}/activate" : {
+      "post" : {
+        "tags" : [ "rag-controller" ],
+        "operationId" : "ragActivateProfile",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/rag/import/preview" : {
+      "post" : {
+        "tags" : [ "rag-import-controller" ],
+        "operationId" : "preview",
+        "requestBody" : {
+          "content" : {
+            "multipart/form-data" : {
+              "schema" : {
+                "type" : "object",
+                "properties" : {
+                  "file" : {
+                    "type" : "string",
+                    "format" : "binary"
+                  }
+                },
+                "required" : [ "file" ]
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/rag/evaluation/runs" : {
+      "get" : {
+        "tags" : [ "rag-controller" ],
+        "operationId" : "runs",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      },
+      "post" : {
+        "tags" : [ "rag-controller" ],
+        "operationId" : "run",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/EvaluationRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/rag/evaluation/cases" : {
+      "get" : {
+        "tags" : [ "rag-controller" ],
+        "operationId" : "cases",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      },
+      "post" : {
+        "tags" : [ "rag-controller" ],
+        "operationId" : "addCase",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/EvaluationCase"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/rag/clarify" : {
+      "post" : {
+        "tags" : [ "rag-controller" ],
+        "operationId" : "clarify",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/FollowUp"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
     "/api/permissions" : {
       "get" : {
         "tags" : [ "Roles y permisos" ],
@@ -1511,6 +1964,34 @@
         "security" : [ {
           "bearerAuth" : [ ]
         } ]
+      }
+    },
+    "/api/integration/rag/evidence" : {
+      "post" : {
+        "tags" : [ "Integración n8n" ],
+        "operationId" : "evidence",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/EvidenceRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/integration/knowledge/eligibility" : {
@@ -1968,6 +2449,176 @@
                   "items" : {
                     "$ref" : "#/components/schemas/StatusHistoryResponse"
                   }
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/rag/tickets/{id}/similar" : {
+      "get" : {
+        "tags" : [ "rag-controller" ],
+        "operationId" : "similar",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/rag/tickets/{id}/draft" : {
+      "get" : {
+        "tags" : [ "rag-controller" ],
+        "operationId" : "draft",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/rag/profiles/{id}/plan" : {
+      "get" : {
+        "tags" : [ "rag-controller" ],
+        "operationId" : "plan",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/rag/profiles/{id}/health" : {
+      "get" : {
+        "tags" : [ "rag-controller" ],
+        "operationId" : "health",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/rag/operations" : {
+      "get" : {
+        "tags" : [ "rag-controller" ],
+        "operationId" : "operations",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/rag/gaps" : {
+      "get" : {
+        "tags" : [ "rag-controller" ],
+        "operationId" : "gaps",
+        "parameters" : [ {
+          "name" : "page",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object"
                 }
               }
             }
@@ -2505,6 +3156,72 @@
           }
         }
       },
+      "GapReview" : {
+        "type" : "object",
+        "properties" : {
+          "diagnosis" : {
+            "type" : "string",
+            "minLength" : 1,
+            "pattern" : "MISSING_CONTENT|INCOMPLETE|RETRIEVAL|UNFAITHFUL|OUT_OF_SCOPE|RESOLVED"
+          },
+          "notes" : {
+            "type" : "string",
+            "maxLength" : 4000,
+            "minLength" : 0
+          },
+          "articleId" : {
+            "type" : "integer",
+            "format" : "int64",
+            "exclusiveMinimum" : 0
+          }
+        },
+        "required" : [ "diagnosis" ]
+      },
+      "TechnicalMetadata" : {
+        "type" : "object",
+        "properties" : {
+          "platform" : {
+            "type" : "string",
+            "maxLength" : 80,
+            "minLength" : 0
+          },
+          "application" : {
+            "type" : "string",
+            "maxLength" : 120,
+            "minLength" : 0
+          },
+          "productVersion" : {
+            "type" : "string",
+            "maxLength" : 80,
+            "minLength" : 0
+          },
+          "architecture" : {
+            "type" : "string",
+            "maxLength" : 40,
+            "minLength" : 0
+          },
+          "sourceTicketId" : {
+            "type" : "integer",
+            "format" : "int64",
+            "exclusiveMinimum" : 0
+          },
+          "sourceDocumentName" : {
+            "type" : "string",
+            "maxLength" : 200,
+            "minLength" : 0
+          },
+          "sourceDocumentHash" : {
+            "type" : "string",
+            "pattern" : "[0-9a-f]{64}"
+          },
+          "sourceDocumentPages" : {
+            "type" : "integer",
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1
+          }
+        }
+      },
       "ArticleRequest" : {
         "type" : "object",
         "properties" : {
@@ -2793,6 +3510,10 @@
             "format" : "int64",
             "description" : "Consulta anterior del mismo incidente que este reintento repite. Crea una consulta nueva y conserva intacta la anterior.",
             "exclusiveMinimum" : 0
+          },
+          "retrievalProfileId" : {
+            "type" : "string",
+            "pattern" : "[a-z0-9_-]{1,40}"
           }
         }
       },
@@ -2885,6 +3606,9 @@
             "type" : "string",
             "format" : "date-time",
             "description" : "Instante del estado terminal; null mientras está pendiente"
+          },
+          "advancedJson" : {
+            "type" : "string"
           }
         }
       },
@@ -2899,7 +3623,7 @@
           "minScore" : {
             "type" : "number",
             "format" : "double",
-            "description" : "Umbral mínimo de similitud aplicado"
+            "description" : "Umbral de la vía vectorial; no se aplica al score léxico ni al ranking RRF"
           },
           "similarityMetric" : {
             "type" : "string",
@@ -2927,14 +3651,14 @@
             "description" : "Versión de contenido que respaldó la respuesta"
           },
           "similarity" : {
-            "type" : "number",
+            "type" : [ "number", "null" ],
             "format" : "double",
-            "description" : "Similitud coseno entre la consulta y el artículo. No es una probabilidad de éxito ni un porcentaje de certeza"
+            "description" : "Similitud coseno; null si no se utilizó la vía vectorial. No es una probabilidad de éxito ni un porcentaje de certeza"
           },
           "order" : {
             "type" : "integer",
             "format" : "int32",
-            "description" : "Posición: 1 es la fuente más similar"
+            "description" : "Posición de recuperación: v1 por coseno, v2 por ranking"
           },
           "evidence" : {
             "type" : "string",
@@ -2943,6 +3667,184 @@
           "current" : {
             "type" : "boolean",
             "description" : "false si el artículo cambió o dejó de estar publicado después: la fuente es histórica"
+          }
+        }
+      },
+      "SearchInput" : {
+        "type" : "object",
+        "properties" : {
+          "question" : {
+            "type" : "string",
+            "maxLength" : 2000,
+            "minLength" : 0
+          },
+          "profileId" : {
+            "type" : "string",
+            "maxLength" : 40,
+            "minLength" : 0
+          },
+          "limit" : {
+            "type" : "integer",
+            "format" : "int32",
+            "maximum" : 20,
+            "minimum" : 1
+          },
+          "platform" : {
+            "type" : "string",
+            "maxLength" : 80,
+            "minLength" : 0
+          },
+          "application" : {
+            "type" : "string",
+            "maxLength" : 120,
+            "minLength" : 0
+          },
+          "productVersion" : {
+            "type" : "string",
+            "maxLength" : 80,
+            "minLength" : 0
+          },
+          "architecture" : {
+            "type" : "string",
+            "maxLength" : 40,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "question" ]
+      },
+      "ProfileInput" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "minLength" : 1,
+            "pattern" : "[a-z0-9_-]{1,40}"
+          },
+          "name" : {
+            "type" : "string",
+            "maxLength" : 100,
+            "minLength" : 0
+          },
+          "model" : {
+            "type" : "string",
+            "maxLength" : 120,
+            "minLength" : 0
+          },
+          "dimension" : {
+            "type" : "integer",
+            "format" : "int32",
+            "maximum" : 8192,
+            "minimum" : 1
+          },
+          "strategy" : {
+            "type" : "string",
+            "enum" : [ "TEXT", "DENSE", "HYBRID", "RERANK" ]
+          },
+          "minCosine" : {
+            "type" : "number",
+            "format" : "double",
+            "maximum" : 1,
+            "minimum" : 0
+          },
+          "chunkSize" : {
+            "type" : "integer",
+            "format" : "int32",
+            "maximum" : 8000,
+            "minimum" : 0
+          },
+          "representation" : {
+            "type" : "string",
+            "pattern" : "FULL|SYMPTOMS"
+          },
+          "rerankModel" : {
+            "type" : "string",
+            "maxLength" : 120,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "id", "minCosine", "model", "name", "strategy" ]
+      },
+      "EvaluationRequest" : {
+        "type" : "object",
+        "properties" : {
+          "profileIds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "maxLength" : 40,
+              "minLength" : 0
+            },
+            "maxItems" : 3,
+            "minItems" : 0
+          },
+          "caseIds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int64",
+              "exclusiveMinimum" : 0
+            },
+            "maxItems" : 30,
+            "minItems" : 0
+          }
+        },
+        "required" : [ "caseIds", "profileIds" ]
+      },
+      "EvaluationCase" : {
+        "type" : "object",
+        "properties" : {
+          "question" : {
+            "type" : "string",
+            "maxLength" : 2000,
+            "minLength" : 0
+          },
+          "expectedArticleIds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer",
+              "format" : "int64",
+              "exclusiveMinimum" : 0
+            },
+            "maxItems" : 20,
+            "minItems" : 0
+          },
+          "expectNoResults" : {
+            "type" : "boolean"
+          },
+          "split" : {
+            "type" : "string",
+            "pattern" : "CALIBRATION|HOLDOUT"
+          },
+          "category" : {
+            "type" : "string",
+            "maxLength" : 100,
+            "minLength" : 0
+          },
+          "notes" : {
+            "type" : "string",
+            "maxLength" : 4000,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "expectedArticleIds", "question" ]
+      },
+      "FollowUp" : {
+        "type" : "object",
+        "properties" : {
+          "question" : {
+            "type" : "string",
+            "maxLength" : 2000,
+            "minLength" : 0
+          },
+          "facts" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "maxLength" : 500,
+              "minLength" : 0
+            },
+            "maxItems" : 4,
+            "minItems" : 0
           }
         }
       },
@@ -2978,6 +3880,27 @@
             "format" : "int32"
           }
         }
+      },
+      "EvidenceRequest" : {
+        "type" : "object",
+        "properties" : {
+          "profileId" : {
+            "type" : "string",
+            "maxLength" : 40,
+            "minLength" : 0
+          },
+          "pointIds" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string",
+              "minLength" : 1,
+              "pattern" : "[0-9a-fA-F-]{36}"
+            },
+            "maxItems" : 200,
+            "minItems" : 0
+          }
+        },
+        "required" : [ "pointIds", "profileId" ]
       },
       "ArticleRef" : {
         "type" : "object",

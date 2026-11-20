@@ -185,8 +185,8 @@ test('3: una lista de un alcance anterior no se pinta bajo el alcance actual', a
   const published = deferred();
   const article = (id, title) => ({ id, title, problem: 'p', solution: 's' });
   const { ctx, el } = appWith({
-    'GET /knowledge/articles?scope=PUBLISHED&page=0&size=100': published.promise,
-    'GET /knowledge/articles?scope=MINE&page=0&size=100': ok({ content: [article(2, 'MIO')] })
+    'GET /knowledge/articles?scope=PUBLISHED&page=0&size=20': published.promise,
+    'GET /knowledge/articles?scope=MINE&page=0&size=20': ok({ content: [article(2, 'MIO')] })
   }, ['ui.js', 'knowledge.js']);
 
   const old = ctx.KNOWLEDGE.loadArticles();

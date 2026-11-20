@@ -802,3 +802,7 @@ Decisiones y límites:
 3. **Reintento del asistente:** la identidad pendiente vive en la página; al recargarla se pierde y la consulta siguiente es nueva.
 4. Los errores de validación se asocian al control con `aria-invalid` y el detalle se muestra en el aviso; no se añadió un texto por campo bajo cada control.
 5. No comprobado: recorrido en navegador de las correcciones del frontend (las pruebas usan un DOM mínimo), `HttpN8nClient` contra un n8n real que deje el cuerpo a medias, y carga concurrente más allá de las pruebas citadas.
+
+## 22.11 Herramientas de conocimiento v2 — 19/11/2026
+
+Implementación autorizada de las 17 propuestas RAG en la rama `feat/rag-knowledge-evolution`. Módulo `modules/rag`, migración V10, tercer workflow n8n y extensiones vanilla del frontend. Alcance, ubicación, activación, pruebas y limitaciones en [MEJORAS_RAG_IMPLEMENTADAS.md](docs/MEJORAS_RAG_IMPLEMENTADAS.md); API en [CONTRATO_RAG_V2.md](docs/CONTRATO_RAG_V2.md). Conserva asistente v1, matriz de roles y siete indicadores. Los perfiles nuevos tienen sincronización explícita e índices separados; INDEXED editorial no certifica todos los perfiles. PostgreSQL/Flyway y ejecución integrada de n8n/Qdrant real pendientes de comprobar en este incremento.

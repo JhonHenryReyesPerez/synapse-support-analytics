@@ -138,3 +138,7 @@ defecto, 0,55, sale de la calibración del §9 del mismo documento.
 - Cuando no hay artículos suficientemente relevantes, el sistema lo informa en lugar de generar una solución sin respaldo.
 - Los indicadores del dashboard se calculan con consultas reales a la base de datos, nunca con un modelo.
 - Las claves y credenciales se configuran con variables de entorno; el repositorio no contiene secretos.
+
+## Herramientas de conocimiento v2
+
+Buscador independiente, perfiles de embeddings, recuperación híbrida/reranking, citas por paso, evaluación, salud del índice, importación PDF y revisión editorial. Consulta las [17 funcionalidades, pruebas y límites](docs/MEJORAS_RAG_IMPLEMENTADAS.md) y el [contrato v2](docs/CONTRATO_RAG_V2.md). El índice v1 y los siete indicadores se conservan; las colecciones nuevas se sincronizan explícitamente.
