@@ -29,6 +29,10 @@ docs/
 AI_USAGE.md  Registro de uso de inteligencia artificial
 CLAUDE.md    Especificación de trabajo del backend y estado de implementación
 ```
+## examen prueba commits
+
+![alt text](image.png)
+
 
 ## Inicio rápido del backend
 
