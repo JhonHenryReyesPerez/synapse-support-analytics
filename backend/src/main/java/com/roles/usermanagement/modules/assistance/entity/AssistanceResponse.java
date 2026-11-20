@@ -40,6 +40,9 @@ public class AssistanceResponse {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "trust_level", nullable = false)
+    private Long trust_level;
+
     @OneToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "query_id", nullable = false, updatable = false)
     private AssistanceQuery query;
