@@ -143,6 +143,9 @@ public class AssistanceService {
             if (completion != Completion.STALE_SOURCES) {
                 break;
             }
+
+            
+
             log.info("asistencia requestId={} queryId={} fuentes obsoletas en el intento {}",
                     request.requestId(), request.queryId(), attempt);
         }
