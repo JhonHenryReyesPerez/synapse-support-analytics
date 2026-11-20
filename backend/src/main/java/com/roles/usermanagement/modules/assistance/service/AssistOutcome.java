@@ -20,9 +20,11 @@ public sealed interface AssistOutcome {
     record Failed(String errorCode) implements AssistOutcome {
     }
 
+    /** Record encargado de referenciar la fuente mas asociada a la busqueda ejecutada */
     record SourceRef(long articleId, int contentVersion, double score) {
     }
 
+    /** Record encargado de la mética de similitud de busqueda -> vectores */
     record Metadata(String embeddingModel, String generationModel, String similarityMetric, String workflowVersion) {
     }
 }
