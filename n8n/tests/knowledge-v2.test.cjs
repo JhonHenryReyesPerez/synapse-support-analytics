@@ -21,6 +21,7 @@ test('all Code nodes compile and every connection refers to an existing node', (
   const names = new Set(workflow.nodes.map(n => n.name));
   assert.equal(names.size, workflow.nodes.length);
   for (const n of workflow.nodes) if (n.type.endsWith('.code')) new AsyncFunction('$json', '$', '$input', '$env', n.parameters.jsCode);
+  for (const n of workflow.nodes) if (n.type.endsWith('.webhook')) assert.equal(n.webhookId, n.parameters.path);
   for (const [from, types] of Object.entries(workflow.connections)) {
     assert(names.has(from));
     for (const outputs of Object.values(types)) for (const links of outputs) for (const link of links) assert(names.has(link.node));
@@ -34,6 +35,13 @@ test('service authentication and collection boundaries fail closed', async () =>
 });
 test('wrong embedding dimensions and incompatible collections are rejected', async () => {
   assert.equal((await run('Validar vector', { body: { data: [{ embedding: [.1] }] } })).reply.errorCode, 'EMBEDDING_FAILED');
+  const collectionValidator = workflow.nodes.find(n => n.parameters.jsCode?.includes('create:true'));
+  const missing = await run(collectionValidator.name, { statusCode: 404 });
+  assert.deepEqual(missing.collectionBody, { vectors: { size: base.profile.dimension, distance: 'Cosine' } });
+  const createCollection = workflow.nodes.find(n => n.parameters.method === 'PUT' && n.parameters.url?.includes('/collections/') && !n.parameters.url.includes('/points?'));
+  assert.equal(createCollection.parameters.jsonBody, '={{ JSON.stringify($json.collectionBody) }}');
+  const upsertPoints = workflow.nodes.find(n => n.parameters.method === 'PUT' && n.parameters.url?.includes('/points?'));
+  assert.equal(upsertPoints.parameters.jsonBody, '={{ JSON.stringify($json.pointsBody) }}');
   assert.equal((await run('Validar colección', { body: { result: { config: { params: { vectors: { size: 3, distance: 'Cosine' } } } } } })).reply.errorCode, 'INDEX_MODEL_MISMATCH');
   assert.equal((await run('Validar colección', { statusCode: 404 })).create, true);
 });

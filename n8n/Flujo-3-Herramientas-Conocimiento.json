@@ -15,7 +15,8 @@
         "httpMethod": "POST",
         "path": "synapse-knowledge-v2",
         "responseMode": "responseNode"
-      }
+      },
+      "webhookId": "synapse-knowledge-v2"
     },
     {
       "id": "c0728d11-791e-5715-bfbb-9c20b834e1a8",
@@ -338,7 +339,7 @@
         380
       ],
       "parameters": {
-        "jsCode": "const base=$('Validar V2').first().json;\nconst fail=(errorCode,httpStatus=200)=>[{json:{reply:{schemaVersion:2,requestId:base.requestId,status:'ERROR',errorCode},httpStatus}}];\nconst response=$json, data=response.body||response;\nif(response.statusCode===404)return [{json:{create:true}}];\nif(response.error||response.statusCode>=400)return fail('INDEX_UNAVAILABLE');\nconst vectors=data.result?.config?.params?.vectors;\nif(vectors?.size!==base.profile.dimension||String(vectors?.distance).toLowerCase()!=='cosine')return fail('INDEX_MODEL_MISMATCH');\nreturn [{json:{create:false}}];"
+        "jsCode": "const base=$('Validar V2').first().json;\nconst fail=(errorCode,httpStatus=200)=>[{json:{reply:{schemaVersion:2,requestId:base.requestId,status:'ERROR',errorCode},httpStatus}}];\nconst response=$json, data=response.body||response;\nif(response.statusCode===404)return [{json:{create:true,collectionBody:{vectors:{size:base.profile.dimension,distance:'Cosine'}}}}];\nif(response.error||response.statusCode>=400)return fail('INDEX_UNAVAILABLE');\nconst vectors=data.result?.config?.params?.vectors;\nif(vectors?.size!==base.profile.dimension||String(vectors?.distance).toLowerCase()!=='cosine')return fail('INDEX_MODEL_MISMATCH');\nreturn [{json:{create:false}}];"
       }
     },
     {
@@ -418,7 +419,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({vectors:{size:$(\"Validar V2\").first().json.profile.dimension,distance:\"Cosine\"}}) }}"
+        "jsonBody": "={{ JSON.stringify($json.collectionBody) }}"
       },
       "onError": "continueRegularOutput"
     },

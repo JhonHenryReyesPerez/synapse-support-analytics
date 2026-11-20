@@ -51,7 +51,7 @@ Activar comprueba el manifiesto relacional vigente y no sustituye el diagnóstic
 ## Validación realizada
 
 - Suite completa Gradle, H2 aislado: **132 pruebas, 6 omitidas, 0 fallos**. Las omitidas no se cuentan como aprobadas. Casos nuevos: permisos, filtros, IDs desconocidos, códigos literales, salud, caché, perfiles, citas, idempotencia, retirada concurrente de fuentes, evaluación reservada y PDF.
-- **66 pruebas frontend** con DOM simulado y **7 del workflow** en Node, sin fallos. Compilan nodos Code, revisan conexiones y prueban autenticación, dimensiones, RRF, reranking, citas, errores y retiro. No ejecutan el motor n8n.
+- **73 pruebas frontend** con DOM simulado y workflow en Node, sin fallos (7 de workflow). Compilan nodos Code, revisan conexiones y prueban autenticación, dimensiones, RRF, reranking, citas, errores y retiro. No ejecutan el motor n8n.
 - Transporte v2 con HTTP real a un servidor local controlado: ruta fija y secreto de servicio. Las pruebas de reglas usan `FakeN8nClient`, sin modelos pagados.
 - Orca con backend H2 temporal: login, búsqueda textual, laboratorio, edición PUT y metadatos. La edición retira el artículo hasta nueva revisión. Inspección a **1440, 768 y 390 px**, temas claro/oscuro; sin desbordamiento horizontal observado ni errores en la consola consultada.
 - Tras los ajustes finales se repitieron los 13 escenarios RAG y el caso de asistencia citada; los códigos literales no aceptan prefijos de otros códigos/versiones. Swagger conserva los operationId anteriores y documenta JWT y coseno nullable.
@@ -59,8 +59,8 @@ Activar comprueba el manifiesto relacional vigente y no sustituye el diagnóstic
 
 ## Límites y comprobaciones pendientes
 
-- Docker Desktop no estaba disponible: pendiente ejecutar V10 con PostgreSQL/Flyway y el tercer workflow dentro de n8n 2.47.7 con Qdrant 1.20.1. H2 y nodos aislados no sustituyen esas pruebas.
-- Sin llamadas reales de embeddings/reranking/generación: no se afirma mejor calidad o latencia del corpus del equipo. Requiere evaluación humana y proveedor configurado.
+- Validación de integración posterior: PostgreSQL 17, n8n 2.47.7 y Qdrant 1.20.1 aislados; Flyway V1–V10, Hibernate `validate`, workflow publicado y 11 recorridos end-to-end aprobados. Se detectó y corrigió la falta de `webhookId` (el webhook devolvía 404) y una expresión inválida al crear la colección. Suite PostgreSQL: 132 pruebas, 0 omitidas/fallos; H2: 132 pruebas, 6 omitidas, 0 fallos.
+- Embeddings, reranking y generación se probaron contra un mock HTTP local determinista; no se usó proveedor/modelo real ni se midió calidad semántica, latencia o coste real. Requiere evaluación humana y proveedor configurado.
 - Importación solo PDF con texto: sin OCR/DOCX/HTML ni tablas/imágenes automáticas. No almacena archivo original. La procedencia reenviada al guardar es declarada, no una firma del servidor.
 - Corpus/candidatos textuales en memoria. Límites del workflow: 10.000 fragmentos elegibles, 200 candidatos de evidencia, 100 densos y 40 para reranking. Diagnóstico hasta 25.600 puntos; si es incompleto bloquea reparar. Evaluar paginación/FTS al superarlos.
 - Caché con exclusión local a una instancia; varias réplicas requieren upsert PostgreSQL en esa escritura. No se añadieron colas ni microservicios.
