@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f4f0e8">
+  <link rel="preload" href="assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="js/theme.js"></script>
   <title>Synapse Support Analytics — Plataforma</title>
 
   <!-- Estilos del Sistema de Diseño Nativo -->
@@ -16,41 +19,43 @@
   <link rel="stylesheet" href="css/modules/analytics.css">
 
   <!-- Chart.js para Visualización Analítica (RF07) -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="assets/vendor/chart.umd.min.js"></script>
 </head>
 <body class="app-layout">
+  <a class="skip-link" href="#main-content">Saltar al contenido</a>
 
   <!-- Barra Lateral de Navegación (Sidebar) -->
-  <aside class="app-sidebar" role="navigation" aria-label="Navegación principal">
+  <aside class="app-sidebar" id="app-navigation" aria-label="Navegación principal">
     <div class="sidebar-brand">
-      <div class="sidebar-brand-icon" aria-hidden="true">⚡</div>
+      <div class="sidebar-brand-icon" aria-hidden="true"><svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#bolt"></use></svg></div>
       <div class="sidebar-brand-text">
         <h2>Synapse</h2>
         <span>Support Analytics</span>
       </div>
     </div>
 
-    <nav class="sidebar-nav">
+    <button type="button" class="btn btn-outline btn-sm mobile-menu-toggle" id="btn-navigation-toggle" aria-controls="primary-navigation" aria-expanded="false">Menú</button>
+    <nav class="sidebar-nav" id="primary-navigation" aria-label="Módulos">
       <div class="nav-section-title">Módulos</div>
       
-      <button type="button" class="nav-item is-active" data-view="view-dashboard">
-        <span class="nav-icon" aria-hidden="true">📊</span>
-        <span>Dashboard Analítico</span>
+      <button type="button" class="nav-item is-active" data-view="view-dashboard" aria-current="page">
+        <span class="nav-icon" aria-hidden="true"><svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#chart"></use></svg></span>
+        <span>Analítica</span>
       </button>
 
       <button type="button" class="nav-item" data-view="view-tickets">
-        <span class="nav-icon" aria-hidden="true">🎫</span>
-        <span>Incidentes (Tickets)</span>
+        <span class="nav-icon" aria-hidden="true"><svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#ticket"></use></svg></span>
+        <span>Incidentes</span>
       </button>
 
       <button type="button" class="nav-item" data-view="view-knowledge">
-        <span class="nav-icon" aria-hidden="true">📚</span>
-        <span>Base Conocimiento</span>
+        <span class="nav-icon" aria-hidden="true"><svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#book"></use></svg></span>
+        <span>Conocimiento</span>
       </button>
 
       <div class="nav-section-title admin-only">Sistema</div>
       <button type="button" class="nav-item admin-only" data-view="view-admin">
-        <span class="nav-icon" aria-hidden="true">⚙️</span>
+        <span class="nav-icon" aria-hidden="true"><svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#settings"></use></svg></span>
         <span>Administración</span>
       </button>
     </nav>
@@ -65,7 +70,7 @@
         </div>
       </div>
       <button type="button" class="btn-logout" id="btn-app-logout" title="Cerrar sesión" aria-label="Cerrar sesión">
-        🚪
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#logout"></use></svg>
       </button>
     </div>
   </aside>
@@ -76,17 +81,20 @@
     <!-- Barra Superior (Header) -->
     <header class="app-header">
       <div class="header-title-area">
-        <h1 id="header-view-title">Dashboard Analítico</h1>
+        <p class="page-eyebrow" id="header-view-eyebrow">Synapse / Análisis de incidentes</p>
+        <h1 id="header-view-title" tabindex="-1">El pulso del soporte.</h1>
+        <p class="page-description" id="header-view-description">Volumen, conocimiento y resolución en una misma lectura.</p>
       </div>
       <div class="header-actions">
+        <button type="button" class="btn btn-outline btn-sm" data-theme-toggle aria-pressed="false">Modo oscuro</button>
         <button type="button" class="btn btn-primary btn-sm" id="btn-new-ticket">
-          + Nuevo Incidente
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#plus"></use></svg> Nuevo Incidente
         </button>
       </div>
     </header>
 
     <!-- Contenido de las Vistas -->
-    <main class="app-content" role="main">
+    <main class="app-content" id="main-content" tabindex="-1">
 
       <!-- ====================================================================
            1. VISTA: DASHBOARD ANALÍTICO (RF06 / RF07)
@@ -94,6 +102,8 @@
       <section class="view-section is-active" id="view-dashboard">
         
         <!-- Filtros de la Cohorte Analítica -->
+        <details class="analytics-filters">
+          <summary><span class="filter-summary"><strong>Cohorte</strong> · <span id="analytics-cohort">Consultando alcance y período…</span></span><span class="filter-affordance">Filtros</span></summary>
         <div class="toolbar-card">
           <div class="filter-group">
             <label class="filter-label" for="analytics-filter-from">Fecha Desde</label>
@@ -137,82 +147,82 @@
           </div>
         </div>
 
+        </details>
+        <div class="analytics-feedback" id="analytics-feedback" role="status" aria-live="polite">
+          <p id="analytics-feedback-message">Cargando indicadores…</p>
+          <button type="button" class="btn btn-outline btn-sm" id="btn-retry-analytics" hidden>Reintentar</button>
+        </div>
+        <div class="analytics-results" id="analytics-results" aria-busy="true">
         <!-- Indicadores Clave de Desempeño (KPIs) -->
         <div class="kpi-grid">
           <div class="kpi-card">
-            <div class="kpi-title">1. Total Incidentes</div>
-            <div class="kpi-value" id="kpi-total-incidents">0</div>
+            <div class="kpi-title"><span class="metric-index">01</span>Total de incidentes</div>
+            <div class="kpi-value" id="kpi-total-incidents">—</div>
             <div class="kpi-subtitle">Incidentes registrados en cohorte</div>
           </div>
 
-          <div class="kpi-card kpi-success">
-            <div class="kpi-title">4. Tasa de Resolución</div>
-            <div class="kpi-value" id="kpi-resolution-rate">0.0%</div>
-            <div class="kpi-subtitle" id="kpi-resolved-count">0 resueltos o cerrados</div>
+          <div class="kpi-card">
+            <div class="kpi-title"><span class="metric-index">04</span>Tasa de resolución</div>
+            <div class="kpi-value" id="kpi-resolution-rate">—</div>
+            <div class="kpi-subtitle" id="kpi-resolved-count">Resueltos o cerrados</div>
           </div>
 
-          <div class="kpi-card kpi-warning">
-            <div class="kpi-title">5. Tiempo Prom. Resolución</div>
+          <div class="kpi-card">
+            <div class="kpi-title"><span class="metric-index">05</span>Tiempo de resolución</div>
             <div class="kpi-value" id="kpi-avg-resolution-time">—</div>
             <div class="kpi-subtitle" id="kpi-resolution-sample">Horas transcurridas</div>
           </div>
 
-          <div class="kpi-card kpi-purple">
-            <div class="kpi-title">6. Categoría Más Recurrente</div>
-            <div class="kpi-value" id="kpi-most-recurrent" style="font-size: var(--font-size-xl);">—</div>
+          <div class="kpi-card">
+            <div class="kpi-title"><span class="metric-index">06</span>Mayor recurrencia</div>
+            <div class="kpi-value kpi-category" id="kpi-most-recurrent">—</div>
             <div class="kpi-subtitle">Mayor volumen de solicitudes</div>
           </div>
         </div>
 
-        <!-- Gráficos Interactivos -->
+        <p class="analytics-section-label">Lectura de datos / Volumen, composición y resolución</p>
         <div class="charts-grid">
-          <div class="chart-card">
-            <div class="chart-header">
-              <h2 class="chart-title">2. Incidentes por Categoría</h2>
+          <section class="chart-card chart-trend" aria-labelledby="chart-trend-title">
+            <div class="chart-header"><div>
+              <h2 class="chart-title" id="chart-trend-title"><span class="metric-index">03</span>Tendencia de incidentes</h2>
+              <p class="chart-caption" id="analytics-trend-caption">Incidentes registrados por día</p>
+            </div></div>
+            <div class="chart-canvas-wrapper"><canvas id="chart-trend" role="img" aria-label="Tendencia de incidentes; valores en la tabla desplegable"></canvas></div>
+            <details class="chart-data-details"><summary>Consultar datos de la tendencia</summary>
+              <div class="chart-data-scroll" tabindex="0" role="region" aria-label="Datos de la tendencia">
+                <table class="analytics-summary-table"><thead><tr><th scope="col">Inicio del período</th><th scope="col">Incidentes</th></tr></thead><tbody id="analytics-trend-tbody"></tbody></table>
+              </div>
+            </details>
+          </section>
+          <section class="chart-card chart-category" aria-labelledby="chart-category-title">
+            <div class="chart-header"><div>
+              <h2 class="chart-title" id="chart-category-title"><span class="metric-index">02</span>Por categoría</h2>
+              <p class="chart-caption">Composición de la cohorte · conteos en el desglose</p>
+            </div></div>
+            <div class="chart-canvas-wrapper"><canvas id="chart-category" role="img" aria-label="Distribución por categoría; valores en la tabla de desglose"></canvas></div>
+          </section>
+          <section class="chart-card chart-breakdown" aria-labelledby="category-breakdown-title">
+            <div class="chart-header"><div>
+              <h2 class="chart-title" id="category-breakdown-title">Desglose por categoría</h2>
+              <p class="chart-caption">Volumen y tiempo promedio de resolución</p>
+            </div></div>
+            <div class="chart-data-scroll" tabindex="0" role="region" aria-label="Desglose por categoría">
+              <table class="analytics-summary-table"><thead><tr>
+                <th scope="col">Categoría</th><th scope="col">Casos</th><th scope="col">Cohorte</th><th scope="col">Promedio</th>
+              </tr></thead><tbody id="analytics-category-tbody"><tr><td colspan="4">Cargando resumen…</td></tr></tbody></table>
             </div>
-            <div class="chart-canvas-wrapper">
-              <canvas id="chart-category"></canvas>
-            </div>
-          </div>
-
-          <div class="chart-card">
-            <div class="chart-header">
-              <h2 class="chart-title">3. Tendencia Temporal de Incidentes</h2>
-            </div>
-            <div class="chart-canvas-wrapper">
-              <canvas id="chart-trend"></canvas>
-            </div>
-          </div>
-
-          <div class="chart-card">
-            <div class="chart-header">
-              <h2 class="chart-title">7. Distribución por Prioridad</h2>
-            </div>
-            <div class="chart-canvas-wrapper">
-              <canvas id="chart-priority"></canvas>
-            </div>
-          </div>
-
-          <div class="chart-card">
-            <div class="chart-header">
-              <h2 class="chart-title">Desglose de Tiempos por Categoría</h2>
-            </div>
-            <div style="overflow-y: auto; max-height: 280px;">
-              <table class="analytics-summary-table">
-                <thead>
-                  <tr>
-                    <th>Categoría</th>
-                    <th>Casos</th>
-                    <th>% Cohorte</th>
-                    <th>Tiempo Prom.</th>
-                  </tr>
-                </thead>
-                <tbody id="analytics-category-tbody">
-                  <tr><td colspan="4" style="text-align:center;">Cargando resumen...</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
+            <p class="analytics-footnote" id="analytics-exclusions"></p>
+          </section>
+          <section class="chart-card chart-priority" aria-labelledby="chart-priority-title">
+            <div class="chart-header"><div>
+              <h2 class="chart-title" id="chart-priority-title"><span class="metric-index">07</span>Por prioridad</h2>
+              <p class="chart-caption">Conteo de incidentes · escala desde cero</p>
+            </div></div>
+            <div class="chart-canvas-wrapper"><canvas id="chart-priority" role="img" aria-describedby="analytics-priority-summary" aria-label="Incidentes por prioridad"></canvas></div>
+            <p class="analytics-footnote" id="analytics-priority-summary"></p>
+          </section>
+        </div>
+        <p class="analytics-footnote" id="analytics-generated"></p>
         </div>
 
       </section>
@@ -256,7 +266,7 @@
         </div>
 
         <!-- Tabla de Incidentes -->
-        <div class="table-responsive">
+        <div class="table-responsive" tabindex="0" role="region" aria-label="Tabla de datos">
           <table class="data-table">
             <thead>
               <tr>
@@ -302,10 +312,10 @@
 
           <div style="margin-left: auto; display: flex; gap: var(--spacing-3);">
             <button type="button" class="btn btn-outline admin-only" id="btn-reconcile-index" title="Sincroniza artículos pendientes o con error con Qdrant">
-              🔄 Sincronizar Vector Store (Qdrant)
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#refresh"></use></svg> Sincronizar Vector Store (Qdrant)
             </button>
             <button type="button" class="btn btn-primary tech-admin-only" id="btn-new-article">
-              + Redactar Borrador
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#plus"></use></svg> Redactar Borrador
             </button>
           </div>
         </div>
@@ -321,13 +331,13 @@
            ==================================================================== -->
       <section class="view-section admin-only" id="view-admin">
         
-        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: var(--spacing-6);">
+        <div class="admin-grid">
           
           <!-- Usuarios y Roles -->
           <div class="card">
             <div class="card-header">
               <h2 class="card-title">Cuentas de Usuario y Credenciales</h2>
-              <button type="button" class="btn btn-primary btn-sm" id="btn-new-user">+ Nuevo Usuario</button>
+              <button type="button" class="btn btn-primary btn-sm" id="btn-new-user"><svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#plus"></use></svg> Nuevo Usuario</button>
             </div>
             <div class="table-responsive" style="border: none; box-shadow: none;">
               <table class="data-table">
@@ -352,7 +362,7 @@
           <div class="card">
             <div class="card-header">
               <h2 class="card-title">Categorías</h2>
-              <button type="button" class="btn btn-primary btn-sm" id="btn-new-category">+ Nueva</button>
+              <button type="button" class="btn btn-primary btn-sm" id="btn-new-category"><svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#plus"></use></svg> Nueva</button>
             </div>
             <div class="table-responsive" style="border: none; box-shadow: none;">
               <table class="data-table">
@@ -392,7 +402,7 @@
           <span id="detail-ticket-id" style="font-family:var(--font-family-mono); font-weight:bold; color:var(--color-accent);">#0</span>
           <h2 class="modal-title" id="detail-ticket-title" style="display:inline; margin-left:0.5rem;">Detalle del Incidente</h2>
         </div>
-        <button type="button" class="modal-close" onclick="UI.closeModal('modal-ticket-detail')">&times;</button>
+        <button type="button" class="modal-close" aria-label="Cerrar" onclick="UI.closeModal('modal-ticket-detail')"><svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#close"></use></svg></button>
       </header>
 
       <div class="modal-body">
@@ -406,16 +416,16 @@
               <div style="display: flex; gap: var(--spacing-2); margin-bottom: var(--spacing-3); flex-wrap: wrap;">
                 <span id="detail-ticket-status" class="badge">Abierto</span>
                 <span id="detail-ticket-priority" class="badge">Media</span>
-                <span class="badge" style="background:#f1f5f9; color:#475569;" id="detail-ticket-category">General</span>
+                <span class="badge" style="background:var(--status-closed-bg); color:var(--status-closed-text);" id="detail-ticket-category">General</span>
               </div>
               <p id="detail-ticket-desc" style="white-space: pre-wrap; font-size: var(--font-size-sm); color: var(--text-main);"></p>
 
               <!-- Nota de solución (si está resuelto) -->
-              <div id="detail-resolution-box" style="display:none; margin-top:1rem; padding:0.75rem; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:var(--radius-md);">
-                <div style="font-weight:var(--font-weight-semibold); color:#065f46; font-size:var(--font-size-xs); text-transform:uppercase;">
+              <div id="detail-resolution-box" style="display:none; margin-top:1rem; padding:0.75rem; background:var(--color-success-bg); border:1px solid var(--color-success-border); border-radius:var(--radius-md);">
+                <div style="font-weight:var(--font-weight-semibold); color:var(--status-resolved-text); font-size:var(--font-size-xs); text-transform:uppercase;">
                   Procedimiento de Resolución:
                 </div>
-                <div id="detail-resolution-note" style="font-size:var(--font-size-sm); color:#047857; margin-top:4px; white-space:pre-wrap;"></div>
+                <div id="detail-resolution-note" style="font-size:var(--font-size-sm); color:var(--status-resolved-text); margin-top:4px; white-space:pre-wrap;"></div>
               </div>
             </div>
 
@@ -423,8 +433,8 @@
             <div class="card assistant-card">
               <div class="card-header" style="background: transparent;">
                 <div style="display:flex; align-items:center; gap:var(--spacing-2);">
-                  <span class="assistant-header-badge">⚡ Asistente RAG</span>
-                  <span style="font-size:var(--font-size-xs); color:var(--text-muted);">Embeddings + Qdrant</span>
+                  <span class="assistant-header-badge"><svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#bolt"></use></svg> Asistente RAG</span>
+                  <span style="font-size:var(--font-size-xs); color:var(--text-muted);">Fuentes verificadas</span>
                 </div>
               </div>
               <div class="card-body">
@@ -432,11 +442,12 @@
                   Obtén orientación técnica fundamentada exclusivamente en artículos verificados de la base de conocimiento:
                 </p>
                 <div class="form-group" style="margin-bottom: var(--spacing-2);">
-                  <input type="text" id="assistant-custom-question" class="form-control" placeholder="Pregunta personalizada opcional (ej. ¿Cómo configuro la IP?)...">
+                  <label class="form-label" for="assistant-custom-question">Pregunta opcional</label>
+                  <input type="text" name="question" maxlength="2000" id="assistant-custom-question" class="form-control" placeholder="Pregunta personalizada opcional (ej. ¿Cómo configuro la IP?)...">
                 </div>
                 <button type="button" class="btn btn-primary btn-sm" id="btn-ask-assistant" 
                   onclick="ASSISTANT.ask(TICKETS.currentTicket.id, document.getElementById('assistant-custom-question').value)">
-                  ✨ Consultar Asistente Inteligente
+                  <svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#sparkles"></use></svg> Consultar Asistente Inteligente
                 </button>
 
                 <!-- Contenedor del resultado RAG -->
@@ -456,9 +467,10 @@
 
                 <form id="form-add-comment" style="margin-top: var(--spacing-4);">
                   <div class="form-group">
-                    <textarea id="comment-input" class="form-control" rows="2" placeholder="Escribe un comentario..." required></textarea>
+                    <label class="form-label" for="comment-input">Comentario</label>
+                    <textarea name="comment" id="comment-input" class="form-control" rows="2" placeholder="Escribe un comentario..." required></textarea>
                   </div>
-                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <div class="comment-actions">
                     <label class="tech-admin-only" style="font-size: var(--font-size-xs); color: var(--text-muted); display:flex; align-items:center; gap:4px;">
                       <input type="checkbox" id="comment-internal"> Nota interna técnica (solo técnicos/admin)
                     </label>
@@ -531,7 +543,7 @@
     <div class="modal-container">
       <header class="modal-header">
         <h2 class="modal-title" id="modal-title-ticket">Registrar Nuevo Incidente</h2>
-        <button type="button" class="modal-close" onclick="UI.closeModal('modal-create-ticket')">&times;</button>
+        <button type="button" class="modal-close" aria-label="Cerrar" onclick="UI.closeModal('modal-create-ticket')"><svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#close"></use></svg></button>
       </header>
       <form id="form-create-ticket" novalidate>
         <div class="modal-body">
@@ -575,7 +587,7 @@
     <div class="modal-container" style="max-width: 650px;">
       <header class="modal-header">
         <h2 class="modal-title" id="modal-title-art">Nuevo Artículo de Conocimiento</h2>
-        <button type="button" class="modal-close" onclick="UI.closeModal('modal-create-article')">&times;</button>
+        <button type="button" class="modal-close" aria-label="Cerrar" onclick="UI.closeModal('modal-create-article')"><svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#close"></use></svg></button>
       </header>
       <form id="form-create-article" novalidate>
         <div class="modal-body">
@@ -617,11 +629,11 @@
     <div class="modal-container" style="max-width: 580px;">
       <header class="modal-header">
         <h2 class="modal-title" id="modal-title-usr">Registrar Usuario Corporativo</h2>
-        <button type="button" class="modal-close" onclick="UI.closeModal('modal-create-user')">&times;</button>
+        <button type="button" class="modal-close" aria-label="Cerrar" onclick="UI.closeModal('modal-create-user')"><svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#close"></use></svg></button>
       </header>
       <form id="form-create-user" novalidate>
         <div class="modal-body">
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-4);">
+          <div class="form-columns">
             <div class="form-group">
               <label class="form-label" for="user-username">Nombre de Usuario</label>
               <input type="text" id="user-username" class="form-control" placeholder="ej. andres.castro" required autocomplete="off">
@@ -632,7 +644,7 @@
             </div>
           </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-4);">
+          <div class="form-columns">
             <div class="form-group">
               <label class="form-label" for="user-email">Correo Electrónico</label>
               <input type="email" id="user-email" class="form-control" placeholder="andres@campusdesk.local" required>
@@ -657,13 +669,13 @@
             <input type="password" id="user-password" class="form-control" placeholder="Asigna una contraseña temporal válida" required>
             <ul class="password-policy-list" id="user-pass-policy">
               <li class="password-policy-item" id="usr-pol-length">
-                <span class="policy-icon"></span> Mínimo 6 caracteres (máx. 72 bytes)
+                <span class="policy-icon"><svg class="icon policy-pending" aria-hidden="true" focusable="false"><use href="assets/icons.svg#circle"></use></svg><svg class="icon policy-valid" aria-hidden="true" focusable="false"><use href="assets/icons.svg#check"></use></svg></span> Mínimo 6 caracteres (máx. 72 bytes)
               </li>
               <li class="password-policy-item" id="usr-pol-upper">
-                <span class="policy-icon"></span> Al menos una letra mayúscula (A-Z)
+                <span class="policy-icon"><svg class="icon policy-pending" aria-hidden="true" focusable="false"><use href="assets/icons.svg#circle"></use></svg><svg class="icon policy-valid" aria-hidden="true" focusable="false"><use href="assets/icons.svg#check"></use></svg></span> Al menos una letra mayúscula (A-Z)
               </li>
               <li class="password-policy-item" id="usr-pol-special">
-                <span class="policy-icon"></span> Al menos un carácter especial
+                <span class="policy-icon"><svg class="icon policy-pending" aria-hidden="true" focusable="false"><use href="assets/icons.svg#circle"></use></svg><svg class="icon policy-valid" aria-hidden="true" focusable="false"><use href="assets/icons.svg#check"></use></svg></span> Al menos un carácter especial
               </li>
             </ul>
           </div>
@@ -687,7 +699,7 @@
     <div class="modal-container">
       <header class="modal-header">
         <h2 class="modal-title" id="modal-title-cat">Nueva Categoría</h2>
-        <button type="button" class="modal-close" onclick="UI.closeModal('modal-create-category')">&times;</button>
+        <button type="button" class="modal-close" aria-label="Cerrar" onclick="UI.closeModal('modal-create-category')"><svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#close"></use></svg></button>
       </header>
       <form id="form-create-category" novalidate>
         <div class="modal-body">
@@ -713,7 +725,7 @@
     <div class="modal-container">
       <header class="modal-header">
         <h2 class="modal-title" id="modal-generic-title">Detalle</h2>
-        <button type="button" class="modal-close" onclick="UI.closeModal('modal-generic')">&times;</button>
+        <button type="button" class="modal-close" aria-label="Cerrar" onclick="UI.closeModal('modal-generic')"><svg class="icon" aria-hidden="true" focusable="false"><use href="assets/icons.svg#close"></use></svg></button>
       </header>
       <div class="modal-body" id="modal-generic-body">
         <!-- Contenido dinámico -->

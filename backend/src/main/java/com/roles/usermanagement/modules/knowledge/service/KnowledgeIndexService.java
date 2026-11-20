@@ -9,10 +9,12 @@ import com.roles.usermanagement.modules.knowledge.entity.KnowledgeArticle;
 import com.roles.usermanagement.modules.knowledge.enums.IndexSyncStatus;
 import com.roles.usermanagement.modules.knowledge.repository.KnowledgeArticleRepository;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -32,6 +34,9 @@ public class KnowledgeIndexService {
     static final int SCHEMA_VERSION = 1;
     /** Tope de artículos por reconciliación; las siguientes llamadas continúan con el resto. */
     static final int RECONCILE_BATCH = 50;
+    // shortcut: cursor en memoria (una sola instancia; al reiniciar se empieza por el principio).
+    // Persistir la fecha del último intento si se despliegan varias instancias.
+    private volatile long reconcileCursor;
 
     private final KnowledgeArticleRepository articles;
     private final N8nClient n8n;
@@ -77,13 +82,21 @@ public class KnowledgeIndexService {
         return transactions.execute(status -> record(request, result, failure));
     }
 
-    /** Sincroniza los artículos pendientes o con error, hasta el tope por llamada. */
+    /**
+     * Sincroniza los artículos pendientes o con error, hasta el tope por llamada. Cada llamada
+     * continúa después del último artículo intentado y vuelve al principio al llegar al final, de
+     * modo que un lote que falla siempre no impide intentar los siguientes.
+     */
     public IndexSyncSummary reconcile() {
-        List<Long> ids = transactions.execute(status -> articles
-                .findByIndexStatusInOrderByIdAsc(List.of(IndexSyncStatus.PENDING, IndexSyncStatus.ERROR)).stream()
-                .limit(RECONCILE_BATCH)
-                .map(KnowledgeArticle::getId)
-                .toList());
+        List<IndexSyncStatus> retryable = List.of(IndexSyncStatus.PENDING, IndexSyncStatus.ERROR);
+        long after = reconcileCursor;
+        List<Long> ids = new ArrayList<>(articles.findIdsToSync(retryable, after, PageRequest.of(0, RECONCILE_BATCH)));
+        if (after > 0 && ids.size() < RECONCILE_BATCH) {
+            articles.findIdsToSync(retryable, 0, PageRequest.of(0, RECONCILE_BATCH - ids.size())).stream()
+                    .filter(id -> !ids.contains(id))
+                    .forEach(ids::add);
+        }
+        reconcileCursor = ids.isEmpty() ? 0 : ids.get(ids.size() - 1);
         int indexed = 0;
         int removed = 0;
         int failed = 0;
@@ -109,8 +122,9 @@ public class KnowledgeIndexService {
             if (request.action() == IndexRequest.Action.UPSERT) {
                 // El índice pudo recibir vectores de una versión que ya no es elegible: queda pendiente retirarlos.
                 article.setIndexedVersion(request.contentVersion());
-                article.setIndexStatus(IndexSyncStatus.PENDING);
             }
+            // También tras un DELETE tardío: pudo borrar el vector de un artículo que ya se reactivó.
+            article.setIndexStatus(IndexSyncStatus.PENDING);
             return Outcome.SKIPPED;
         }
         if (errorCode == null && request.action() == IndexRequest.Action.UPSERT

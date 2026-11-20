@@ -5,11 +5,11 @@ Interfaz de usuario nativa (HTML5, CSS3, JavaScript ES6) para el sistema de aná
 ## 1. Características Implementadas
 
 - **Diseño Cómodo, Moderno y Profesional:**
-  - Sistema de tokens y variables CSS (`variables.css`) con paleta ejecutiva *Slate / Navy*, estados de tickets y contrastes accesibles.
-  - Componentes reutilizables: botones interactivos con estados de carga (`.btn.is-loading`), modales con *backdrop blur*, checklist dinámico de políticas de contraseñas y sistema de notificaciones *Toast*.
+  - Identidad **Editorial tecnológico**: papel cálido, tinta ciruela y acento arcilla; modo oscuro con superficies ciruela y texto marfil. Tokens compartidos para controles, estados y gráficos.
+  - Componentes reutilizables: botones interactivos con estados de carga (`.btn.is-loading`), modales con gestión de foco, checklist dinámico de políticas de contraseñas y sistema de notificaciones *Toast*.
 - **Autenticación y Seguridad (JWT Corporativo):**
   - Pantalla de acceso corporativo (`index.html`): sin formulario de registro; las cuentas se crean desde el módulo de administración. La API conserva `POST /api/auth/register` (crea solo cuentas `USER`).
-  - Cuentas de prueba hardcodeadas para evaluación rápida (1-click autofill con contraseña `Demo.2026`):
+  - Cuentas de demostración en un desplegable para evaluación rápida (1-click autofill con contraseña `Demo.2026`):
     - 👑 **Admin:** `admin.demo` (Administrador de sistema, control total y aprobación RAG).
     - 🛠️ **Técnicos especialistas:** `tec.redes`, `tec.hardware`, `tec.software`, `tec.aplicaciones`.
     - 👤 **Usuarios solicitantes:** `laura.gomez`, `carlos.ruiz`.
@@ -37,8 +37,8 @@ Interfaz de usuario nativa (HTML5, CSS3, JavaScript ES6) para el sistema de aná
   - Cálculo estricto mediante consultas SQL relacionales a `GET /api/analytics/summary` (cero cifras inventadas por IA).
   - Visualización interactiva con Chart.js:
     1. Total de incidentes.
-    2. Incidentes por categoría (gráfico dona).
-    3. Tendencia temporal de incidentes (gráfico de líneas con series completas).
+    2. Incidentes por categoría (gráfico dona con colores estables por identificador).
+    3. Tendencia temporal de incidentes (gráfico de líneas con series completas y tabla accesible).
     4. Tasa de resolución (% de resueltos/cerrados).
     5. Tiempo promedio de resolución en horas (`averageHours`).
     6. Categorías más recurrentes.
@@ -102,3 +102,37 @@ El frontend consume la API REST de Spring Boot en `http://localhost:8051/api`. S
 localStorage.setItem('SYNAPSE_API_URL', 'http://127.0.0.1:8051/api');
 location.reload();
 ```
+
+## 5. Pruebas del frontend
+
+Desde la raíz del repositorio, con Node.js instalado y sin dependencias adicionales:
+
+```bash
+node --test frontend/tests/*.test.*
+```
+
+Las pruebas usan respuestas simuladas y cubren cambios de incidente durante peticiones,
+historial paginado, calificaciones, errores de resolución, sesión y teclado en modales.
+No requieren el backend ni llaman servicios de IA. El diseño adaptable se comprueba
+en navegador; los dobles de DOM de estas pruebas no verifican el layout.
+
+El botón «Modo oscuro» está disponible en el acceso y en la cabecera de la aplicación.
+Usa el tema del sistema al entrar por primera vez y guarda la elección manual en el navegador.
+
+Los iconos vectoriales se sirven desde `assets/icons.svg`, sin bibliotecas ni servicios externos.
+
+## 6. Identidad editorial y temas
+
+- Navegación horizontal en escritorio; menú desplegable con Escape y estado accesible en móvil.
+- Source Serif 4 para títulos y cifras; IBM Plex Sans para controles y lectura operativa. Las fuentes WOFF2 se sirven desde `assets/fonts/`, con sus licencias SIL OFL.
+- Chart.js 4.4.1 se sirve desde `assets/vendor/`, con su licencia MIT. No depende del CDN en ejecución y conserva los tres tipos de gráficos.
+- El botón de tema indica la acción disponible («Modo claro» o «Modo oscuro»), conserva la elección y adapta colores, leyendas, ejes y tooltips sin nuevas solicitudes. La primera visita utiliza la preferencia del sistema.
+- El dashboard muestra alcance, período, fecha de cálculo, muestra y exclusiones. Los filtros están en un desplegable; las respuestas fuera de orden se descartan. Un fallo identifica los datos anteriores y ofrece reintentar.
+- Los siete indicadores mantienen sus contratos y reglas. Un promedio `null` se muestra como «—». Las tablas de datos siguen disponibles si no carga la biblioteca de gráficos.
+- Se respeta `prefers-reduced-motion` en CSS y Chart.js. Los tests comprueban contraste de texto, badges, botones y límites de controles en ambos temas; no sustituyen una auditoría con lector de pantalla.
+
+Validación de este incremento: 37 pruebas de Node aprobadas (54 tras las correcciones de la auditoría del 16 de noviembre, `tests/audit-fixes.test.cjs`). Revisión visual con Orca en escritorio (1440 px), tablet (768 px) y móvil (390 px), incluidos gráficos, navegación, detalle de incidente y formularios. Las operaciones de escritura del backend y la generación RAG no se ejecutaron como parte de esta revisión visual.
+
+Correcciones posteriores al cierre de la auditoría: una transición o asignación tardía solo refresca la misma apertura del detalle; cerrar el modal también invalida un refresco que ya está en curso. Los intentos inciertos del asistente se conservan por incidente al consultar otros incidentes, incluido el enlace de reintento tras un error terminal. Ese estado sigue limitado a la página y no sobrevive a una recarga.
+
+Validación de estas dos correcciones: 61 pruebas de Node aprobadas, con siete casos nuevos (seis fallaban antes de corregir y uno verifica que el refresco normal siga funcionando). Estas pruebas usan el DOM simulado; no se repitió el recorrido en navegador ni se invocó el proveedor RAG real.

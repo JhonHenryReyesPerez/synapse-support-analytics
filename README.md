@@ -61,6 +61,42 @@ importa y publica los dos flujos de `n8n/`. Los flujos del repositorio reemplaza
 los guardados en n8n: los cambios hechos en su editor hay que exportarlos a `n8n/` para conservarlos.
 Los flujos no contienen secretos; leen la clave de OpenRouter y los tokens de las variables de entorno.
 
+### Spring Boot en IntelliJ y n8n en Docker Desktop
+
+Si el backend corre en IntelliJ, n8n debe volver al equipo anfitrión para validar las fuentes.
+Configura `N8N_BACKEND_URL=http://host.docker.internal:8051` en el `.env` de la raíz.
+Sin esta variable, n8n usa el servicio `backend` de Compose, adecuado para el entorno completo.
+
+Si otras instalaciones ocupan los puertos habituales, este es un ejemplo de configuración en el
+`.env` de la raíz:
+
+```properties
+DB_PORT=5434
+N8N_PORT=5680
+QDRANT_PORT=6335
+N8N_BACKEND_URL=http://host.docker.internal:8051
+```
+
+Prepara `backend/.env` con las credenciales de la misma base y los mismos tokens de integración.
+Para los puertos del ejemplo, define:
+
+```properties
+DB_URL=jdbc:postgresql://localhost:5434/campusdesk
+N8N_BASE_URL=http://localhost:5680
+```
+
+Arranca los servicios desde la raíz y ejecuta Spring Boot desde IntelliJ con `backend` como
+directorio de trabajo:
+
+```bash
+docker compose up -d db qdrant-init n8n
+```
+
+El editor de n8n queda en `http://localhost:5680`. Si solicita configurar el propietario en el
+primer acceso, crea tu cuenta; los usuarios de demostración de la aplicación no son cuentas de n8n.
+Reinicia Spring Boot cada vez que cambies `backend/.env`. Publicar los flujos registra los webhooks;
+las ejecuciones aparecen cuando el backend solicita indexar o consultar el asistente.
+
 Datos de demostración e indexación de la base de conocimiento:
 
 ```bash

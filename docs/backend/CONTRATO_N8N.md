@@ -19,7 +19,7 @@ reales, primero con el proveedor de modelos simulado y después con modelos real
 | Secretos | Dos secretos distintos, mínimo 32 caracteres, por variable de entorno. Nunca dentro del JSON del workflow |
 | Destino | La URL de n8n es fija por configuración; ningún cliente la elige |
 | Rutas por defecto | Indexación `/webhook/campusdesk-index`; asistencia `/webhook/campusdesk-assist` (`N8N_INDEX_PATH`, `N8N_ASSIST_PATH`) |
-| Tiempos | Conexión 5 s y respuesta 60 s por defecto (`N8N_CONNECT_TIMEOUT`, `N8N_READ_TIMEOUT`) |
+| Tiempos | Conexión 5 s y respuesta completa (cabeceras y cuerpo) 60 s por defecto (`N8N_CONNECT_TIMEOUT`, `N8N_READ_TIMEOUT`); al vencer, el backend corta la conexión |
 | Tamaño | Respuesta máxima de 1 MiB (`N8N_MAX_RESPONSE_BYTES`) |
 | Protocolo | HTTP/1.1. El cliente del backend lo fija: n8n no responde a la petición de actualización a HTTP/2 sin TLS |
 | Estado HTTP | n8n responde **200** con el JSON del contrato, también cuando informa `status: "ERROR"`. Cualquier otro estado se trata como fallo de n8n |
@@ -86,7 +86,7 @@ y el índice del fragmento.
 
 Si la respuesta no cumple, el artículo queda con `indexStatus = ERROR` y sigue existiendo en la base
 relacional. Se reintenta con `POST /api/knowledge/articles/{id}/reindex` o con
-`POST /api/knowledge/articles/index/reconcile` (hasta 50 pendientes por llamada).
+`POST /api/knowledge/articles/index/reconcile` (hasta 50 pendientes por llamada; cada llamada continúa después del último artículo intentado).
 
 ## 3. Consulta de asistencia (RF04 y RF05)
 

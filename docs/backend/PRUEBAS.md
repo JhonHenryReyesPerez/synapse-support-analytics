@@ -9,8 +9,8 @@ Fecha: 13 de noviembre de 2026. Rama `dev/JhonReyes`. Java 21 (Temurin 21.0.12),
 
 | Ejecución | Comando | Base de datos | Pruebas | Fallos | Omitidas |
 |---|---|---|---:|---:|---:|
-| Rápida | `./gradlew test` | H2 en memoria, esquema generado por Hibernate | 108 | 0 | 6 |
-| Completa | `backend/scripts/test-postgres.sh` | PostgreSQL 17.11 desechable, 9 migraciones de Flyway, Hibernate en `validate` | 108 | 0 | 0 |
+| Rápida | `./gradlew test` | H2 en memoria, esquema generado por Hibernate | 109 | 0 | 6 |
+| Completa | `backend/scripts/test-postgres.sh` | PostgreSQL 17.11 desechable, 9 migraciones de Flyway, Hibernate en `validate` | 109 | 0 | 0 |
 
 Las 6 omitidas en H2 son `DemoDataSeedTests`: cargan el script de datos iniciales, que es SQL de
 PostgreSQL, y solo se ejecutan en la ejecución completa.
@@ -22,7 +22,7 @@ PostgreSQL, y solo se ejecutan en la ejecución completa.
 | `AssistanceTests` | 12 | Asistente RAG: consulta, validación del flujo, fuentes, estados, historial (RF04, RF05, RF08) |
 | `DemoDataSeedTests` | 6 | Datos iniciales: mínimos, coherencia, analítica contra SQL (§16) |
 | `CategoryTests` | 5 | Categorías relacionales y prioridad canónica (B06) |
-| `KnowledgeIndexTests` | 5 | Sincronización del índice y contrato de servicio para n8n (RF03) |
+| `KnowledgeIndexTests` | 6 | Sincronización del índice y contrato de servicio para n8n (RF03) |
 | `TicketAssignmentTests` | 7 | Asignación única, incluida la concurrencia (B05); un ticket asignado no se edita, tampoco si la edición coincide con la asignación |
 | `UserAccountPolicyTests` | 7 | Política de cuentas, último administrador, baja lógica, técnico sin lectura de cuentas, nombre de usuario sin marcado (B07, B10, B12) |
 | `AnalyticsTests` | 4 | Siete indicadores contra cálculo manual y SQL (B09, RF06, RF07) |
@@ -38,7 +38,7 @@ PostgreSQL, y solo se ejecutan en la ejecución completa.
 | `CommentVisibilityTests` | 1 | El solicitante no ve ni crea notas internas (§6.3) |
 | `OpenApiDocumentationTests` | 1 | El contrato de Swagger incluye los endpoints nuevos |
 | `TicketPaginationTests` | 1 | Paginación y orden estable (B11) |
-| **Total** | **108** | |
+| **Total** | **109** | |
 
 ## 2. Cómo reproducirlas
 
@@ -87,6 +87,7 @@ la calidad de la recuperación semántica ni del texto generado.
 | Cambio de contenido invalida verificación e índice | `KnowledgeArticleTests`, `KnowledgeIndexTests` |
 | Fuente desactivada o modificada durante la generación invalida la respuesta | `AssistanceTests.sourceChangedDuringGenerationDiscardsTheResult` |
 | Artículo desactivado mientras n8n lo indexa | `KnowledgeIndexTests.articleChangedDuringIndexingIsNotMarkedAsIndexed` |
+| Artículo reactivado mientras n8n borra su vector | `KnowledgeIndexTests.articleReactivatedDuringRemovalIsIndexedAgainByReconciliation` |
 | Doble solicitud, `requestId` repetido y respuesta única por consulta | `AssistanceTests.doubleSubmissionDoesNotDuplicateQueriesOrResponses`, `AssistanceRatingTests.databaseRejectsOutOfRangeOrDuplicateRatings` |
 | Recuperación de `PENDING` tras una interrupción y resultado tardío | `AssistanceTests.abandonedPendingQueriesAreRecoveredAndLateResultsDoNotOverwriteThem` |
 | Indexación repetida sin cambiar la identidad; cambio de versión retira la anterior | `KnowledgeIndexTests` |
@@ -272,3 +273,123 @@ aquí). Hay que repetirla si cambia el modelo o crece la base de conocimiento.
 | Sin pruebas de carga | No se midió el comportamiento con muchas consultas simultáneas al asistente |
 | El control de intentos de login guarda su estado en memoria | Se reinicia con la aplicación y no se comparte entre instancias; cuenta por identificador enviado, así que usuario y correo de una misma cuenta llevan contadores separados |
 | Revisión humana | El código de estas etapas fue generado con asistencia de IA y su revisión por el responsable está pendiente (ver `AI_USAGE.md`) |
+
+## 11. Recorrido completo desde la rama `test` (15 de noviembre de 2026)
+
+Ejecutado sobre el commit `6edef24` de `test` con `docker-compose.yml`: PostgreSQL 17, Qdrant 1.20.1,
+n8n 2.47.7 y el backend construido con su `Dockerfile` (9 migraciones aplicadas sobre una base vacía),
+más `db/seed/demo_data.sql`. El frontend se sirvió con `python -m http.server 5500`.
+
+**El proveedor de modelos fue simulado**, no OpenRouter: un servicio local que devuelve vectores por
+bolsa de palabras y una respuesta armada con el primer artículo del contexto. Por eso el umbral usado
+fue 0,35 y las similitudes no son comparables con las del §8. Esta ejecución comprueba la integración
+(backend, n8n, Qdrant, PostgreSQL y frontend), no la calidad de las respuestas.
+
+Fue una comprobación con scripts fuera del repositorio; no forma parte de `./gradlew test`.
+
+### 11.1 Diez pruebas obligatorias contra la API
+
+| Prueba | Resultado observado |
+|---|---|
+| Indexación | 28 artículos en `INDEXED` y 28 puntos en Qdrant; repetirla no procesa nada |
+| 1. Incidente de conectividad | `ANSWERED`; primera fuente, artículo 1 «Equipo sin acceso a internet: dirección IP 169.254.x.x» |
+| 2. Error de ejecución | `ANSWERED`; primera fuente, artículo 8 «La aplicación no inicia: error 0xc000007b» |
+| 3. Caso sin cobertura | `NO_RESULTS`, sin texto de solución |
+| 4. Filtro por categoría | Conectividad: 56 incidentes en el listado y en la analítica, igual que `SELECT count(*)` en PostgreSQL |
+| 5. Evolución semanal | 25 semanas; cada conteo coincide con `date_trunc('week', created_at)` en PostgreSQL |
+| 6. Artículo desactivado | El artículo 1 deja de citarse en la consulta siguiente |
+| 7. Pregunta o descripción en blanco | 400 en ambos casos |
+| 8. Fallo de embeddings | 502 con `code=EMBEDDING_FAILED` y `queryId` |
+| 9. Historial de asistencias | 200 para el solicitante; 403 para otro usuario |
+| 10. Calificación | 200 y queda guardada; una puntuación de 6 responde 400 |
+
+Los otros indicadores (total, por categoría, tasa de resolución, tiempo promedio, categoría más
+recurrente y por prioridad) también coincidieron con SQL sobre el conjunto completo.
+
+### 11.2 Recorrido del frontend en un navegador
+
+Con Microsoft Edge sin ventana, manejado por script, iniciando sesión con las cuentas de demostración.
+44 comprobaciones, todas correctas, sin errores de consola ni respuestas HTTP inesperadas:
+
+| Rol | Qué se recorrió |
+|---|---|
+| Administrador | Dashboard (total, categoría más recurrente, tabla por categoría que suma el total, tres gráficos); 28 artículos visibles; tabla de usuarios; asignar y reasignar con justificación; el botón «Confirmar» sigue visible después de ver un artículo |
+| Solicitante | Crear un incidente desde el formulario; consultar al asistente y ver fuentes con similitud; calificar; reabrir una consulta desde el historial; una pregunta con `&quot;` no ejecuta código; comentario público; el panel del asistente se limpia al cambiar de incidente; confirmar el cierre |
+| Técnico | Iniciar atención; nota interna (marcada como interna y no visible para el solicitante); resolver con nota |
+
+Cada rol ve solo los botones que el backend le permite.
+
+### 11.3 Lo que este recorrido no demuestra
+
+- No usó modelos reales: la fidelidad de las respuestas sigue respaldada solo por el §8.
+- El recorrido del navegador cubre los caminos principales, no todas las pantallas: no se probó crear
+  artículos ni categorías, crear usuarios, restablecer contraseñas ni el cambio obligatorio de clave.
+- Un solo navegador (Edge) y un solo tamaño de ventana.
+
+## 12. Ejecución con modelos reales después de las correcciones (16 de noviembre de 2026)
+
+Ejecutada sobre el commit `3cc3dbd` (las cinco correcciones de `CLAUDE.md` §22.9) con `docker-compose.yml`:
+backend construido con su `Dockerfile`, PostgreSQL 17, Qdrant 1.20.1, n8n 2.47.7 y `db/seed/demo_data.sql`.
+Modelos reales de OpenRouter: `openai/text-embedding-3-small` para embeddings y `google/gemini-2.5-flash`
+para generación, con `ASSIST_MIN_SCORE=0,55`.
+
+Fue una comprobación por la API con un script fuera del repositorio; no forma parte de `./gradlew test`
+y no usó el frontend.
+
+| Prueba | Resultado observado |
+|---|---|
+| Indexación | La reconciliación procesó 28 artículos: 28 indexados, 0 fallos; 28 puntos en Qdrant |
+| 1. Incidente de conectividad (sin internet, IP 169.254.10.20) | `ANSWERED` en unos 3 s. Fuentes: artículo 1 «Equipo sin acceso a internet: dirección IP 169.254.x.x» (0,759), artículo 2 «Sin navegación por fallo de resolución DNS» (0,601) y artículo 3 «Wi-Fi corporativo conectado pero sin internet» (0,589) |
+| 2. Error de ejecución 0xc000007b | `ANSWERED`. Fuentes: artículo 8 «La aplicación no inicia: error 0xc000007b» (0,793), artículo 10 (0,609) y artículo 9 (0,579) |
+| 3. Caso sin cobertura (giroscopio de un dron) | `NO_RESULTS`, sin texto de solución |
+| 6. Artículo 1 desactivado y la misma consulta de conectividad | `NO_RESULTS`; el artículo 1 no se citó |
+| 7. Pregunta o descripción en blanco | 400 en ambos casos |
+| 9. Historial de asistencias | 200 para el solicitante (dos consultas: `ANSWERED` y `NO_RESULTS`); 403 para otro usuario |
+| 10. Calificación | 5 guardada y devuelta por la consulta; una puntuación de 6 responde 400 |
+
+Sobre el contenido de las respuestas: la de conectividad propone revisar el cable y la luz de enlace,
+`ipconfig /release` y `/renew`, deshabilitar y habilitar el adaptador, probar otro cable o punto de red
+y escalar a redes por el servidor DHCP; la del error 0xc000007b propone reinstalar Microsoft Visual C++
+Redistributable x86 y x64, reiniciar, ejecutar como administrador y reinstalar la aplicación si persiste.
+Ambas coinciden con su artículo principal.
+
+En la prueba 6 los artículos 2 y 3 seguían por encima del umbral, pero el modelo los juzgó insuficientes:
+el prompt prohíbe responder con artículos de un tema cercano. El artículo 1 se reactivó e indexó de nuevo
+al terminar.
+
+### 12.1 Un error de embeddings no provocado
+
+La prueba 8 no se simuló en esta ejecución. Aun así, una consulta terminó con HTTP 502,
+`code=EMBEDDING_FAILED` y su `queryId` tras 10 s: OpenRouter tardó más que el límite de 10 s del nodo de
+embeddings. La misma llamada, repetida después, respondió bien. Es una sola observación y no se investigó
+más la causa; si se repite, conviene revisar ese límite.
+
+### 12.2 Lo que esta ejecución no demuestra
+
+- Pocos casos y una sola ejecución.
+- La fidelidad la juzgó la herramienta de IA leyendo las respuestas frente a los artículos, no una persona.
+- Las pruebas 4 y 5 no se repitieron; las cubre el §11.
+- No ejercita las correcciones de concurrencia del §22.9 de `CLAUDE.md`.
+
+## 13. Correcciones de la segunda auditoría de Codex (16 de noviembre de 2026)
+
+Hallazgos y correcciones en `CLAUDE.md` §22.10. Ejecutado en la rama `JhonHenryReyesPerez/corregir-auditoria-synapse`.
+
+| Ejecución | Resultado |
+|---|---|
+| `./gradlew test` (H2) | 116 pruebas, 0 fallos, 6 omitidas (`DemoDataSeedTests`) |
+| Suite en PostgreSQL 17 (contenedor desechable `campusdesk-test-pg`, bases nuevas creadas y eliminadas para esta ejecución, Flyway y `validate`) | 116 pruebas, 0 fallos, 0 omitidas |
+| `node --test frontend/tests/*.test.*` | 54 pruebas, 0 fallos (37 anteriores y 17 nuevas) |
+
+Reproducción antes de corregir:
+
+| N.º | Evidencia |
+|---|---|
+| 1 | `HttpN8nClientTests` contra el cliente anterior: hilo bloqueado en `readNBytes` más de 10 minutos con un plazo de 500 ms (volcado de hilos). Con la corrección: `N8N_TIMEOUT` en 0,6 s y el servidor observa el cierre de la conexión; una respuesta de 80 MB se rechaza al superar el tope |
+| 2–8 y 11 | Las pruebas nuevas ejecutadas contra los scripts de `b44680f`: 15 fallos de 17 (las otras dos son casos de control) |
+| 9 | Sin el orden de bloqueo: `[500, 200]` en la primera ronda, con `40P01` en PostgreSQL; también falla en H2 |
+| 10 | Sin `REPEATABLE_READ`: total 2 y desglose por categoría 3, en H2 y en PostgreSQL |
+| 12 | Sin avanzar el cursor: el artículo 51 no se reintenta en cuatro reconciliaciones |
+| 13 | No se ejecutó contra el código anterior; la reprodujo Codex (`PUT /api/user/update` con `not-an-email` respondía 200) |
+
+No comprobado: navegador real para las correcciones del frontend, n8n real y sus workflows; las pruebas de concurrencia son de pocas rondas y no equivalen a una prueba de carga.

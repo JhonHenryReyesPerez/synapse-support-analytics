@@ -33,6 +33,17 @@ public class UserRepository implements IUserRepository {
   private ResponseStatusException invalid(String message) {
     return new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
   }
+  /** Formato de correo común a registro, alta administrativa y actualización. */
+  public static final java.util.regex.Pattern EMAIL_PATTERN =
+      java.util.regex.Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
+  /** Correo normalizado (sin espacios, en minúsculas); 400 si no tiene formato válido o supera la columna. */
+  private String validEmail(String email) {
+    String clean = email.trim().toLowerCase();
+    if (clean.length() > 200 || !EMAIL_PATTERN.matcher(clean).matches()) {
+      throw invalid("El correo electrónico debe tener un formato válido (máximo 200 caracteres)");
+    }
+    return clean;
+  }
   /** El nombre acaba en HTML, URLs y registros: solo letras, números, punto, guion y guion bajo. */
   private String validUsername(String username) {
     String clean = username == null ? "" : username.trim();
@@ -116,7 +127,7 @@ public class UserRepository implements IUserRepository {
     String cleanUsername = validUsername(dto.getUsername());
     if(users.existsById(cleanUsername)) throw new ResponseStatusException(HttpStatus.CONFLICT,"El usuario ya existe");
     if(dto.getEmail()==null || dto.getEmail().isBlank()) throw invalid("El correo es obligatorio");
-    String cleanEmail = dto.getEmail().trim().toLowerCase();
+    String cleanEmail = validEmail(dto.getEmail());
     if(users.existsByEmail(cleanEmail)) throw new ResponseStatusException(HttpStatus.CONFLICT,"El correo electrónico ya se encuentra registrado");
     requireValidPassword(dto.getPassword());
     String role=requestedRole(dto,true);
@@ -137,7 +148,7 @@ public class UserRepository implements IUserRepository {
     String role=requestedRole(dto,false);
     if(dto.getEmail()!=null) {
       if(dto.getEmail().isBlank()) throw invalid("El correo no puede estar vacío");
-      String cleanEmail = dto.getEmail().trim().toLowerCase();
+      String cleanEmail = validEmail(dto.getEmail());
       if(users.existsByEmailAndUsernameNot(cleanEmail,dto.getUsername()))
         throw new ResponseStatusException(HttpStatus.CONFLICT,"El correo ya pertenece a otro usuario");
       user.setEmail(cleanEmail);
@@ -207,7 +218,7 @@ public class UserRepository implements IUserRepository {
       throw invalid("El correo electrónico es obligatorio");
     }
     requireValidPassword(dto.getPassword());
-    String cleanEmail = dto.getEmail().trim().toLowerCase();
+    String cleanEmail = validEmail(dto.getEmail());
 
     if (users.existsById(cleanUsername)) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, "El nombre de usuario ya se encuentra registrado");

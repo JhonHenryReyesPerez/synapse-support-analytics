@@ -7,12 +7,18 @@
   align-items: center;
   justify-content: center;
   padding: var(--spacing-6);
-  background: radial-gradient(circle at 10% 20%, rgba(37, 99, 235, 0.05) 0%, rgba(15, 23, 42, 0.02) 90%), var(--bg-body);
+  background: var(--bg-body);
 }
 
 .auth-container {
   width: 100%;
   max-width: 520px;
+}
+
+.auth-theme-control {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--spacing-4);
 }
 
 .auth-brand {
@@ -26,19 +32,19 @@
   justify-content: center;
   width: 54px;
   height: 54px;
-  border-radius: var(--radius-xl);
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
-  color: #ffffff;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-accent);
   font-size: 1.6rem;
   font-weight: bold;
   margin-bottom: var(--spacing-3);
-  box-shadow: var(--shadow-md);
+  box-shadow: none;
 }
 
 .auth-brand h1 {
   font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-bold);
-  color: var(--color-primary);
+  color: var(--text-main);
   letter-spacing: -0.02em;
 }
 
@@ -51,8 +57,8 @@
 .auth-card {
   background-color: var(--bg-surface);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-xl);
+  border-radius: 0;
+  box-shadow: none;
   padding: var(--spacing-8);
 }
 
@@ -61,12 +67,12 @@
   align-items: center;
   gap: var(--spacing-2);
   background-color: var(--color-accent-subtle);
-  border: 1px solid #bfdbfe;
+  border: 1px solid var(--color-info-border);
   border-radius: var(--radius-md);
   padding: var(--spacing-3) var(--spacing-4);
   margin-bottom: var(--spacing-6);
   font-size: var(--font-size-xs);
-  color: #1e40af;
+  color: var(--status-open-text);
   line-height: 1.4;
 }
 
@@ -117,37 +123,48 @@
 }
 
 .demo-pill {
-  background-color: #ffffff;
+  background-color: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   padding: 0.3rem 0.6rem;
   cursor: pointer;
   font-family: var(--font-family-mono);
   font-size: 0.72rem;
-  color: var(--color-primary);
+  color: var(--text-main);
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  transition: all var(--transition-fast);
+  transition: color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .demo-pill:hover {
   background-color: var(--color-accent-subtle);
   border-color: var(--color-accent-light);
   color: var(--color-accent);
-  transform: translateY(-1px);
 }
 
 .demo-pill.pill-admin {
-  border-color: #cbd5e1;
-  background-color: #f8fafc;
+  border-color: var(--border-color);
+  background-color: var(--bg-surface-alt);
   font-weight: var(--font-weight-bold);
 }
 .demo-pill.pill-tech {
-  border-color: #ddd6fe;
-  background-color: #f5f3ff;
-  color: #5b21b6;
+  border-color: var(--border-color);
+  background-color: var(--status-assigned-bg);
+  color: var(--status-assigned-text);
 }
 .demo-pill.pill-user {
-  border-color: #e2e8f0;
+  border-color: var(--border-color);
+}
+
+.auth-brand h1 { font-family: var(--font-family-display); font-size: 40px; font-weight: 400; letter-spacing: -1.2px; }
+.auth-card { background: transparent; border: 0; border-top: 2px solid var(--border-strong); border-bottom: 1px solid var(--border-color); padding: 28px 0; }
+.auth-logo-badge { width: 40px; height: 40px; margin-bottom: 8px; }
+.corporate-notice { background: transparent; border: 0; border-bottom: 1px solid var(--border-color); padding: 0 0 20px; color: var(--text-muted); }
+.demo-credentials-box { border: 0; border-top: 1px solid var(--border-color); border-radius: 0; padding: 20px 0 0; background: transparent; }
+.demo-credentials-box > summary { cursor: pointer; font-weight: 500; color: var(--text-muted); padding: 4px 0; }
+.demo-credentials-header { flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+@media (max-width: 580px) {
+  .auth-page { padding: 24px 16px; align-items: flex-start; }
+  .auth-brand h1 { font-size: 34px; }
 }
