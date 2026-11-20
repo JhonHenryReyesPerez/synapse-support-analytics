@@ -25,7 +25,7 @@ public class RagController {
     @PostMapping("/profiles") @PreAuthorize("hasRole('ADMIN')")
     @Operation(operationId="ragCreateProfile")
     public Object create(@Valid @RequestBody ProfileInput input){return indexes.create(input);}
-    @PostMapping("/profiles/{id}/activate") @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/profiles/{id}/activate")  @PreAuthorize("hasRole('ADMIN')")
     @Operation(operationId="ragActivateProfile")
     public Object activate(@PathVariable String id){return indexes.activate(id);}
     @GetMapping("/profiles/{id}/plan") @PreAuthorize("hasRole('ADMIN')")
